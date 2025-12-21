@@ -2,14 +2,11 @@ import pandas as pd
 import os
 import sys
 from datetime import datetime
-
-# Add parent dir to path to import Working_Version modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Working_Version.fuel_engine import FuelEngine
+from fuel_engine import FuelEngine
 
 # Configuration
 COLLECTION_FILE = os.path.join(os.path.dirname(__file__), "brisbane_fuel_live_collection.csv")
-TOKEN = "028c992c-dc6a-4509-a94b-db707308841d" # Using the known token
+TOKEN = "028c992c-dc6a-4509-a94b-db707308841d" 
 
 def collect_live_data():
     """
@@ -28,13 +25,6 @@ def collect_live_data():
             
         # Align with Master File Schema:
         # site_id, price_cpl, reported_at, region, latitude, longitude
-        
-        # Select and order columns
-        # Note: snapshot has 'reported_at' from the API transaction time.
-        # We might also want 'scraped_at' for our own records, but to match 'master', we stick to these.
-        # However, for a *new* collection file, keeping extra metadata is useful.
-        # The user asked to store it for "training and validation". 
-        # Let's keep the core columns + scraped_at to know when WE saw it.
         
         cols_to_keep = ['site_id', 'price_cpl', 'reported_at', 'region', 'latitude', 'longitude', 'scraped_at']
         
