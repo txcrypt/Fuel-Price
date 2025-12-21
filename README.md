@@ -15,28 +15,7 @@ A comprehensive, AI-powered dashboard for monitoring, predicting, and analyzing 
     *   Competitor Profiling (Game Theory).
     *   Market Sentiment Analysis using Google News RSS.
 
-## 🛠️ Installation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/brisbane-fuel-ai.git
-    cd brisbane-fuel-ai
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Run the application:**
-    ```bash
-    streamlit run fuel_dashboard.py
-    ```
-    or
-
-    ```bash
-    python streamlit run fuel_dashboard.py
-    ```
 
 ## 📂 Project Structure
 
@@ -50,7 +29,7 @@ A comprehensive, AI-powered dashboard for monitoring, predicting, and analyzing 
 
 ## 📊 Data
 
-The application uses a local CSV file (`brisbane_fuel_live_collection.csv`) to store historical price data. Ensure this file is writable if you plan to run the data collector.
+The application uses a local CSV file (`brisbane_fuel_live_collection.csv`) to store historical price data. 
 
 ## ⚠️ Note
 
