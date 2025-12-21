@@ -10,3 +10,4 @@ beautifulsoup4
 polyline
 yfinance
 geopandas
+libpysal
