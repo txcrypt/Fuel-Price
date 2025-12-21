@@ -9,6 +9,38 @@ document.addEventListener('DOMContentLoaded', () => {
     initLiveView(); // Load default tab
 });
 
+// --- Configuration & State ---
+const API_BASE = '/api';
+let map, markers = [];
+let trendChart = null;
+
+// --- Init ---
+document.addEventListener('DOMContentLoaded', () => {
+    initNavigation();
+    initLiveView(); // Load default tab
+    checkDataAge(); // Global stale check
+});
+
+// --- Data Age Check ---
+async function checkDataAge() {
+    try {
+        const res = await fetch(`${API_BASE}/collect-status`);
+        const data = await res.json();
+        const lastRun = new Date(data.last_run);
+        const now = new Date();
+        const hoursDiff = (now - lastRun) / (1000 * 60 * 60);
+        
+        const ticker = document.getElementById('global-ticker');
+        
+        if (hoursDiff > 12 || isNaN(hoursDiff)) {
+            const warning = document.createElement('div');
+            warning.style.cssText = "background:#f59e0b; color:#000; text-align:center; padding:5px; font-weight:bold; font-size:0.85rem;";
+            warning.innerHTML = `⚠️ Data is ${isNaN(hoursDiff) ? 'unknown' : Math.round(hoursDiff) + ' hours'} old. Prices may be stale.`;
+            document.body.insertBefore(warning, document.body.firstChild);
+        }
+    } catch(e) { console.log("Age check failed", e); }
+}
+
 // --- Navigation ---
 function initNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -40,6 +72,133 @@ function loadViewData(viewId) {
     }
 }
 
+// --- Tab 1: Live Market ---
+async function initLiveView() {
+    try {
+        const res = await fetch(`${API_BASE}/market-status`);
+        const data = await res.json();
+        
+        // Ticker
+        const ticker = document.getElementById('global-ticker');
+        ticker.innerHTML = `
+            <span>🛢️ BRENT: $${(data.ticker.oil||0).toFixed(2)}</span>
+            <span>🏭 TGP: ${(data.ticker.tgp||0).toFixed(1)}c</span>
+            <span>⛽ MOGAS 95: $${(data.ticker.mogas||0).toFixed(2)}</span>
+            <span>📉 TREND: ${data.status}</span>
+        `;
+
+        // KPIs
+        document.getElementById('status-text').innerText = data.status;
+        document.getElementById('tgp-val').innerText = `${(data.ticker.tgp||0).toFixed(1)}c`;
+        
+        const badge = document.getElementById('advice-badge');
+        badge.innerText = data.advice;
+        badge.style.background = data.advice_type === 'error' ? '#ef4444' : (data.advice_type === 'success' ? '#10b981' : '#3b82f6');
+        
+        document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est} (Cycle Day ${data.days_elapsed})`;
+
+        // Map
+        initMap();
+        loadStations();
+        
+        // Calculator
+        setupCalculator(data.ticker.tgp);
+
+    } catch (e) { console.error(e); }
+}
+
+function initMap() {
+    if (map) return;
+    map = L.map('map').setView([-27.47, 153.02], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO'
+    }).addTo(map);
+}
+
+async function loadStations() {
+    const res = await fetch(`${API_BASE}/stations`);
+    const stations = await res.json();
+    
+    // Clear old markers
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    stations.forEach(s => {
+        const color = s.is_cheap ? '#10b981' : '#ef4444';
+        const m = L.circleMarker([s.lat, s.lng], {
+            radius: 7, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.8
+        }).addTo(map);
+        
+        m.bindPopup(`<b>${s.brand}</b><br>${s.name}<br><b style="color:${color}">${s.price}c</b>`);
+        markers.push(m);
+    });
+}
+
+function setupCalculator(tgp) {
+    const calc = () => {
+        const tank = document.getElementById('calc-tank').value;
+        const potentialSave = 40; // Simplified logic
+        const total = (potentialSave * tank) / 100;
+        document.getElementById('calc-result').innerHTML = `Potential savings of <b>$${total.toFixed(2)}</b> by timing the cycle correctly.`;
+    };
+    document.getElementById('calc-tank').addEventListener('change', calc);
+    calc();
+}
+
+// --- Tab 2: Sentiment ---
+async function loadSentiment() {
+    const res = await fetch(`${API_BASE}/sentiment`);
+    const data = await res.json();
+    
+    const moodEl = document.getElementById('mood-val');
+    moodEl.innerText = data.mood;
+    moodEl.style.color = data.color || '#fff';
+    document.getElementById('mood-score').innerText = `Score: ${data.score}/10`;
+    
+    const feed = document.getElementById('news-feed');
+    feed.innerHTML = data.articles.map(a => `
+        <div class="news-item">
+            <div class="news-title"><a href="${a.link}" target="_blank" style="color:inherit;text-decoration:none;">${a.title}</a></div>
+            <div class="news-meta">
+                <span>${a.publisher}</span>
+                <span style="color:${a.sentiment === 'Bullish' ? '#ef4444' : '#10b981'}">${a.sentiment}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// --- Tab 3: Ratings ---
+async function loadRatings() {
+    const res = await fetch(`${API_BASE}/stations`);
+    let stations = await res.json();
+    
+    const renderTable = (data, container) => {
+        document.getElementById(container).innerHTML = `
+            <div style="overflow-x:auto;">
+            <table style="min-width:400px;">
+                <tr><th>Station</th><th>Suburb</th><th>Price</th><th>Rating</th></tr>
+                ${data.map(s => `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${s.suburb}</td>
+                        <td>${s.price}c</td>
+                        <td>${s.rating}</td>
+                    </tr>
+                `).join('')}
+            </table>
+            </div>
+        `;
+    };
+
+    // Best 10
+    const best = [...stations].sort((a, b) => a.fairness_score - b.fairness_score).slice(0, 10);
+    renderTable(best, 'table-best');
+
+    // Worst 10
+    const worst = [...stations].sort((a, b) => b.fairness_score - a.fairness_score).slice(0, 10);
+    renderTable(worst, 'table-worst');
+}
+
 // --- Tab 4: Planner ---
 function loadPlanner() {
     const btn = document.querySelector('#view-planner button');
@@ -56,7 +215,7 @@ function loadPlanner() {
         if (!start || !end) return alert("Please enter both locations.");
         
         newBtn.disabled = true;
-        newBtn.innerText = "Calculating...";
+        newBtn.innerText = "Calculating Route...";
         
         try {
             const res = await fetch(`${API_BASE}/planner`, {
@@ -76,7 +235,8 @@ function loadPlanner() {
                 </div>`;
                 
                 if (data.stations.length > 0) {
-                    html += `<table style="margin-top:20px;">
+                    html += `<div style="overflow-x:auto; margin-top:20px;">
+                    <table style="min-width:500px;">
                         <tr><th>Station</th><th>Price</th><th>Utility</th></tr>
                         ${data.stations.map(s => `
                             <tr>
@@ -85,7 +245,8 @@ function loadPlanner() {
                                 <td>$${s.net_utility.toFixed(2)}</td>
                             </tr>
                         `).join('')}
-                    </table>`;
+                    </table>
+                    </div>`;
                 } else {
                     html += `<p>No suitable stations found along route.</p>`;
                 }
@@ -117,12 +278,14 @@ async function loadAnalytics() {
 
     // Suburb Table
     document.getElementById('table-suburbs').innerHTML = `
+        <div style="overflow-x:auto;">
         <table>
             <tr><th>Suburb</th><th>Avg Price</th></tr>
             ${data.suburb_ranking.map(r => `
                 <tr><td>${r.suburb}</td><td>${r.price_cpl.toFixed(1)}c</td></tr>
             `).join('')}
         </table>
+        </div>
     `;
 
     // Chart
@@ -176,6 +339,26 @@ async function loadAnalytics() {
             scales: { y: { grid: { color: '#334155' } }, x: { display: false } }
         }
     });
+}
+
+// --- Tab 6: Data ---
+async function loadDataStatus() {
+    const res = await fetch(`${API_BASE}/collect-status`);
+    const data = await res.json();
+    document.getElementById('data-status').innerHTML = `
+        <b>File:</b> ${data.file}<br>
+        <b>Last Run:</b> ${data.last_run}
+    `;
+    
+    document.getElementById('btn-collect').onclick = async () => {
+        const btn = document.getElementById('btn-collect');
+        btn.disabled = true;
+        btn.innerText = "Collecting... (Wait ~15s)";
+        await fetch(`${API_BASE}/trigger-collect`, { method: 'POST' });
+        loadDataStatus();
+        btn.disabled = false;
+        btn.innerText = "Trigger Live Snapshot";
+    };
 }
 
 // --- Tab 7: Sandbox ---

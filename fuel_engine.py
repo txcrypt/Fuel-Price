@@ -2,24 +2,18 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import os
+import config
 
 class FuelEngine:
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, token=None):
+        self.token = token if token else config.FUEL_API_TOKEN
         self.base_url = "https://fppdirectapi-prod.fuelpricesqld.com.au"
         self.headers = {
             "Authorization": f"FPDAPI SubscriberToken={self.token}",
             "Content-Type": "application/json"
         }
-        # Approx Brisbane River Latitude
-        self.RIVER_LAT = -27.470
-        
-        # Bounding Box for Brisbane Metro (approx)
-        self.BOUNDS = {
-            'lat_min': -27.70, 'lat_max': -27.00,
-            'lng_min': 152.70
-        }
+        self.RIVER_LAT = config.DEFAULT_CENTER_LAT
+        self.BOUNDS = config.BOUNDS
 
     def fetch_sites(self):
         """Get static site data (Location, Name, Brand)"""

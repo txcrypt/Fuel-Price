@@ -5,12 +5,19 @@ import numpy as np
 import requests
 import polyline
 from math import radians, cos, sin, asin, sqrt
+import config
+
+try:
+    from fuel_engine import FuelEngine 
+except ImportError:
+    print("❌ Error: Could not import FuelEngine. Check path.")
+    sys.exit(1)
 
 def load_local_data():
-    csv_path = os.path.join(os.path.dirname(__file__), "brisbane_fuel_live_collection.csv")
-    if os.path.exists(csv_path):
+    """Fallback: Load from local CSV if API fails."""
+    if os.path.exists(config.COLLECTION_FILE):
         try:
-            df = pd.read_csv(csv_path)
+            df = pd.read_csv(config.COLLECTION_FILE)
             df = df.dropna(subset=['latitude', 'longitude', 'price_cpl'])
             return df
         except Exception as e:
@@ -27,11 +34,10 @@ def haversine(lon1, lat1, lon2, lat2):
     return c * r
 
 def get_coords_from_address(address):
-    base_url = "https://nominatim.openstreetmap.org/search"
     params = {'q': f"{address}, Australia", 'format': 'json', 'limit': 1}
-    headers = {'User-Agent': 'BrisbaneFuelAI/1.0'}
+    headers = {'User-Agent': config.USER_AGENT}
     try:
-        r = requests.get(base_url, params=params, headers=headers, timeout=5)
+        r = requests.get(config.NOMINATIM_BASE_URL, params=params, headers=headers, timeout=5)
         if r.status_code == 200 and r.json():
             data = r.json()[0]
             return float(data['lat']), float(data['lon']), data['display_name']
@@ -40,7 +46,7 @@ def get_coords_from_address(address):
     return None, None, None
 
 def get_osrm_route(lat1, lon1, lat2, lon2):
-    url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
+    url = f"{config.OSRM_BASE_URL}/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson"
     try:
         r = requests.get(url, timeout=10)
         if r.status_code == 200:
@@ -73,7 +79,17 @@ def optimize_route(start_address, end_address, tank_capacity=50, current_fuel=10
     route_path, route_dist = get_osrm_route(lat1, lon1, lat2, lon2)
     if not route_path: route_path, route_dist = [[lat1, lon1], [lat2, lon2]], 0
 
-    df = load_local_data()
+    # Try Live API first
+    df = pd.DataFrame()
+    try:
+        engine = FuelEngine()
+        df = engine.get_market_snapshot()
+    except: pass
+    
+    # Fallback to local
+    if df is None or df.empty:
+        df = load_local_data()
+        
     if df.empty: return None
     
     market_avg = df['price_cpl'].median()

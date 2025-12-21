@@ -1,505 +1,505 @@
-site_id,latitude,longitude,name,suburb,brand,postcode,display_brand
-61401106,-27.452584,153.041807,Station Unknown,"Brisbane Exhibition, Mayne, Herston, Fortitude Valley, Bowen Bridge, Fortitude Valley Bc, Newstead, Bowen Hills",5.0,4006,⛽ Independent
-61401117,-27.483891,153.020309,Station Unknown,"Mater Hill, South Brisbane Bc, Mater Hospital, West End, South Brisbane, South Bank, Highgate Hill",86.0,4101,⛽ Independent
-61401118,-27.48469982543029,153.03976776686477,Station Unknown,"East Brisbane, Stanley Bridge, Kangaroo Point",113.0,4169,⛽ Independent
-61401119,-27.479316,153.043606,Station Unknown,"East Brisbane, Stanley Bridge, Kangaroo Point",5.0,4169,⛽ Independent
-61401124,-27.490753,153.040153,Station Unknown,"Woolloongabba, Princess Alexandra Hospital, Buranda, Dutton Park",3421066.0,4102,⛽ Independent
-61401126,-27.467628,153.007504,Station Unknown,"Rosalie, Baroona, Paddington, Milton Bc, Milton",5.0,4064,⛽ Independent
-61401128,-27.452187,153.062044,Station Unknown,"Hawthorne, Balmoral, Galloways Hill, Bulimba",111.0,4171,⛽ Independent
-61401131,-27.472155835233437,153.05947272883606,Station Unknown,"Hawthorne, Balmoral, Galloways Hill, Bulimba",20.0,4171,⛽ Independent
-61401132,-27.488386,153.047595,Station Unknown,"East Brisbane, Stanley Bridge, Kangaroo Point",5.0,4169,⛽ Independent
-61401134,-27.491978,153.064833,Station Unknown,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",3421066.0,4152,⛽ Independent
-61401136,-27.483909,153.063748,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",2.0,4170,⛽ Independent
-61401137,-27.479358,153.071094,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",110.0,4170,⛽ Independent
-61401138,-27.492781,153.082664,Station Unknown,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",3421193.0,4152,⛽ Independent
-61401140,-27.46640548892771,153.07819476837022,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",2.0,4170,⛽ Independent
-61401142,-27.466503,153.079198,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",3421066.0,4170,⛽ Independent
-61401147,-27.469816,153.095634,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",5.0,4170,⛽ Independent
-61401148,-27.471389,153.095619,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",111.0,4170,⛽ Independent
-61401149,-27.474597374792506,153.12096549570083,Station Unknown,"Tingalpa Dc, Tingalpa, Tingalpa Bc",3421193.0,4173,⛽ Independent
-61401155,-27.505555,153.099646,Station Unknown,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",3421066.0,4152,⛽ Independent
-61401156,-27.488687,153.194782,Station Unknown,Thorneside,110.0,4158,⛽ Independent
-61401157,-27.494931,153.212762,Station Unknown,Birkdale,3421073.0,4159,⛽ Independent
-61401159,-27.487062,153.238493,Station Unknown,"Wellington Point, Erobin, Ormiston",5.0,4160,⛽ Independent
-61401160,-27.523907,153.258759,Station Unknown,"Cleveland Dc, Cleveland",5.0,4163,⛽ Independent
-61401167,-27.507802,152.948185,Station Unknown,"Pullenvale, Pinjarra Hills, Lone Pine, Brookfield, Kenmore Dc, Kenmore East, Fig Tree Pocket, Upper Brookfield, Chapel Hill, Kenmore, Kenmore Hills",3421066.0,4069,⛽ Independent
-61401170,-27.504769592318205,152.96077843320464,Station Unknown,"Pullenvale, Pinjarra Hills, Lone Pine, Brookfield, Kenmore Dc, Kenmore East, Fig Tree Pocket, Upper Brookfield, Chapel Hill, Kenmore, Kenmore Hills",111.0,4069,⛽ Independent
-61401172,-27.491609,152.994039,Station Unknown,"St Lucia South, St Lucia, Ironside",111.0,4067,⛽ Independent
-61401173,-27.499530327092497,152.9754396405449,Station Unknown,"Long Pocket, Indooroopilly Centre, Indooroopilly, Taringa, Chelmer",5.0,4068,⛽ Independent
-61401177,-27.521931,152.980164,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",113.0,4075,⛽ Independent
-61401180,-27.532831,152.983247,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",23.0,4075,⛽ Independent
-61401183,-27.512236,153.032024,Station Unknown,"Annerley Dc, Thompson Estate, Fairfield Gardens, Annerley, Fairfield",3421066.0,4103,⛽ Independent
-61401185,-27.508609,153.025429,Station Unknown,"Annerley Dc, Thompson Estate, Fairfield Gardens, Annerley, Fairfield",113.0,4103,⛽ Independent
-61401188,-27.519285,153.015135,Station Unknown,"Yeronga, Yeronga West",113.0,4104,⛽ Independent
-61401189,-27.524123,153.023568,Station Unknown,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",113.0,4105,⛽ Independent
-61401195,-27.539627,153.022022,Station Unknown,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",3421073.0,4105,⛽ Independent
-61401197,-27.538641,153.005432,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",3421183.0,4106,⛽ Independent
-61401199,-27.502373,153.045544,Station Unknown,"Greenslopes, Loreto Hill, Stones Corner",5.0,4120,⛽ Independent
-61401200,-27.504612,153.040209,Station Unknown,"Greenslopes, Loreto Hill, Stones Corner",113.0,4120,⛽ Independent
-61401206,-27.696645,153.038101,Station Unknown,"Munruben, Park Ridge South, Park Ridge",3421183.0,4125,⛽ Independent
-61401210,-27.515107,153.072439,Station Unknown,"Tarragindi, Mount Thompson, Holland Park West, Ekibin, Holland Park East, Wellers Hill, Holland Park",5.0,4121,⛽ Independent
-61401212,-27.529893329941103,153.07154507422237,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",3421193.0,4122,⛽ Independent
-61401218,-27.199148,153.032128,Station Unknown,Deception Bay,86.0,4508,⛽ Independent
-61401224,-27.226826,153.084902,Station Unknown,Kippa-Ring,3421066.0,4021,⛽ Independent
-61401225,-27.241169,153.086872,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",57.0,4019,⛽ Independent
-61401227,-27.222051,153.110819,Station Unknown,"Redcliffe, Redcliffe North, Scarborough, Newport",2.0,4020,⛽ Independent
-61401228,-27.230354,153.109317,Station Unknown,"Redcliffe, Redcliffe North, Scarborough, Newport",113.0,4020,⛽ Independent
-61401229,-27.229577,153.102033,Station Unknown,"Redcliffe, Redcliffe North, Scarborough, Newport",3421066.0,4020,⛽ Independent
-61401234,-27.257355,153.086063,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",111.0,4019,⛽ Independent
-61401235,-27.255871,153.094417,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",5.0,4019,⛽ Independent
-61401238,-27.254478,152.982078,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",12.0,4503,⛽ Independent
-61401246,-27.307774,152.990528,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",113.0,4500,⛽ Independent
-61401249,-27.337933,152.960099,Station Unknown,Eatons Hill,113.0,4037,⛽ Independent
-61401250,-27.319376,153.006967,Station Unknown,Bald Hills,113.0,4036,⛽ Independent
-61401252,-27.319382,153.040903,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",3421183.0,4017,⛽ Independent
-61401254,-27.325029,153.059461,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",2418994.0,4017,⛽ Independent
-61401255,-27.321786,153.067499,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",57.0,4017,⛽ Independent
-61401257,-27.321088,153.067931,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",113.0,4017,⛽ Independent
-61401258,-27.330999,153.041854,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",5.0,4017,⛽ Independent
-61401261,-27.334055,153.059565,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",3421073.0,4017,⛽ Independent
-61401263,-27.366786,153.037181,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",2.0,4034,⛽ Independent
-61401264,-27.358443,153.017037,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",113.0,4034,⛽ Independent
-61401265,-27.359961,153.016587,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",111.0,4034,⛽ Independent
-61401272,-27.391747,153.011652,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",111.0,4053,⛽ Independent
-61401276,-27.364758,153.026257,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",113.0,4034,⛽ Independent
-61401279,-27.374203,153.061916,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",5.0,4014,⛽ Independent
-61401280,-27.374166,153.035974,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",3421193.0,4034,⛽ Independent
-61401281,-27.375007,153.024566,Station Unknown,"Chermside South, Craigslea, Chermside Bc, Chermside Centre, Chermside, Chermside West",3421073.0,4032,⛽ Independent
-61401282,-27.379293,153.046309,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",5.0,4034,⛽ Independent
-61401288,-27.391946,153.058897,Station Unknown,"Nundah, Wavell Heights, Wavell Heights North, Toombul",2.0,4012,⛽ Independent
-61401291,-27.398473,153.059252,Station Unknown,"Nundah, Wavell Heights, Wavell Heights North, Toombul",3421066.0,4012,⛽ Independent
-61401292,-27.380227,153.022597,Station Unknown,"Chermside South, Craigslea, Chermside Bc, Chermside Centre, Chermside, Chermside West",3421066.0,4032,⛽ Independent
-61401296,-27.386791,153.087063,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",110.0,4014,⛽ Independent
-61401298,-27.393208,153.072252,Station Unknown,"Northgate Mc, Northgate",5.0,4013,⛽ Independent
-61401301,-27.396824,152.960709,Station Unknown,"Grovely, Keperra, Arana Hills",3421066.0,4054,⛽ Independent
-61401302,-27.397654,152.958951,Station Unknown,"Grovely, Keperra, Arana Hills",111.0,4054,⛽ Independent
-61401307,-27.402342,152.937156,Station Unknown,"Ferny Hills Dc, Bunya, Ferny Hills, Kedron Upper, Ferny Grove, Upper Kedron",5.0,4055,⛽ Independent
-61401309,-27.401257,152.986898,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",2.0,4053,⛽ Independent
-61401316,-27.409316,153.008034,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",5.0,4053,⛽ Independent
-61401323,-27.439192,152.989914,Station Unknown,"Ashgrove East, St Johns Wood, Ashgrove West, Dorrington, Ashgrove",5.0,4060,⛽ Independent
-61401324,-27.438767,153.007379,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",113.0,4051,⛽ Independent
-61401325,-27.445435,153.008589,Station Unknown,"Kelvin Grove Dc, Kelvin Grove Bc, Ballymore, Red Hill, Normanby, Kelvin Grove, Ithaca",20.0,4059,⛽ Independent
-61401328,-27.40208501541335,153.031880046627,Station Unknown,"Kedron, Gordon Park, Glen Kedron",5.0,4031,⛽ Independent
-61401329,-27.407241,153.032891,Station Unknown,"Kedron, Gordon Park, Glen Kedron",2.0,4031,⛽ Independent
-61401330,-27.408291,153.047525,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",110.0,4030,⛽ Independent
-61401334,-27.411093,153.023635,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",3421066.0,4053,⛽ Independent
-61401341,-27.427403,153.050405,Station Unknown,"Clayfield, Eagle Junction, Hendra",2.0,4011,⛽ Independent
-61401343,-27.424641,153.014052,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",86.0,4051,⛽ Independent
-61401344,-27.426624,153.017032,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",2.0,4051,⛽ Independent
-61401347,-27.43604130193541,153.03187014847944,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",5.0,4030,⛽ Independent
-61401348,-27.425953,153.032041,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",3421066.0,4030,⛽ Independent
-61401349,-27.4289939652634,153.036903,Station Unknown,"Albion Dc, Albion, Albion Bc, Breakfast Creek",113.0,4010,⛽ Independent
-61401353,-27.439652,153.049148,Station Unknown,"Whinstanes, Hamilton Central, Doomben, Brisbane Airport, Ascot, Hamilton",5.0,4007,⛽ Independent
-61401357,-27.428241,153.062278,Station Unknown,"Whinstanes, Hamilton Central, Doomben, Brisbane Airport, Ascot, Hamilton",113.0,4007,⛽ Independent
-61401359,-27.434674,153.079056,Station Unknown,"Eagle Farm Bc, Eagle Farm",3421066.0,4009,⛽ Independent
-61401365,-27.443116,153.143691,Station Unknown,"Wynnum Central, Lindum, Port Of Brisbane, Wynnum Plaza, Wynnum West, Wynnum, Wynnum North, Lytton",5.0,4178,⛽ Independent
-61401366,-27.443582,153.157939,Station Unknown,"Wynnum Central, Lindum, Port Of Brisbane, Wynnum Plaza, Wynnum West, Wynnum, Wynnum North, Lytton",111.0,4178,⛽ Independent
-61401367,-27.459016,153.151452,Station Unknown,"Wynnum Central, Lindum, Port Of Brisbane, Wynnum Plaza, Wynnum West, Wynnum, Wynnum North, Lytton",2.0,4178,⛽ Independent
-61401371,-27.45463473648407,153.16652018650822,Station Unknown,"Wynnum Central, Lindum, Port Of Brisbane, Wynnum Plaza, Wynnum West, Wynnum, Wynnum North, Lytton",2.0,4178,⛽ Independent
-61401373,-27.457538,153.178798,Station Unknown,"Lota, Manly West, Manly",5.0,4179,⛽ Independent
-61401375,-27.442904,152.943808,Station Unknown,The Gap,113.0,4061,⛽ Independent
-61401377,-27.446887,152.959528,Station Unknown,The Gap,5.0,4061,⛽ Independent
-61401380,-27.445996,152.991244,Station Unknown,"Ashgrove East, St Johns Wood, Ashgrove West, Dorrington, Ashgrove",113.0,4060,⛽ Independent
-61401382,-27.446283,152.997578,Station Unknown,"Ashgrove East, St Johns Wood, Ashgrove West, Dorrington, Ashgrove",5.0,4060,⛽ Independent
-61401386,-27.459076,152.998383,Station Unknown,"Rosalie, Baroona, Paddington, Milton Bc, Milton",12.0,4064,⛽ Independent
-61401391,-27.478292616581157,152.98579629447744,Station Unknown,"Toowong Bc, Mount Coot-Tha, Toowong, Stuartholme, Torwood, Toowong Dc, Auchenflower",3421066.0,4066,⛽ Independent
-61401393,-27.473913230061896,153.00392841104505,Station Unknown,"Rosalie, Baroona, Paddington, Milton Bc, Milton",3421193.0,4064,⛽ Independent
-61401398,-27.542090460066003,153.082005,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",3421193.0,4122,⛽ Independent
-61401399,-27.531577,153.093146,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",113.0,4122,⛽ Independent
-61401409,-27.548071,153.265178,Station Unknown,"Pinklands, Thornlands",57.0,4164,⛽ Independent
-61401411,-27.536514,152.941898,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",3421066.0,4074,⛽ Independent
-61401413,-27.556355,152.914572,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",5.0,4074,⛽ Independent
-61401417,-27.553377,152.979052,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",5.0,4075,⛽ Independent
-61401421,-27.577748,152.973748,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",110.0,4077,⛽ Independent
-61401422,-27.579387,152.974637,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",113.0,4077,⛽ Independent
-61401426,-27.558051,153.015628,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",111.0,4106,⛽ Independent
-61401427,-27.558117,153.006258,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",3421162.0,4106,⛽ Independent
-61401428,-27.560256,153.000988,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",111.0,4106,⛽ Independent
-61401431,-27.545888,153.038591,Station Unknown,"Salisbury, Salisbury East",5.0,4107,⛽ Independent
-61401436,-27.566916,153.064574,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",5.0,4109,⛽ Independent
-61401438,-27.575889,153.062992,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",111.0,4109,⛽ Independent
-61401440,-27.57032397205679,153.055617,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",57.0,4109,⛽ Independent
-61401441,-27.589068,153.027286,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",113.0,4110,⛽ Independent
-61401444,-27.575428,153.039586,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",113.0,4110,⛽ Independent
-61401445,-27.556364,153.089765,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",113.0,4122,⛽ Independent
-61401446,-27.561518,153.089268,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",5.0,4122,⛽ Independent
-61401447,-27.562252,153.074394,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",3421073.0,4109,⛽ Independent
-61401448,-27.561152,153.078726,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",3421193.0,4122,⛽ Independent
-61401450,-27.575212,153.091639,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",2.0,4113,⛽ Independent
-61401453,-27.598823,153.109346,Station Unknown,Underwood,12.0,4119,⛽ Independent
-61401457,-27.603119,152.761629,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",113.0,4305,⛽ Independent
-61401460,-27.598004,152.832107,Station Unknown,"Riverview, New Chum, Dinmore",113.0,4303,⛽ Independent
-61401461,-27.601119,152.826338,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",110.0,4304,⛽ Independent
-61401462,-27.608598,152.897931,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421066.0,4300,⛽ Independent
-61401471,-27.612647,153.039653,Station Unknown,"Parkinson, Algester",113.0,4115,⛽ Independent
-61401472,-27.61142680060479,153.0635548637543,Station Unknown,"Calamvale, Drewvale, Stretton",2.0,4116,⛽ Independent
-61401473,-27.624443,153.116876,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",111.0,4114,⛽ Independent
-61401477,-27.61011953521952,153.12405772883605,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",113.0,4127,⛽ Independent
-61401478,-27.63364586120715,153.13148941964337,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",3421193.0,4127,⛽ Independent
-61401479,-27.619142,153.104903,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",113.0,4114,⛽ Independent
-61401480,-27.644857,153.153469,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",111.0,4127,⛽ Independent
-61401483,-27.641222,153.107393,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",113.0,4114,⛽ Independent
-61401485,-27.637353,153.239623,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",5.0,4165,⛽ Independent
-61401487,-27.606017,153.288087,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",5.0,4165,⛽ Independent
-61401492,-27.619048,152.749764,Station Unknown,Unknown,,,⛽ Independent
-61401496,-27.627612,152.743589,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",3421066.0,4305,⛽ Independent
-61401497,-27.64406360751769,152.75105032638933,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",2418994.0,4305,⛽ Independent
-61401500,-27.613641,152.792314,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",3421066.0,4304,⛽ Independent
-61401502,-27.621481,152.789444,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",12.0,4304,⛽ Independent
-61401505,-27.6552275199991,152.74757596772153,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",23.0,4305,⛽ Independent
-61401506,-27.660285,152.740233,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",5.0,4305,⛽ Independent
-61401507,-27.660171,152.739296,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",111.0,4305,⛽ Independent
-61401508,-27.644962,152.871677,Station Unknown,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",113.0,4301,⛽ Independent
-61401510,-27.658841,153.116903,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",12.0,4114,⛽ Independent
-61401512,-27.680481,153.114522,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",113.0,4132,⛽ Independent
-61401514,-27.691549,153.134431,Station Unknown,"Chambers Flat, Logan Reserve, Waterford West, Waterford",3421066.0,4133,⛽ Independent
-61401517,-27.663192,153.177483,Station Unknown,"Loganholme Dc, Logandale, Loganholme Bc, Loganholme",111.0,4129,⛽ Independent
-61401523,-27.342121,153.010681,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",3421066.0,4034,⛽ Independent
-61401530,-27.496996,153.055324,Station Unknown,"Coorparoo Bc, Coorparoo Dc, Coorparoo",3421193.0,4151,⛽ Independent
-61401531,-27.521101,153.211992,Station Unknown,Alexandra Hills,111.0,4161,⛽ Independent
-61401534,-27.595573,153.121562,Station Unknown,"Rochedale South, Priests Gully, Rochedale",111.0,4123,⛽ Independent
-61401535,-27.632655,153.047203,Station Unknown,"Calamvale, Drewvale, Stretton",111.0,4116,⛽ Independent
-61401537,-27.369917,153.061735,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",111.0,4014,⛽ Independent
-61401541,-27.438408,153.066889,Station Unknown,"Whinstanes, Hamilton Central, Doomben, Brisbane Airport, Ascot, Hamilton",3421066.0,4007,⛽ Independent
-61401543,-27.296911,152.975214,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",113.0,4500,⛽ Independent
-61401544,-27.44523630788419,153.02938104662704,Station Unknown,"Brisbane Exhibition, Mayne, Herston, Fortitude Valley, Bowen Bridge, Fortitude Valley Bc, Newstead, Bowen Hills",5.0,4006,⛽ Independent
-61401545,-27.536391,153.087947,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",110.0,4122,⛽ Independent
-61401546,-27.622437,153.127984,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",5.0,4127,⛽ Independent
-61401547,-27.644668,153.118247,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",113.0,4114,⛽ Independent
-61401550,-27.580123,153.124691,Station Unknown,"Rochedale South, Priests Gully, Rochedale",2.0,4123,⛽ Independent
-61401551,-27.507567,152.940427,Station Unknown,"Pullenvale, Pinjarra Hills, Lone Pine, Brookfield, Kenmore Dc, Kenmore East, Fig Tree Pocket, Upper Brookfield, Chapel Hill, Kenmore, Kenmore Hills",3421073.0,4069,⛽ Independent
-61401554,-27.526712,153.055956,Station Unknown,"Tarragindi, Mount Thompson, Holland Park West, Ekibin, Holland Park East, Wellers Hill, Holland Park",111.0,4121,⛽ Independent
-61401555,-27.627909,153.117731,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",2.0,4114,⛽ Independent
-61401560,-27.410487,153.047567,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",2.0,4030,⛽ Independent
-61401561,-27.229066920171583,153.08538009325412,Station Unknown,Kippa-Ring,3421193.0,4021,⛽ Independent
-61401568,-27.595754,153.018264,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",110.0,4110,⛽ Independent
-61401569,-27.680743,153.092073,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",111.0,4132,⛽ Independent
-61401588,-27.584259,153.281142,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",113.0,4165,⛽ Independent
-61401590,-27.435847,153.014906,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",2.0,4051,⛽ Independent
-61401591,-27.226363,153.036006,Station Unknown,"Mango Hill, North Lakes",2.0,4509,⛽ Independent
-61401599,-27.627512,152.874514,Station Unknown,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",110.0,4301,⛽ Independent
-61401602,-27.664021,153.063245,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61401603,-27.517268,153.183284,Station Unknown,Chandler,2.0,4155,⛽ Independent
-61401605,-27.522428,153.025696,Station Unknown,"Annerley Dc, Thompson Estate, Fairfield Gardens, Annerley, Fairfield",5.0,4103,⛽ Independent
-61401606,-27.205038,153.038413,Station Unknown,Deception Bay,86.0,4508,⛽ Independent
-61401613,-27.53260236370942,153.26623918650816,Station Unknown,"Cleveland Dc, Cleveland",3421183.0,4163,⛽ Independent
-61401616,-27.664026,153.061551,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61401620,-27.663087497535884,153.17983496197124,Station Unknown,"Loganholme Dc, Logandale, Loganholme Bc, Loganholme",3421183.0,4129,⛽ Independent
-61401621,-27.620499,153.115408,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",113.0,4114,⛽ Independent
-61401625,-27.54085919169559,153.0089030932541,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",3421230.0,4106,⛽ Independent
-61401641,-27.495853,153.093435,Station Unknown,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",3421066.0,4152,⛽ Independent
-61401642,-27.065563,153.112506,Station Unknown,"Sandstone Point, Godwin Beach, Ningi",110.0,4511,⛽ Independent
-61401643,-27.373408,152.886201,Station Unknown,"Yugar, Enoggera Reservoir, Wights Mountain, Jollys Lookout, Closeburn, Kobble Creek, Mount Glorious, Mount Nebo, Mount Samson, Camp Mountain, Draper, Samford Valley, Samsonvale, Highvale, Samford Village, Samford, Armstrong Creek, Cedar Creek",3421066.0,4520,⛽ Independent
-61401658,-27.080478,153.173647,Station Unknown,"Woorim, Welsby, White Patch, Bribie Island North, Bribie Island Dc, Banksia Beach, Bribie Island, Bellara, Bongaree",3421066.0,4507,⛽ Independent
-61401667,-27.63233835956184,152.77083162577765,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",12.0,4305,⛽ Independent
-61401670,-27.600518,152.870193,Station Unknown,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",3421066.0,4301,⛽ Independent
-61401676,-27.491043,153.152854,Station Unknown,"Ransome, Gumdale, Wakerley",113.0,4154,⛽ Independent
-61401680,-27.426073,153.013055,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",5.0,4051,⛽ Independent
-61401682,-27.579766,152.716439,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",3421066.0,4306,⛽ Independent
-61401683,-27.156263,152.977055,Station Unknown,"Burpengary Dc, Burpengary, Burpengary East",3421066.0,4505,⛽ Independent
-61401684,-27.498485,153.027857,Station Unknown,"Woolloongabba, Princess Alexandra Hospital, Buranda, Dutton Park",2.0,4102,⛽ Independent
-61401685,-27.524837,152.980789,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",2.0,4075,⛽ Independent
-61401687,-27.425202,152.990017,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",2.0,4051,⛽ Independent
-61401690,-27.234738,153.087208,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",5.0,4019,⛽ Independent
-61401691,-27.317652,152.987865,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",110.0,4500,⛽ Independent
-61401700,-27.588318,153.027937,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",57.0,4110,⛽ Independent
-61401701,-27.588236,152.959092,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",5094.0,4077,⛽ Independent
-61401703,-27.59451534349924,153.00412895337297,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",3421139.0,4110,⛽ Independent
-61401707,-27.453052,153.011287,Station Unknown,"Kelvin Grove Dc, Kelvin Grove Bc, Ballymore, Red Hill, Normanby, Kelvin Grove, Ithaca",2419037.0,4059,⛽ Independent
-61401710,-27.546591,153.010459,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",12.0,4106,⛽ Independent
-61401711,-27.662759,152.728866,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",86.0,4305,⛽ Independent
-61401718,-27.545176,153.020003,Station Unknown,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",86.0,4105,⛽ Independent
-61401722,-27.606207,152.903825,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",110.0,4300,⛽ Independent
-61401723,-27.531502,153.197563,Station Unknown,"Capalaba West, Sheldon, Capalaba, Capalaba Dc, Capalaba Bc",3421066.0,4157,⛽ Independent
-61401725,-27.604324,152.932499,Station Unknown,"Wacol, Darra, Wacol East Immigration Centre",2.0,4076,⛽ Independent
-61401727,-27.315559,153.061062,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",5.0,4017,⛽ Independent
-61401728,-27.514233,153.054808,Station Unknown,"Tarragindi, Mount Thompson, Holland Park West, Ekibin, Holland Park East, Wellers Hill, Holland Park",5.0,4121,⛽ Independent
-61401729,-27.584835,153.301205,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",110.0,4165,⛽ Independent
-61401730,-27.455124731985503,153.0070409067459,Station Unknown,"Kelvin Grove Dc, Kelvin Grove Bc, Ballymore, Red Hill, Normanby, Kelvin Grove, Ithaca",12.0,4059,⛽ Independent
-61401733,-27.197201,152.984309,Station Unknown,Narangba,2.0,4504,⛽ Independent
-61401734,-27.633636,153.139502,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",111.0,4127,⛽ Independent
-61401737,-27.595968,152.987555,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",3421139.0,4077,⛽ Independent
-61401738,-27.679856,153.087847,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",3421066.0,4132,⛽ Independent
-61401741,-27.662509,153.048088,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",5.0,4118,⛽ Independent
-61401743,-27.249189,153.000822,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",3421193.0,4503,⛽ Independent
-61401744,-27.560198,152.935835,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",3421066.0,4074,⛽ Independent
-61401745,-27.281581,152.983155,Station Unknown,Lawnton,5.0,4501,⛽ Independent
-61401748,-27.659537,153.168904,Station Unknown,"Logan Hyperdome Bc, Kimberley Park, Shailer Park, Tanah Merah",3421066.0,4128,⛽ Independent
-61401749,-27.435613,153.041348,Station Unknown,"Brisbane Exhibition, Mayne, Herston, Fortitude Valley, Bowen Bridge, Fortitude Valley Bc, Newstead, Bowen Hills",5.0,4006,⛽ Independent
-61401753,-27.600625,152.883996,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421193.0,4300,⛽ Independent
-61401754,-27.548472,153.107989,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",3421066.0,4122,⛽ Independent
-61401755,-27.681393,153.114674,Station Unknown,"Chambers Flat, Logan Reserve, Waterford West, Waterford",3421066.0,4133,⛽ Independent
-61401756,-27.596301,152.745933,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",3421066.0,4305,⛽ Independent
-61401758,-27.633736,153.119241,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",3421066.0,4114,⛽ Independent
-61401759,-27.467323,153.154015,Station Unknown,"Lota, Manly West, Manly",5.0,4179,⛽ Independent
-61401761,-27.493146,153.216292,Station Unknown,Birkdale,111.0,4159,⛽ Independent
-61401766,-27.593532,152.934594,Station Unknown,"Wacol, Darra, Wacol East Immigration Centre",5.0,4076,⛽ Independent
-61401768,-27.633441,152.756625,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",3421066.0,4305,⛽ Independent
-61401769,-27.345888,152.964409,Station Unknown,"Albany Creek, Bridgeman Downs, Cashs Crossing",111.0,4035,⛽ Independent
-61401770,-27.493179,153.168917,Station Unknown,"Ransome, Gumdale, Wakerley",20.0,4154,⛽ Independent
-61401772,-27.640701,153.131201,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",3421066.0,4127,⛽ Independent
-61401773,-27.667011,153.139313,Station Unknown,"Loganlea, Meadowbrook",23.0,4131,⛽ Independent
-61401774,-27.557625,153.015262,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",3421139.0,4106,⛽ Independent
-61401775,-27.562496,152.886875,Station Unknown,"Priors Pocket, Bellbowrie, Moggill, Anstead",3421066.0,4070,⛽ Independent
-61401777,-27.617782,153.094057,Station Unknown,"Berrinba, Karawatha",86.0,4117,⛽ Independent
-61401778,-27.634994,152.916347,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421066.0,4300,⛽ Independent
-61401779,-27.535062,153.266974,Station Unknown,"Cleveland Dc, Cleveland",111.0,4163,⛽ Independent
-61401780,-27.190235,153.018421,Station Unknown,Deception Bay,111.0,4508,⛽ Independent
-61401781,-27.290068,152.984536,Station Unknown,Lawnton,86.0,4501,⛽ Independent
-61401782,-27.042111,152.975171,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421066.0,4510,⛽ Independent
-61401856,-27.007343,152.944651,Station Unknown,Elimbah,12.0,4516,⛽ Independent
-61401858,-27.079253,152.951795,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",23.0,4510,⛽ Independent
-61401861,-27.084568,152.958178,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",12.0,4510,⛽ Independent
-61401862,-27.086965,152.980739,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421066.0,4510,⛽ Independent
-61401863,-27.072802,153.025162,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",20.0,4510,⛽ Independent
-61401866,-27.098137,152.94905576686477,Station Unknown,"Moorina, Morayfield",111.0,4506,⛽ Independent
-61401868,-27.112363,152.950651,Station Unknown,"Moorina, Morayfield",113.0,4506,⛽ Independent
-61401881,-27.595176,153.121695,Station Unknown,"Rochedale South, Priests Gully, Rochedale",3421066.0,4123,⛽ Independent
-61401886,-27.602084,153.056501,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",86.0,4109,⛽ Independent
-61401887,-27.524198,153.253795,Station Unknown,"Cleveland Dc, Cleveland",3421066.0,4163,⛽ Independent
-61401888,-27.597824,152.949918,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",113.0,4077,⛽ Independent
-61401894,-27.281231,152.982252,Station Unknown,Lawnton,3421066.0,4501,⛽ Independent
-61401899,-27.628223,152.883713,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421073.0,4300,⛽ Independent
-61401905,-27.596746,152.949854,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",3421066.0,4077,⛽ Independent
-61401906,-27.575708,153.087955,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",5.0,4113,⛽ Independent
-61401907,-27.317756,153.009186,Station Unknown,Bald Hills,23.0,4036,⛽ Independent
-61401908,-27.383445,153.064113,Station Unknown,"Northgate Mc, Northgate",3421073.0,4013,⛽ Independent
-61401910,-27.610975,153.067873,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",111.0,4113,⛽ Independent
-61401911,-27.572365,152.791976,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",111.0,4306,⛽ Independent
-61401912,-27.570459356616315,152.9810493558197,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",86.0,4075,⛽ Independent
-61401914,-27.363889718122927,153.01311577315525,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",113.0,4034,⛽ Independent
-61401915,-27.415386,152.977543,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",3421073.0,4053,⛽ Independent
-61401916,-27.58043314307124,153.02631481719666,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",3421139.0,4110,⛽ Independent
-61401917,-27.499065138785195,152.9674647949676,Station Unknown,"Long Pocket, Indooroopilly Centre, Indooroopilly, Taringa, Chelmer",110.0,4068,⛽ Independent
-61401919,-27.642988,153.100369,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",3421066.0,4114,⛽ Independent
-61401921,-27.597516,153.109135,Station Unknown,Underwood,2.0,4119,⛽ Independent
-61401922,-27.085152,152.957808,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421066.0,4510,⛽ Independent
-61401923,-27.475413,153.165772,Station Unknown,"Lota, Manly West, Manly",113.0,4179,⛽ Independent
-61401924,-27.326024,152.979019,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",3421066.0,4500,⛽ Independent
-61401926,-27.546897,152.822363,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",110.0,4306,⛽ Independent
-61401928,-27.547407,153.128337,Station Unknown,"Mackenzie, Burbank",3421066.0,4156,⛽ Independent
-61401929,-27.499187,153.126507,Station Unknown,"Belmont Heights, Belmont",111.0,4153,⛽ Independent
-61401930,-27.545381,153.121763,Station Unknown,"Mackenzie, Burbank",113.0,4156,⛽ Independent
-61401931,-27.676512,153.024581,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",57.0,4118,⛽ Independent
-61401934,-27.264616,153.005048,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",2.0,4503,⛽ Independent
-61401938,-27.521129,153.199215,Station Unknown,Unknown,,,⛽ Independent
-61401939,-27.609654,152.902465,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",5.0,4300,⛽ Independent
-61401941,-27.446069,153.171941,Station Unknown,"Wynnum Central, Lindum, Port Of Brisbane, Wynnum Plaza, Wynnum West, Wynnum, Wynnum North, Lytton",113.0,4178,⛽ Independent
-61401943,-27.659403,153.028989,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",3421073.0,4118,⛽ Independent
-61401945,-27.446338,153.042061,Station Unknown,"Brisbane Exhibition, Mayne, Herston, Fortitude Valley, Bowen Bridge, Fortitude Valley Bc, Newstead, Bowen Hills",111.0,4006,⛽ Independent
-61401946,-27.679062,153.118267,Station Unknown,"Chambers Flat, Logan Reserve, Waterford West, Waterford",3421193.0,4133,⛽ Independent
-61401951,-27.561251,153.197803,Station Unknown,"Capalaba West, Sheldon, Capalaba, Capalaba Dc, Capalaba Bc",3421073.0,4157,⛽ Independent
-61401954,-27.209295,153.042949,Station Unknown,Rothwell,3421066.0,4022,⛽ Independent
-61401956,-27.612973,152.798948,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",2.0,4304,⛽ Independent
-61401959,-27.439346,153.030343,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",111.0,4030,⛽ Independent
-61401964,-27.578537,153.094318,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",110.0,4113,⛽ Independent
-61402086,-27.640345,153.132893,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",3421073.0,4127,⛽ Independent
-61402090,-27.456902,153.105682,Station Unknown,Murarrie,113.0,4172,⛽ Independent
-61402091,-27.292016,152.954828,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",113.0,4500,⛽ Independent
-61402092,-27.508734,153.207099,Station Unknown,Birkdale,113.0,4159,⛽ Independent
-61402093,-27.662597,153.140557,Station Unknown,"Loganlea, Meadowbrook",111.0,4131,⛽ Independent
-61402094,-27.09453583645176,152.9511927288361,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421073.0,4510,⛽ Independent
-61402095,-27.330699,153.047457,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",111.0,4017,⛽ Independent
-61402096,-27.584133,153.061878,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",3421066.0,4109,⛽ Independent
-61402097,-27.377199,153.062259,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",23.0,4014,⛽ Independent
-61402099,-27.596076,153.28593,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",3421193.0,4165,⛽ Independent
-61402101,-27.591492,153.060381,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",113.0,4109,⛽ Independent
-61402106,-27.244479,153.109334,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",3421073.0,4019,⛽ Independent
-61402107,-27.487654,153.100211,Station Unknown,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",113.0,4152,⛽ Independent
-61402125,-27.575298,153.026169,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",3421073.0,4110,⛽ Independent
-61402127,-27.273405,153.015282,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",113.0,4503,⛽ Independent
-61402131,-27.66240225882411,153.11811118650817,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",12.0,4114,⛽ Independent
-61402132,-27.676907,153.031851,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",5.0,4118,⛽ Independent
-61402202,-27.565677,152.998169,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",5.0,4108,⛽ Independent
-61402204,-27.678754,153.021806,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61402207,-27.670532,153.200911,Station Unknown,"Loganholme Dc, Logandale, Loganholme Bc, Loganholme",5.0,4129,⛽ Independent
-61402208,-27.330901,153.025787,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",113.0,4017,⛽ Independent
-61402209,-27.611024,153.062587,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",113.0,4109,⛽ Independent
-61402210,-27.223195,153.037501,Station Unknown,"Mango Hill, North Lakes",3421073.0,4509,⛽ Independent
-61402211,-27.550748,153.106439,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",2.0,4122,⛽ Independent
-61402212,-27.514796,153.181279,Station Unknown,"Capalaba West, Sheldon, Capalaba, Capalaba Dc, Capalaba Bc",3421073.0,4157,⛽ Independent
-61402213,-27.623694,152.969352,Station Unknown,"Forest Lake, Ellen Grove",3421073.0,4078,⛽ Independent
-61402214,-27.661644,152.739343,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",3421073.0,4305,⛽ Independent
-61402215,-27.186077,152.934985,Station Unknown,Narangba,5.0,4504,⛽ Independent
-61402220,-27.674462,153.027669,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",5.0,4118,⛽ Independent
-61402223,-27.154423,152.974743,Station Unknown,"Burpengary Dc, Burpengary, Burpengary East",3421073.0,4505,⛽ Independent
-61402226,-27.44460750531628,152.952606,Station Unknown,The Gap,2.0,4061,⛽ Independent
-61402227,-27.063878064409337,153.1555978687172,Station Unknown,"Woorim, Welsby, White Patch, Bribie Island North, Bribie Island Dc, Banksia Beach, Bribie Island, Bellara, Bongaree",5.0,4507,⛽ Independent
-61402231,-27.621151,152.787974,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",113.0,4304,⛽ Independent
-61402237,-27.525038,153.221226,Station Unknown,Alexandra Hills,3421073.0,4161,⛽ Independent
-61402245,-27.534996,153.206193,Station Unknown,"Capalaba West, Sheldon, Capalaba, Capalaba Dc, Capalaba Bc",5.0,4157,⛽ Independent
-61402246,-27.663979,153.042319,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",3421073.0,4118,⛽ Independent
-61402247,-27.678204,153.082353,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",57.0,4132,⛽ Independent
-61402254,-27.561775,152.921734,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",113.0,4074,⛽ Independent
-61402262,-27.645055,152.872371,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",113.0,4300,⛽ Independent
-61402338,-27.593686,152.745885,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",113.0,4305,⛽ Independent
-61402344,-27.430687,153.133072,Station Unknown,"Doboy, Hemmant",3421066.0,4174,⛽ Independent
-61402345,-27.123314,152.978186,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",5.0,4510,⛽ Independent
-61402348,-27.124577,152.976285,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",5.0,4510,⛽ Independent
-61402350,-27.563861,153.039813,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",113.0,4108,⛽ Independent
-61402356,-27.417028,152.949281,Station Unknown,"Grovely, Keperra, Arana Hills",3421073.0,4054,⛽ Independent
-61402359,-27.471036,153.104019,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",3421073.0,4170,⛽ Independent
-61402362,-27.409841,152.981438,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",3421073.0,4053,⛽ Independent
-61402365,-27.536357,152.948876,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",113.0,4074,⛽ Independent
-61402386,-27.349745,153.038003,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",86.0,4034,⛽ Independent
-61402388,-27.328365,153.053801,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",3421139.0,4017,⛽ Independent
-61402390,-27.572194,152.981702,Station Unknown,"Corinda, Oxley, Graceville East, Graceville, Sherwood",3421073.0,4075,⛽ Independent
-61402391,-27.672522,153.212491,Station Unknown,"Carbrook, Cornubia",3421073.0,4130,⛽ Independent
-61402392,-27.645186,153.118928,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",3421073.0,4114,⛽ Independent
-61402398,-27.549542,152.941043,Station Unknown,"Sumner Park Bc, Westlake, Mount Ommaney, Jamboree Heights, Sumner, Riverhills, Jindalee, Middle Park",3421073.0,4074,⛽ Independent
-61402404,-27.260601,153.080001,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",113.0,4019,⛽ Independent
-61402405,-27.653823,152.995711,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",23.0,4118,⛽ Independent
-61402406,-27.653447,152.762956,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",113.0,4305,⛽ Independent
-61402436,-27.378158,153.093691,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",111.0,4014,⛽ Independent
-61402464,-27.423023,153.516475,126 Dickson Wy,"North Stradbroke Island, Amity Point, Amity, Dunwich, Point Lookout",12.0,4183,⛽ Independent
-61402503,-27.038915,152.858752,Station Unknown,"Wamuran, Wamuran Basin, Bracalba",5.0,4512,⛽ Independent
-61402678,-27.195955,152.825947,Station Unknown,"Dayboro, Mount Pleasant, Ocean View, Rush Creek, Laceys Creek, Campbells Pocket, King Scrub, Mount Mee",2.0,4521,⛽ Independent
-61402739,-27.573428,153.078291,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",86.0,4113,⛽ Independent
-61402762,-27.571241,152.799327,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",3421073.0,4306,⛽ Independent
-61402765,-27.0876906682575,152.9803013852501,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421162.0,4510,⛽ Independent
-61402813,-27.241863,153.023055,Station Unknown,"Mango Hill, North Lakes",5.0,4509,⛽ Independent
-61402816,-27.678856,152.904123,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421073.0,4300,⛽ Independent
-61402830,-27.611892,153.054057,Station Unknown,"Calamvale, Drewvale, Stretton",3421073.0,4116,⛽ Independent
-61402834,-27.42935179933878,152.98930968220904,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",3421073.0,4051,⛽ Independent
-61402844,-27.242734,153.023984,Station Unknown,"Mango Hill, North Lakes",111.0,4509,⛽ Independent
-61402845,-27.606312,153.109055,Station Unknown,Underwood,3421073.0,4119,⛽ Independent
-61402847,-27.665500070157712,152.8910621898303,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421066.0,4300,⛽ Independent
-61402852,-27.310281,152.962642,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",113.0,4500,⛽ Independent
-61402875,-27.062301,153.079179,Station Unknown,"Sandstone Point, Godwin Beach, Ningi",113.0,4511,⛽ Independent
-61402876,-27.43935684389341,153.04003769940567,Station Unknown,"Brisbane Exhibition, Mayne, Herston, Fortitude Valley, Bowen Bridge, Fortitude Valley Bc, Newstead, Bowen Hills",3421073.0,4006,⛽ Independent
-61402878,-27.658941,152.708684,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",5.0,4306,⛽ Independent
-61402880,-27.634495,152.774455,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",113.0,4305,⛽ Independent
-61402894,-27.668834,153.125376,Station Unknown,"Loganlea, Meadowbrook",2.0,4131,⛽ Independent
-61402897,-27.250943,152.992977,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",3421073.0,4503,⛽ Independent
-61402908,-27.239449,153.009388,Station Unknown,"Mango Hill, North Lakes",3421066.0,4509,⛽ Independent
-61402913,-27.57635365510319,152.706416072422,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",3421162.0,4306,⛽ Independent
-61402918,-27.689581,153.190423,Station Unknown,"Loganholme Dc, Logandale, Loganholme Bc, Loganholme",110.0,4129,⛽ Independent
-61477061,-27.587057,153.282657,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",3421073.0,4165,⛽ Independent
-61477070,-27.654489,152.917741,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",23.0,4300,⛽ Independent
-61477071,-27.655874,153.162979,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",5.0,4127,⛽ Independent
-61477074,-27.39546625032258,153.10765420391354,Station Unknown,"Whinstanes, Hamilton Central, Doomben, Brisbane Airport, Ascot, Hamilton",111.0,4007,⛽ Independent
-61477081,-27.290927,152.953124,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",3421073.0,4500,⛽ Independent
-61477083,-27.697253410614,153.08220271135957,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",23.0,4132,⛽ Independent
-61477091,-27.220937,152.999794,Station Unknown,"Mango Hill, North Lakes",113.0,4509,⛽ Independent
-61477097,-27.398476,153.438513,9 Ballow Road,"North Stradbroke Island, Amity Point, Amity, Dunwich, Point Lookout",5094.0,4183,⛽ Independent
-61477099,-27.128704843124694,153.0516013868227,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",23.0,4510,⛽ Independent
-61477100,-27.58883250923316,152.77196181410352,47 Mount Crosby Road,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",5.0,4305,⛽ Independent
-61477129,-27.667831,153.138292,Station Unknown,"Loganlea, Meadowbrook",3421073.0,4131,⛽ Independent
-61477138,-27.660149,153.117008,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",113.0,4114,⛽ Independent
-61477140,-27.196842,153.015639,Station Unknown,Deception Bay,113.0,4508,⛽ Independent
-61477143,-27.342366,153.041502,Station Unknown,"Taigum, Fitzgibbon",113.0,4018,⛽ Independent
-61477145,-27.676267,152.900674,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",3421193.0,4300,⛽ Independent
-61477631,-27.499171,153.401798,1 Fraser Street,"North Stradbroke Island, Amity Point, Amity, Dunwich, Point Lookout",12.0,4183,⛽ Independent
-61477643,-27.647183,152.872421,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",111.0,4300,⛽ Independent
-61477645,-27.640169,153.010137,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",5.0,4110,⛽ Independent
-61477652,-27.588524,152.821812,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",2.0,4304,⛽ Independent
-61477665,-27.630712,152.986492,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",113.0,4110,⛽ Independent
-61477669,-27.371366,153.062734,Station Unknown,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",113.0,4014,⛽ Independent
-61477670,-27.656816,152.746774,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",3421066.0,4305,⛽ Independent
-61477671,-27.564733,153.023797,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",2.0,4108,⛽ Independent
-61477675,-27.687281,153.137458,Station Unknown,"Loganlea, Meadowbrook",113.0,4131,⛽ Independent
-61477685,-27.232713,152.992111,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",113.0,4503,⛽ Independent
-61477687,-27.085727,152.986338,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",2.0,4510,⛽ Independent
-61477691,-27.503935408699785,153.0348827811191,Station Unknown,"Annerley Dc, Thompson Estate, Fairfield Gardens, Annerley, Fairfield",111.0,4103,⛽ Independent
-61477692,-27.531673,153.016922,Station Unknown,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",111.0,4105,⛽ Independent
-61477694,-27.618121,152.750201,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",2.0,4305,⛽ Independent
-61477695,-27.537417,153.003541,Station Unknown,"Rocklea Dc, Rocklea, Brisbane Market",2.0,4106,⛽ Independent
-61477696,-27.524539,153.256024,Station Unknown,"Cleveland Dc, Cleveland",113.0,4163,⛽ Independent
-61477701,-27.603381,152.761975,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",111.0,4305,⛽ Independent
-61477707,-27.076328,152.928023,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",2.0,4510,⛽ Independent
-61477709,-27.326447,152.974796,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",23.0,4500,⛽ Independent
-61477716,-27.620482,152.779606,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",111.0,4304,⛽ Independent
-61477718,-27.471719,153.110322,Station Unknown,"Tingalpa Dc, Tingalpa, Tingalpa Bc",113.0,4173,⛽ Independent
-61477720,-27.544513,153.039614,Station Unknown,"Salisbury, Salisbury East",113.0,4107,⛽ Independent
-61477722,-27.697954,153.039827,Station Unknown,"Munruben, Park Ridge South, Park Ridge",3421073.0,4125,⛽ Independent
-61477723,-27.569702,153.024658,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",23.0,4108,⛽ Independent
-61477731,-27.593842,153.003908,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",113.0,4110,⛽ Independent
-61477733,-27.060554,152.957646,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",113.0,4510,⛽ Independent
-61477737,-27.153675,152.970824,Station Unknown,"Burpengary Dc, Burpengary, Burpengary East",113.0,4505,⛽ Independent
-61477738,-27.402657,153.031179,Station Unknown,"Kedron, Gordon Park, Glen Kedron",3421193.0,4031,⛽ Independent
-61477739,-27.613345,152.784396,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",111.0,4304,⛽ Independent
-61477740,-27.260491,153.024233,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",113.0,4503,⛽ Independent
-61477741,-27.238573,153.008647,Station Unknown,"Mango Hill, North Lakes",113.0,4509,⛽ Independent
-61477742,-27.657134,152.778673,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",3421066.0,4306,⛽ Independent
-61477749,-27.077539,152.950377,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",113.0,4510,⛽ Independent
-61477751,-27.467655,153.152472,Station Unknown,"Tingalpa Dc, Tingalpa, Tingalpa Bc",113.0,4173,⛽ Independent
-61477752,-27.696584,153.102784,Station Unknown,"Chambers Flat, Logan Reserve, Waterford West, Waterford",113.0,4133,⛽ Independent
-61477754,-27.608486,153.289542,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",113.0,4165,⛽ Independent
-61477755,-27.567265,153.024317,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",5.0,4108,⛽ Independent
-61477760,-27.391023,152.972139,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",113.0,4053,⛽ Independent
-61477762,-27.417095,152.982146,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",113.0,4051,⛽ Independent
-61477763,-27.426788,153.001672,Station Unknown,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",111.0,4051,⛽ Independent
-61477765,-27.641024743458107,152.8483229398117,Station Unknown,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",3421066.0,4301,⛽ Independent
-61477767,-27.328192,152.987104,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",111.0,4500,⛽ Independent
-61477775,-27.202741,153.010792,Station Unknown,Narangba,3421066.0,4504,⛽ Independent
-61477776,-27.61827792410671,153.1060272625656,Station Unknown,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",110.0,4114,⛽ Independent
-61477778,-27.561096,153.010123,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",23.0,4108,⛽ Independent
-61477779,-27.621919,152.747585,Station Unknown,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",113.0,4305,⛽ Independent
-61477780,-27.139707,152.982665,Station Unknown,"Burpengary Dc, Burpengary, Burpengary East",113.0,4505,⛽ Independent
-61477783,-27.529372,153.196826,Station Unknown,"Capalaba West, Sheldon, Capalaba, Capalaba Dc, Capalaba Bc",110.0,4157,⛽ Independent
-61477786,-27.251764,152.991435,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",113.0,4503,⛽ Independent
-61477787,-27.397698,153.032006,Station Unknown,"Kedron, Gordon Park, Glen Kedron",111.0,4031,⛽ Independent
-61477855,-27.243654,153.025408,Station Unknown,"Mango Hill, North Lakes",113.0,4509,⛽ Independent
-61477856,-27.368481,153.048696,Station Unknown,"Carseldine, Aspley, Geebung, Zillmere, Boondall",110.0,4034,⛽ Independent
-61477877,-27.651963,152.921313,Station Unknown,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",113.0,4300,⛽ Independent
-61477882,-27.119833,152.955668,Station Unknown,"Moorina, Morayfield",3421066.0,4506,⛽ Independent
-61477883,-27.211363,153.046688,Station Unknown,Rothwell,113.0,4022,⛽ Independent
-61477885,-27.308062,152.989949,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",113.0,4500,⛽ Independent
-61477886,-27.254183,152.982414,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",110.0,4503,⛽ Independent
-61477890,-27.585578,153.103765,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",113.0,4113,⛽ Independent
-61477897,-27.663668,153.034904,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61477928,-27.086517,152.965723,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",113.0,4510,⛽ Independent
-61477934,-27.42016890675928,152.94846237168883,Station Unknown,"Grovely, Keperra, Arana Hills",113.0,4054,⛽ Independent
-61477936,-27.589553,152.829909,Station Unknown,"Riverview, New Chum, Dinmore",3421066.0,4303,⛽ Independent
-61477937,-27.487922,153.036159,Station Unknown,"Woolloongabba, Princess Alexandra Hospital, Buranda, Dutton Park",23.0,4102,⛽ Independent
-61477940,-27.590552,153.065192,Station Unknown,"Sunnybank, Robertson, Altandi, Macgregor, Sunnybank Hills, Sunnybank South, Banoon",23.0,4109,⛽ Independent
-61477943,-27.612414,152.987602,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",113.0,4077,⛽ Independent
-61477946,-27.410275,153.072089,Station Unknown,"Clayfield, Eagle Junction, Hendra",3421066.0,4011,⛽ Independent
-61477949,-27.696955,153.013438,Station Unknown,"New Beith, Greenbank, Silverbark Ridge, Lyons, Boronia Heights",57.0,4124,⛽ Independent
-61477953,-27.088853,152.927838,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",113.0,4510,⛽ Independent
-61477956,-27.472766,153.114344,Station Unknown,"Tingalpa Dc, Tingalpa, Tingalpa Bc",20.0,4173,⛽ Independent
-61477960,-27.698996,153.040984,Station Unknown,"Munruben, Park Ridge South, Park Ridge",113.0,4125,⛽ Independent
-61477962,-27.637203,153.306042,Station Unknown,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",113.0,4165,⛽ Independent
-61477963,-27.474108,153.121802,Station Unknown,"Tingalpa Dc, Tingalpa, Tingalpa Bc",3421066.0,4173,⛽ Independent
-61477971,-27.593553,152.922853,Station Unknown,"Wacol, Darra, Wacol East Immigration Centre",3421066.0,4076,⛽ Independent
-61477972,-27.572239,152.960523,Station Unknown,"Wacol, Darra, Wacol East Immigration Centre",110.0,4076,⛽ Independent
-61477974,-27.688181,153.037662,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61477979,-27.668754,152.842579,Station Unknown,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",113.0,4301,⛽ Independent
-61477986,-27.456745,153.087078,Station Unknown,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",3421066.0,4170,⛽ Independent
-61478004,-27.242988,153.107046,Station Unknown,"Scotts Point, Woody Point, Humpybong, Clontarf Dc, Clontarf, Margate, Margate Beach, Clontarf Beach",86.0,4019,⛽ Independent
-61478011,-27.676026,153.079144,Station Unknown,"Berrinba, Karawatha",23.0,4117,⛽ Independent
-61478018,-27.109139,152.967497,Station Unknown,"Moorina, Morayfield",113.0,4506,⛽ Independent
-61478027,-27.104792,152.947002,Station Unknown,"Moorina, Morayfield",23.0,4506,⛽ Independent
-61478030,-27.573523,153.090669,Station Unknown,"Fruitgrove, Runcorn, Eight Mile Plains",113.0,4113,⛽ Independent
-61478041,-27.309904,153.025512,Station Unknown,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",113.0,4017,⛽ Independent
-61478046,-27.21651197626366,153.04596229926682,Station Unknown,Rothwell,3421139.0,4022,⛽ Independent
-61478047,-27.52739717949918,153.02112599140165,Station Unknown,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",3421139.0,4105,⛽ Independent
-61478057,-27.516123,153.181907,Station Unknown,Chandler,113.0,4155,⛽ Independent
-61478059,-27.315004,152.966679,Station Unknown,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",3421073.0,4500,⛽ Independent
-61478087,-27.69378632229072,153.07724963194656,Station Unknown,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",2.0,4132,⛽ Independent
-61478089,-27.488400458163543,153.04863777560195,Station Unknown,"East Brisbane, Stanley Bridge, Kangaroo Point",113.0,4169,⛽ Independent
-61478093,-27.07143526607884,153.13532772452643,Station Unknown,"Sandstone Point, Godwin Beach, Ningi",113.0,4511,⛽ Independent
-61478106,-27.670202149976504,153.20282614329264,Station Unknown,"Carbrook, Cornubia",113.0,4130,⛽ Independent
-61478112,-27.436792733114075,153.02339601223372,Station Unknown,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",3421066.0,4030,⛽ Independent
-61478114,-27.53565350399373,153.07665807073778,Station Unknown,"Mount Gravatt East, Upper Mount Gravatt, Mansfield, Mount Gravatt, Upper Mount Gravatt Bc, Mansfield Dc, Mansfield Bc, Wishart",113.0,4122,⛽ Independent
-61478193,-27.391817254810277,153.07109543650816,Station Unknown,"Northgate Mc, Northgate",113.0,4013,⛽ Independent
-61478198,-27.41471648666694,152.97730429677327,Station Unknown,"Stafford Heights, Everton Hills, Mcdowall, Mitchelton, Stafford City, Stafford Dc, Oxford Park, Somerset Hills, Brookside Centre, Everton Park, Stafford Bc, Stafford",23.0,4053,⛽ Independent
-61478201,-27.09330237184169,152.94949876197776,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",57.0,4510,⛽ Independent
-61478213,-27.594301151904503,153.00589252347183,Station Unknown,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",2.0,4110,⛽ Independent
-61478219,-27.096278400080852,152.9488247396431,Station Unknown,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",3421073.0,4510,⛽ Independent
-61478220,-27.69132089938983,152.8031637374344,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",3421073.0,4306,⛽ Independent
-61478222,-27.572149765742434,153.03519868684006,Station Unknown,"Archerfield, Archerfield Bc, Coopers Plains",2.0,4108,⛽ Independent
-61478226,-27.56659811542577,153.24974251182522,Station Unknown,"Pinklands, Thornlands",5.0,4164,⛽ Independent
-61478227,-27.625835034179666,153.11769409325404,Station Unknown,"Daisy Hill, Slacks Creek, Springwood, Springwood Bc, Chatswood Hills, Priestdale",23.0,4127,⛽ Independent
-61478231,-27.39863917071317,153.03197252883606,Station Unknown,"Kedron, Gordon Park, Glen Kedron",113.0,4031,⛽ Independent
-61478233,-27.57247896542318,152.79030419172994,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",113.0,4306,⛽ Independent
-61478236,-27.651243269301546,153.0758083748688,Station Unknown,"Berrinba, Karawatha",20.0,4117,⛽ Independent
-61478246,-27.225416496521763,152.9907472804582,Station Unknown,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",20.0,4503,⛽ Independent
-61478248,-27.675319041570603,152.83636513523064,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",169.0,4306,⛽ Independent
-61478249,-27.59946027258888,152.9493657962952,Station Unknown,"Inala West, Inala East, Inala, Serviceton, Richlands Dc, Richlands Bc, Durack, Inala Heights, Doolandella, Richlands",2.0,4077,⛽ Independent
-61478257,-27.672811401191908,152.7845945423279,Station Unknown,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",113.0,4306,⛽ Independent
-61478283,-27.10930972378493,152.97310703367856,Station Unknown,Unknown,,,⛽ Independent
-61478288,-27.62425080880812,152.85782253032556,Station Unknown,Unknown,,,⛽ Independent
-61402234,-27.616944,152.790529,Station Unknown,"North Booval, Ebbw Vale, Booval Fair, Silkstone, Booval Dc, Bundamba, Blackstone, Booval, Booval Bc",3421073.0,4304,⛽ Independent
-61402098,-27.673109458819063,153.05285839123795,Station Unknown,"Brownsleigh, Forestdale, Heritage Park, Browns Plains Bc, Hillcrest, Regents Park, Browns Plains",113.0,4118,⛽ Independent
-61401524,-27.52262732061367,153.2196999651111,Station Unknown,Alexandra Hills,3421066.0,4161,⛽ Independent
+site_id,latitude,longitude,name,suburb,postcode,display_brand
+61401106,-27.452584,153.041807,Station Unknown,Unknown,,⛽ Independent
+61401117,-27.483891,153.020309,Station Unknown,Unknown,,⛽ Independent
+61401118,-27.48469982543029,153.03976776686477,Station Unknown,Unknown,,⛽ Independent
+61401119,-27.479316,153.043606,Station Unknown,Unknown,,⛽ Independent
+61401124,-27.490753,153.040153,Station Unknown,Unknown,,⛽ Independent
+61401126,-27.467628,153.007504,Station Unknown,Unknown,,⛽ Independent
+61401128,-27.452187,153.062044,Station Unknown,Unknown,,⛽ Independent
+61401131,-27.472155835233437,153.05947272883606,Station Unknown,Unknown,,⛽ Independent
+61401132,-27.488386,153.047595,Station Unknown,Unknown,,⛽ Independent
+61401134,-27.491978,153.064833,Station Unknown,Unknown,,⛽ Independent
+61401136,-27.483909,153.063748,Station Unknown,Unknown,,⛽ Independent
+61401137,-27.479358,153.071094,Station Unknown,Unknown,,⛽ Independent
+61401138,-27.492781,153.082664,Station Unknown,Unknown,,⛽ Independent
+61401140,-27.46640548892771,153.07819476837022,Station Unknown,Unknown,,⛽ Independent
+61401142,-27.466503,153.079198,Station Unknown,Unknown,,⛽ Independent
+61401147,-27.469816,153.095634,Station Unknown,Unknown,,⛽ Independent
+61401148,-27.471389,153.095619,Station Unknown,Unknown,,⛽ Independent
+61401149,-27.474597374792506,153.12096549570083,Station Unknown,Unknown,,⛽ Independent
+61401155,-27.505555,153.099646,Station Unknown,Unknown,,⛽ Independent
+61401156,-27.488687,153.194782,Station Unknown,Unknown,,⛽ Independent
+61401157,-27.494931,153.212762,Station Unknown,Unknown,,⛽ Independent
+61401159,-27.487062,153.238493,Station Unknown,Unknown,,⛽ Independent
+61401160,-27.523907,153.258759,Station Unknown,Unknown,,⛽ Independent
+61401167,-27.507802,152.948185,Station Unknown,Unknown,,⛽ Independent
+61401170,-27.504769592318205,152.96077843320464,Station Unknown,Unknown,,⛽ Independent
+61401172,-27.491609,152.994039,Station Unknown,Unknown,,⛽ Independent
+61401173,-27.499530327092497,152.9754396405449,Station Unknown,Unknown,,⛽ Independent
+61401177,-27.521931,152.980164,Station Unknown,Unknown,,⛽ Independent
+61401180,-27.532831,152.983247,Station Unknown,Unknown,,⛽ Independent
+61401183,-27.512236,153.032024,Station Unknown,Unknown,,⛽ Independent
+61401185,-27.508609,153.025429,Station Unknown,Unknown,,⛽ Independent
+61401188,-27.519285,153.015135,Station Unknown,Unknown,,⛽ Independent
+61401189,-27.524123,153.023568,Station Unknown,Unknown,,⛽ Independent
+61401195,-27.539627,153.022022,Station Unknown,Unknown,,⛽ Independent
+61401197,-27.538641,153.005432,Station Unknown,Unknown,,⛽ Independent
+61401199,-27.502373,153.045544,Station Unknown,Unknown,,⛽ Independent
+61401200,-27.504612,153.040209,Station Unknown,Unknown,,⛽ Independent
+61401206,-27.696645,153.038101,Station Unknown,Unknown,,⛽ Independent
+61401210,-27.515107,153.072439,Station Unknown,Unknown,,⛽ Independent
+61401212,-27.529893329941103,153.07154507422237,Station Unknown,Unknown,,⛽ Independent
+61401218,-27.199148,153.032128,Station Unknown,Unknown,,⛽ Independent
+61401224,-27.226826,153.084902,Station Unknown,Unknown,,⛽ Independent
+61401225,-27.241169,153.086872,Station Unknown,Unknown,,⛽ Independent
+61401227,-27.222051,153.110819,Station Unknown,Unknown,,⛽ Independent
+61401228,-27.230354,153.109317,Station Unknown,Unknown,,⛽ Independent
+61401229,-27.229577,153.102033,Station Unknown,Unknown,,⛽ Independent
+61401234,-27.257355,153.086063,Station Unknown,Unknown,,⛽ Independent
+61401235,-27.255871,153.094417,Station Unknown,Unknown,,⛽ Independent
+61401238,-27.254478,152.982078,Station Unknown,Unknown,,⛽ Independent
+61401246,-27.307774,152.990528,Station Unknown,Unknown,,⛽ Independent
+61401249,-27.337933,152.960099,Station Unknown,Unknown,,⛽ Independent
+61401250,-27.319376,153.006967,Station Unknown,Unknown,,⛽ Independent
+61401252,-27.319382,153.040903,Station Unknown,Unknown,,⛽ Independent
+61401254,-27.325029,153.059461,Station Unknown,Unknown,,⛽ Independent
+61401255,-27.321786,153.067499,Station Unknown,Unknown,,⛽ Independent
+61401257,-27.321088,153.067931,Station Unknown,Unknown,,⛽ Independent
+61401258,-27.330999,153.041854,Station Unknown,Unknown,,⛽ Independent
+61401261,-27.334055,153.059565,Station Unknown,Unknown,,⛽ Independent
+61401263,-27.366786,153.037181,Station Unknown,Unknown,,⛽ Independent
+61401264,-27.358443,153.017037,Station Unknown,Unknown,,⛽ Independent
+61401265,-27.359961,153.016587,Station Unknown,Unknown,,⛽ Independent
+61401272,-27.391747,153.011652,Station Unknown,Unknown,,⛽ Independent
+61401276,-27.364758,153.026257,Station Unknown,Unknown,,⛽ Independent
+61401279,-27.374203,153.061916,Station Unknown,Unknown,,⛽ Independent
+61401280,-27.374166,153.035974,Station Unknown,Unknown,,⛽ Independent
+61401281,-27.375007,153.024566,Station Unknown,Unknown,,⛽ Independent
+61401282,-27.379293,153.046309,Station Unknown,Unknown,,⛽ Independent
+61401288,-27.391946,153.058897,Station Unknown,Unknown,,⛽ Independent
+61401291,-27.398473,153.059252,Station Unknown,Unknown,,⛽ Independent
+61401292,-27.380227,153.022597,Station Unknown,Unknown,,⛽ Independent
+61401296,-27.386791,153.087063,Station Unknown,Unknown,,⛽ Independent
+61401298,-27.393208,153.072252,Station Unknown,Unknown,,⛽ Independent
+61401301,-27.396824,152.960709,Station Unknown,Unknown,,⛽ Independent
+61401302,-27.397654,152.958951,Station Unknown,Unknown,,⛽ Independent
+61401307,-27.402342,152.937156,Station Unknown,Unknown,,⛽ Independent
+61401309,-27.401257,152.986898,Station Unknown,Unknown,,⛽ Independent
+61401316,-27.409316,153.008034,Station Unknown,Unknown,,⛽ Independent
+61401323,-27.439192,152.989914,Station Unknown,Unknown,,⛽ Independent
+61401324,-27.438767,153.007379,Station Unknown,Unknown,,⛽ Independent
+61401325,-27.445435,153.008589,Station Unknown,Unknown,,⛽ Independent
+61401328,-27.40208501541335,153.031880046627,Station Unknown,Unknown,,⛽ Independent
+61401329,-27.407241,153.032891,Station Unknown,Unknown,,⛽ Independent
+61401330,-27.408291,153.047525,Station Unknown,Unknown,,⛽ Independent
+61401334,-27.411093,153.023635,Station Unknown,Unknown,,⛽ Independent
+61401341,-27.427403,153.050405,Station Unknown,Unknown,,⛽ Independent
+61401343,-27.424641,153.014052,Station Unknown,Unknown,,⛽ Independent
+61401344,-27.426624,153.017032,Station Unknown,Unknown,,⛽ Independent
+61401347,-27.43604130193541,153.03187014847944,Station Unknown,Unknown,,⛽ Independent
+61401348,-27.425953,153.032041,Station Unknown,Unknown,,⛽ Independent
+61401349,-27.4289939652634,153.036903,Station Unknown,Unknown,,⛽ Independent
+61401353,-27.439652,153.049148,Station Unknown,Unknown,,⛽ Independent
+61401357,-27.428241,153.062278,Station Unknown,Unknown,,⛽ Independent
+61401359,-27.434674,153.079056,Station Unknown,Unknown,,⛽ Independent
+61401365,-27.443116,153.143691,Station Unknown,Unknown,,⛽ Independent
+61401366,-27.443582,153.157939,Station Unknown,Unknown,,⛽ Independent
+61401367,-27.459016,153.151452,Station Unknown,Unknown,,⛽ Independent
+61401371,-27.45463473648407,153.16652018650822,Station Unknown,Unknown,,⛽ Independent
+61401373,-27.457538,153.178798,Station Unknown,Unknown,,⛽ Independent
+61401375,-27.442904,152.943808,Station Unknown,Unknown,,⛽ Independent
+61401377,-27.446887,152.959528,Station Unknown,Unknown,,⛽ Independent
+61401380,-27.445996,152.991244,Station Unknown,Unknown,,⛽ Independent
+61401382,-27.446283,152.997578,Station Unknown,Unknown,,⛽ Independent
+61401386,-27.459076,152.998383,Station Unknown,Unknown,,⛽ Independent
+61401391,-27.478292616581157,152.98579629447744,Station Unknown,Unknown,,⛽ Independent
+61401393,-27.473913230061896,153.00392841104505,Station Unknown,Unknown,,⛽ Independent
+61401398,-27.542090460066003,153.082005,Station Unknown,Unknown,,⛽ Independent
+61401399,-27.531577,153.093146,Station Unknown,Unknown,,⛽ Independent
+61401409,-27.548071,153.265178,Station Unknown,Unknown,,⛽ Independent
+61401411,-27.536514,152.941898,Station Unknown,Unknown,,⛽ Independent
+61401413,-27.556355,152.914572,Station Unknown,Unknown,,⛽ Independent
+61401417,-27.553377,152.979052,Station Unknown,Unknown,,⛽ Independent
+61401421,-27.577748,152.973748,Station Unknown,Unknown,,⛽ Independent
+61401422,-27.579387,152.974637,Station Unknown,Unknown,,⛽ Independent
+61401426,-27.558051,153.015628,Station Unknown,Unknown,,⛽ Independent
+61401427,-27.558117,153.006258,Station Unknown,Unknown,,⛽ Independent
+61401428,-27.560256,153.000988,Station Unknown,Unknown,,⛽ Independent
+61401431,-27.545888,153.038591,Station Unknown,Unknown,,⛽ Independent
+61401436,-27.566916,153.064574,Station Unknown,Unknown,,⛽ Independent
+61401438,-27.575889,153.062992,Station Unknown,Unknown,,⛽ Independent
+61401440,-27.57032397205679,153.055617,Station Unknown,Unknown,,⛽ Independent
+61401441,-27.589068,153.027286,Station Unknown,Unknown,,⛽ Independent
+61401444,-27.575428,153.039586,Station Unknown,Unknown,,⛽ Independent
+61401445,-27.556364,153.089765,Station Unknown,Unknown,,⛽ Independent
+61401446,-27.561518,153.089268,Station Unknown,Unknown,,⛽ Independent
+61401447,-27.562252,153.074394,Station Unknown,Unknown,,⛽ Independent
+61401448,-27.561152,153.078726,Station Unknown,Unknown,,⛽ Independent
+61401450,-27.575212,153.091639,Station Unknown,Unknown,,⛽ Independent
+61401453,-27.598823,153.109346,Station Unknown,Unknown,,⛽ Independent
+61401457,-27.603119,152.761629,Station Unknown,Unknown,,⛽ Independent
+61401460,-27.598004,152.832107,Station Unknown,Unknown,,⛽ Independent
+61401461,-27.601119,152.826338,Station Unknown,Unknown,,⛽ Independent
+61401462,-27.608598,152.897931,Station Unknown,Unknown,,⛽ Independent
+61401471,-27.612647,153.039653,Station Unknown,Unknown,,⛽ Independent
+61401472,-27.61142680060479,153.0635548637543,Station Unknown,Unknown,,⛽ Independent
+61401473,-27.624443,153.116876,Station Unknown,Unknown,,⛽ Independent
+61401477,-27.61011953521952,153.12405772883605,Station Unknown,Unknown,,⛽ Independent
+61401478,-27.63364586120715,153.13148941964337,Station Unknown,Unknown,,⛽ Independent
+61401479,-27.619142,153.104903,Station Unknown,Unknown,,⛽ Independent
+61401480,-27.644857,153.153469,Station Unknown,Unknown,,⛽ Independent
+61401483,-27.641222,153.107393,Station Unknown,Unknown,,⛽ Independent
+61401485,-27.637353,153.239623,Station Unknown,Unknown,,⛽ Independent
+61401487,-27.606017,153.288087,Station Unknown,Unknown,,⛽ Independent
+61401492,-27.619048,152.749764,Station Unknown,Unknown,,⛽ Independent
+61401496,-27.627612,152.743589,Station Unknown,Unknown,,⛽ Independent
+61401497,-27.64406360751769,152.75105032638933,Station Unknown,Unknown,,⛽ Independent
+61401500,-27.613641,152.792314,Station Unknown,Unknown,,⛽ Independent
+61401502,-27.621481,152.789444,Station Unknown,Unknown,,⛽ Independent
+61401505,-27.6552275199991,152.74757596772153,Station Unknown,Unknown,,⛽ Independent
+61401506,-27.660285,152.740233,Station Unknown,Unknown,,⛽ Independent
+61401507,-27.660171,152.739296,Station Unknown,Unknown,,⛽ Independent
+61401508,-27.644962,152.871677,Station Unknown,Unknown,,⛽ Independent
+61401510,-27.658841,153.116903,Station Unknown,Unknown,,⛽ Independent
+61401512,-27.680481,153.114522,Station Unknown,Unknown,,⛽ Independent
+61401514,-27.691549,153.134431,Station Unknown,Unknown,,⛽ Independent
+61401517,-27.663192,153.177483,Station Unknown,Unknown,,⛽ Independent
+61401523,-27.342121,153.010681,Station Unknown,Unknown,,⛽ Independent
+61401530,-27.496996,153.055324,Station Unknown,Unknown,,⛽ Independent
+61401531,-27.521101,153.211992,Station Unknown,Unknown,,⛽ Independent
+61401534,-27.595573,153.121562,Station Unknown,Unknown,,⛽ Independent
+61401535,-27.632655,153.047203,Station Unknown,Unknown,,⛽ Independent
+61401537,-27.369917,153.061735,Station Unknown,Unknown,,⛽ Independent
+61401541,-27.438408,153.066889,Station Unknown,Unknown,,⛽ Independent
+61401543,-27.296911,152.975214,Station Unknown,Unknown,,⛽ Independent
+61401544,-27.44523630788419,153.02938104662704,Station Unknown,Unknown,,⛽ Independent
+61401545,-27.536391,153.087947,Station Unknown,Unknown,,⛽ Independent
+61401546,-27.622437,153.127984,Station Unknown,Unknown,,⛽ Independent
+61401547,-27.644668,153.118247,Station Unknown,Unknown,,⛽ Independent
+61401550,-27.580123,153.124691,Station Unknown,Unknown,,⛽ Independent
+61401551,-27.507567,152.940427,Station Unknown,Unknown,,⛽ Independent
+61401554,-27.526712,153.055956,Station Unknown,Unknown,,⛽ Independent
+61401555,-27.627909,153.117731,Station Unknown,Unknown,,⛽ Independent
+61401560,-27.410487,153.047567,Station Unknown,Unknown,,⛽ Independent
+61401561,-27.229066920171583,153.08538009325412,Station Unknown,Unknown,,⛽ Independent
+61401568,-27.595754,153.018264,Station Unknown,Unknown,,⛽ Independent
+61401569,-27.680743,153.092073,Station Unknown,Unknown,,⛽ Independent
+61401588,-27.584259,153.281142,Station Unknown,Unknown,,⛽ Independent
+61401590,-27.435847,153.014906,Station Unknown,Unknown,,⛽ Independent
+61401591,-27.226363,153.036006,Station Unknown,Unknown,,⛽ Independent
+61401599,-27.627512,152.874514,Station Unknown,Unknown,,⛽ Independent
+61401602,-27.664021,153.063245,Station Unknown,Unknown,,⛽ Independent
+61401603,-27.517268,153.183284,Station Unknown,Unknown,,⛽ Independent
+61401605,-27.522428,153.025696,Station Unknown,Unknown,,⛽ Independent
+61401606,-27.205038,153.038413,Station Unknown,Unknown,,⛽ Independent
+61401613,-27.53260236370942,153.26623918650816,Station Unknown,Unknown,,⛽ Independent
+61401616,-27.664026,153.061551,Station Unknown,Unknown,,⛽ Independent
+61401620,-27.663087497535884,153.17983496197124,Station Unknown,Unknown,,⛽ Independent
+61401621,-27.620499,153.115408,Station Unknown,Unknown,,⛽ Independent
+61401625,-27.54085919169559,153.0089030932541,Station Unknown,Unknown,,⛽ Independent
+61401641,-27.495853,153.093435,Station Unknown,Unknown,,⛽ Independent
+61401642,-27.065563,153.112506,Station Unknown,Unknown,,⛽ Independent
+61401643,-27.373408,152.886201,Station Unknown,Unknown,,⛽ Independent
+61401658,-27.080478,153.173647,Station Unknown,Unknown,,⛽ Independent
+61401667,-27.63233835956184,152.77083162577765,Station Unknown,Unknown,,⛽ Independent
+61401670,-27.600518,152.870193,Station Unknown,Unknown,,⛽ Independent
+61401676,-27.491043,153.152854,Station Unknown,Unknown,,⛽ Independent
+61401680,-27.426073,153.013055,Station Unknown,Unknown,,⛽ Independent
+61401682,-27.579766,152.716439,Station Unknown,Unknown,,⛽ Independent
+61401683,-27.156263,152.977055,Station Unknown,Unknown,,⛽ Independent
+61401684,-27.498485,153.027857,Station Unknown,Unknown,,⛽ Independent
+61401685,-27.524837,152.980789,Station Unknown,Unknown,,⛽ Independent
+61401687,-27.425202,152.990017,Station Unknown,Unknown,,⛽ Independent
+61401690,-27.234738,153.087208,Station Unknown,Unknown,,⛽ Independent
+61401691,-27.317652,152.987865,Station Unknown,Unknown,,⛽ Independent
+61401700,-27.588318,153.027937,Station Unknown,Unknown,,⛽ Independent
+61401701,-27.588236,152.959092,Station Unknown,Unknown,,⛽ Independent
+61401703,-27.59451534349924,153.00412895337297,Station Unknown,Unknown,,⛽ Independent
+61401707,-27.453052,153.011287,Station Unknown,Unknown,,⛽ Independent
+61401710,-27.546591,153.010459,Station Unknown,Unknown,,⛽ Independent
+61401711,-27.662759,152.728866,Station Unknown,Unknown,,⛽ Independent
+61401718,-27.545176,153.020003,Station Unknown,Unknown,,⛽ Independent
+61401722,-27.606207,152.903825,Station Unknown,Unknown,,⛽ Independent
+61401723,-27.531502,153.197563,Station Unknown,Unknown,,⛽ Independent
+61401725,-27.604324,152.932499,Station Unknown,Unknown,,⛽ Independent
+61401727,-27.315559,153.061062,Station Unknown,Unknown,,⛽ Independent
+61401728,-27.514233,153.054808,Station Unknown,Unknown,,⛽ Independent
+61401729,-27.584835,153.301205,Station Unknown,Unknown,,⛽ Independent
+61401730,-27.455124731985503,153.0070409067459,Station Unknown,Unknown,,⛽ Independent
+61401733,-27.197201,152.984309,Station Unknown,Unknown,,⛽ Independent
+61401734,-27.633636,153.139502,Station Unknown,Unknown,,⛽ Independent
+61401737,-27.595968,152.987555,Station Unknown,Unknown,,⛽ Independent
+61401738,-27.679856,153.087847,Station Unknown,Unknown,,⛽ Independent
+61401741,-27.662509,153.048088,Station Unknown,Unknown,,⛽ Independent
+61401743,-27.249189,153.000822,Station Unknown,Unknown,,⛽ Independent
+61401744,-27.560198,152.935835,Station Unknown,Unknown,,⛽ Independent
+61401745,-27.281581,152.983155,Station Unknown,Unknown,,⛽ Independent
+61401748,-27.659537,153.168904,Station Unknown,Unknown,,⛽ Independent
+61401749,-27.435613,153.041348,Station Unknown,Unknown,,⛽ Independent
+61401753,-27.600625,152.883996,Station Unknown,Unknown,,⛽ Independent
+61401754,-27.548472,153.107989,Station Unknown,Unknown,,⛽ Independent
+61401755,-27.681393,153.114674,Station Unknown,Unknown,,⛽ Independent
+61401756,-27.596301,152.745933,Station Unknown,Unknown,,⛽ Independent
+61401758,-27.633736,153.119241,Station Unknown,Unknown,,⛽ Independent
+61401759,-27.467323,153.154015,Station Unknown,Unknown,,⛽ Independent
+61401761,-27.493146,153.216292,Station Unknown,Unknown,,⛽ Independent
+61401766,-27.593532,152.934594,Station Unknown,Unknown,,⛽ Independent
+61401768,-27.633441,152.756625,Station Unknown,Unknown,,⛽ Independent
+61401769,-27.345888,152.964409,Station Unknown,Unknown,,⛽ Independent
+61401770,-27.493179,153.168917,Station Unknown,Unknown,,⛽ Independent
+61401772,-27.640701,153.131201,Station Unknown,Unknown,,⛽ Independent
+61401773,-27.667011,153.139313,Station Unknown,Unknown,,⛽ Independent
+61401774,-27.557625,153.015262,Station Unknown,Unknown,,⛽ Independent
+61401775,-27.562496,152.886875,Station Unknown,Unknown,,⛽ Independent
+61401777,-27.617782,153.094057,Station Unknown,Unknown,,⛽ Independent
+61401778,-27.634994,152.916347,Station Unknown,Unknown,,⛽ Independent
+61401779,-27.535062,153.266974,Station Unknown,Unknown,,⛽ Independent
+61401780,-27.190235,153.018421,Station Unknown,Unknown,,⛽ Independent
+61401781,-27.290068,152.984536,Station Unknown,Unknown,,⛽ Independent
+61401782,-27.042111,152.975171,Station Unknown,Unknown,,⛽ Independent
+61401856,-27.007343,152.944651,Station Unknown,Unknown,,⛽ Independent
+61401858,-27.079253,152.951795,Station Unknown,Unknown,,⛽ Independent
+61401861,-27.084568,152.958178,Station Unknown,Unknown,,⛽ Independent
+61401862,-27.086965,152.980739,Station Unknown,Unknown,,⛽ Independent
+61401863,-27.072802,153.025162,Station Unknown,Unknown,,⛽ Independent
+61401866,-27.098137,152.94905576686477,Station Unknown,Unknown,,⛽ Independent
+61401868,-27.112363,152.950651,Station Unknown,Unknown,,⛽ Independent
+61401881,-27.595176,153.121695,Station Unknown,Unknown,,⛽ Independent
+61401886,-27.602084,153.056501,Station Unknown,Unknown,,⛽ Independent
+61401887,-27.524198,153.253795,Station Unknown,Unknown,,⛽ Independent
+61401888,-27.597824,152.949918,Station Unknown,Unknown,,⛽ Independent
+61401894,-27.281231,152.982252,Station Unknown,Unknown,,⛽ Independent
+61401899,-27.628223,152.883713,Station Unknown,Unknown,,⛽ Independent
+61401905,-27.596746,152.949854,Station Unknown,Unknown,,⛽ Independent
+61401906,-27.575708,153.087955,Station Unknown,Unknown,,⛽ Independent
+61401907,-27.317756,153.009186,Station Unknown,Unknown,,⛽ Independent
+61401908,-27.383445,153.064113,Station Unknown,Unknown,,⛽ Independent
+61401910,-27.610975,153.067873,Station Unknown,Unknown,,⛽ Independent
+61401911,-27.572365,152.791976,Station Unknown,Unknown,,⛽ Independent
+61401912,-27.570459356616315,152.9810493558197,Station Unknown,Unknown,,⛽ Independent
+61401914,-27.363889718122927,153.01311577315525,Station Unknown,Unknown,,⛽ Independent
+61401915,-27.415386,152.977543,Station Unknown,Unknown,,⛽ Independent
+61401916,-27.58043314307124,153.02631481719666,Station Unknown,Unknown,,⛽ Independent
+61401917,-27.499065138785195,152.9674647949676,Station Unknown,Unknown,,⛽ Independent
+61401919,-27.642988,153.100369,Station Unknown,Unknown,,⛽ Independent
+61401921,-27.597516,153.109135,Station Unknown,Unknown,,⛽ Independent
+61401922,-27.085152,152.957808,Station Unknown,Unknown,,⛽ Independent
+61401923,-27.475413,153.165772,Station Unknown,Unknown,,⛽ Independent
+61401924,-27.326024,152.979019,Station Unknown,Unknown,,⛽ Independent
+61401926,-27.546897,152.822363,Station Unknown,Unknown,,⛽ Independent
+61401928,-27.547407,153.128337,Station Unknown,Unknown,,⛽ Independent
+61401929,-27.499187,153.126507,Station Unknown,Unknown,,⛽ Independent
+61401930,-27.545381,153.121763,Station Unknown,Unknown,,⛽ Independent
+61401931,-27.676512,153.024581,Station Unknown,Unknown,,⛽ Independent
+61401934,-27.264616,153.005048,Station Unknown,Unknown,,⛽ Independent
+61401938,-27.521129,153.199215,Station Unknown,Unknown,,⛽ Independent
+61401939,-27.609654,152.902465,Station Unknown,Unknown,,⛽ Independent
+61401941,-27.446069,153.171941,Station Unknown,Unknown,,⛽ Independent
+61401943,-27.659403,153.028989,Station Unknown,Unknown,,⛽ Independent
+61401945,-27.446338,153.042061,Station Unknown,Unknown,,⛽ Independent
+61401946,-27.679062,153.118267,Station Unknown,Unknown,,⛽ Independent
+61401951,-27.561251,153.197803,Station Unknown,Unknown,,⛽ Independent
+61401954,-27.209295,153.042949,Station Unknown,Unknown,,⛽ Independent
+61401956,-27.612973,152.798948,Station Unknown,Unknown,,⛽ Independent
+61401959,-27.439346,153.030343,Station Unknown,Unknown,,⛽ Independent
+61401964,-27.578537,153.094318,Station Unknown,Unknown,,⛽ Independent
+61402086,-27.640345,153.132893,Station Unknown,Unknown,,⛽ Independent
+61402090,-27.456902,153.105682,Station Unknown,Unknown,,⛽ Independent
+61402091,-27.292016,152.954828,Station Unknown,Unknown,,⛽ Independent
+61402092,-27.508734,153.207099,Station Unknown,Unknown,,⛽ Independent
+61402093,-27.662597,153.140557,Station Unknown,Unknown,,⛽ Independent
+61402094,-27.09453583645176,152.9511927288361,Station Unknown,Unknown,,⛽ Independent
+61402095,-27.330699,153.047457,Station Unknown,Unknown,,⛽ Independent
+61402096,-27.584133,153.061878,Station Unknown,Unknown,,⛽ Independent
+61402097,-27.377199,153.062259,Station Unknown,Unknown,,⛽ Independent
+61402099,-27.596076,153.28593,Station Unknown,Unknown,,⛽ Independent
+61402101,-27.591492,153.060381,Station Unknown,Unknown,,⛽ Independent
+61402106,-27.244479,153.109334,Station Unknown,Unknown,,⛽ Independent
+61402107,-27.487654,153.100211,Station Unknown,Unknown,,⛽ Independent
+61402125,-27.575298,153.026169,Station Unknown,Unknown,,⛽ Independent
+61402127,-27.273405,153.015282,Station Unknown,Unknown,,⛽ Independent
+61402131,-27.66240225882411,153.11811118650817,Station Unknown,Unknown,,⛽ Independent
+61402132,-27.676907,153.031851,Station Unknown,Unknown,,⛽ Independent
+61402202,-27.565677,152.998169,Station Unknown,Unknown,,⛽ Independent
+61402204,-27.678754,153.021806,Station Unknown,Unknown,,⛽ Independent
+61402207,-27.670532,153.200911,Station Unknown,Unknown,,⛽ Independent
+61402208,-27.330901,153.025787,Station Unknown,Unknown,,⛽ Independent
+61402209,-27.611024,153.062587,Station Unknown,Unknown,,⛽ Independent
+61402210,-27.223195,153.037501,Station Unknown,Unknown,,⛽ Independent
+61402211,-27.550748,153.106439,Station Unknown,Unknown,,⛽ Independent
+61402212,-27.514796,153.181279,Station Unknown,Unknown,,⛽ Independent
+61402213,-27.623694,152.969352,Station Unknown,Unknown,,⛽ Independent
+61402214,-27.661644,152.739343,Station Unknown,Unknown,,⛽ Independent
+61402215,-27.186077,152.934985,Station Unknown,Unknown,,⛽ Independent
+61402220,-27.674462,153.027669,Station Unknown,Unknown,,⛽ Independent
+61402223,-27.154423,152.974743,Station Unknown,Unknown,,⛽ Independent
+61402226,-27.44460750531628,152.952606,Station Unknown,Unknown,,⛽ Independent
+61402227,-27.063878064409337,153.1555978687172,Station Unknown,Unknown,,⛽ Independent
+61402231,-27.621151,152.787974,Station Unknown,Unknown,,⛽ Independent
+61402237,-27.525038,153.221226,Station Unknown,Unknown,,⛽ Independent
+61402245,-27.534996,153.206193,Station Unknown,Unknown,,⛽ Independent
+61402246,-27.663979,153.042319,Station Unknown,Unknown,,⛽ Independent
+61402247,-27.678204,153.082353,Station Unknown,Unknown,,⛽ Independent
+61402254,-27.561775,152.921734,Station Unknown,Unknown,,⛽ Independent
+61402262,-27.645055,152.872371,Station Unknown,Unknown,,⛽ Independent
+61402338,-27.593686,152.745885,Station Unknown,Unknown,,⛽ Independent
+61402344,-27.430687,153.133072,Station Unknown,Unknown,,⛽ Independent
+61402345,-27.123314,152.978186,Station Unknown,Unknown,,⛽ Independent
+61402348,-27.124577,152.976285,Station Unknown,Unknown,,⛽ Independent
+61402350,-27.563861,153.039813,Station Unknown,Unknown,,⛽ Independent
+61402356,-27.417028,152.949281,Station Unknown,Unknown,,⛽ Independent
+61402359,-27.471036,153.104019,Station Unknown,Unknown,,⛽ Independent
+61402362,-27.409841,152.981438,Station Unknown,Unknown,,⛽ Independent
+61402365,-27.536357,152.948876,Station Unknown,Unknown,,⛽ Independent
+61402386,-27.349745,153.038003,Station Unknown,Unknown,,⛽ Independent
+61402388,-27.328365,153.053801,Station Unknown,Unknown,,⛽ Independent
+61402390,-27.572194,152.981702,Station Unknown,Unknown,,⛽ Independent
+61402391,-27.672522,153.212491,Station Unknown,Unknown,,⛽ Independent
+61402392,-27.645186,153.118928,Station Unknown,Unknown,,⛽ Independent
+61402398,-27.549542,152.941043,Station Unknown,Unknown,,⛽ Independent
+61402404,-27.260601,153.080001,Station Unknown,Unknown,,⛽ Independent
+61402405,-27.653823,152.995711,Station Unknown,Unknown,,⛽ Independent
+61402406,-27.653447,152.762956,Station Unknown,Unknown,,⛽ Independent
+61402436,-27.378158,153.093691,Station Unknown,Unknown,,⛽ Independent
+61402464,-27.423023,153.516475,,Unknown,,⛽ Independent
+61402503,-27.038915,152.858752,Station Unknown,Unknown,,⛽ Independent
+61402678,-27.195955,152.825947,Station Unknown,Unknown,,⛽ Independent
+61402739,-27.573428,153.078291,Station Unknown,Unknown,,⛽ Independent
+61402762,-27.571241,152.799327,Station Unknown,Unknown,,⛽ Independent
+61402765,-27.0876906682575,152.9803013852501,Station Unknown,Unknown,,⛽ Independent
+61402813,-27.241863,153.023055,Station Unknown,Unknown,,⛽ Independent
+61402816,-27.678856,152.904123,Station Unknown,Unknown,,⛽ Independent
+61402830,-27.611892,153.054057,Station Unknown,Unknown,,⛽ Independent
+61402834,-27.42935179933878,152.98930968220904,Station Unknown,Unknown,,⛽ Independent
+61402844,-27.242734,153.023984,Station Unknown,Unknown,,⛽ Independent
+61402845,-27.606312,153.109055,Station Unknown,Unknown,,⛽ Independent
+61402847,-27.665500070157712,152.8910621898303,Station Unknown,Unknown,,⛽ Independent
+61402852,-27.310281,152.962642,Station Unknown,Unknown,,⛽ Independent
+61402875,-27.062301,153.079179,Station Unknown,Unknown,,⛽ Independent
+61402876,-27.43935684389341,153.04003769940567,Station Unknown,Unknown,,⛽ Independent
+61402878,-27.658941,152.708684,Station Unknown,Unknown,,⛽ Independent
+61402880,-27.634495,152.774455,Station Unknown,Unknown,,⛽ Independent
+61402894,-27.668834,153.125376,Station Unknown,Unknown,,⛽ Independent
+61402897,-27.250943,152.992977,Station Unknown,Unknown,,⛽ Independent
+61402908,-27.239449,153.009388,Station Unknown,Unknown,,⛽ Independent
+61402913,-27.57635365510319,152.706416072422,Station Unknown,Unknown,,⛽ Independent
+61402918,-27.689581,153.190423,Station Unknown,Unknown,,⛽ Independent
+61477061,-27.587057,153.282657,Station Unknown,Unknown,,⛽ Independent
+61477070,-27.654489,152.917741,Station Unknown,Unknown,,⛽ Independent
+61477071,-27.655874,153.162979,Station Unknown,Unknown,,⛽ Independent
+61477074,-27.39546625032258,153.10765420391354,Station Unknown,Unknown,,⛽ Independent
+61477081,-27.290927,152.953124,Station Unknown,Unknown,,⛽ Independent
+61477083,-27.697253410614,153.08220271135957,Station Unknown,Unknown,,⛽ Independent
+61477091,-27.220937,152.999794,Station Unknown,Unknown,,⛽ Independent
+61477097,-27.398476,153.438513,,Unknown,,⛽ Independent
+61477099,-27.128704843124694,153.0516013868227,Station Unknown,Unknown,,⛽ Independent
+61477100,-27.58883250923316,152.77196181410352,,Unknown,,⛽ Independent
+61477129,-27.667831,153.138292,Station Unknown,Unknown,,⛽ Independent
+61477138,-27.660149,153.117008,Station Unknown,Unknown,,⛽ Independent
+61477140,-27.196842,153.015639,Station Unknown,Unknown,,⛽ Independent
+61477143,-27.342366,153.041502,Station Unknown,Unknown,,⛽ Independent
+61477145,-27.676267,152.900674,Station Unknown,Unknown,,⛽ Independent
+61477631,-27.499171,153.401798,,Unknown,,⛽ Independent
+61477643,-27.647183,152.872421,Station Unknown,Unknown,,⛽ Independent
+61477645,-27.640169,153.010137,Station Unknown,Unknown,,⛽ Independent
+61477652,-27.588524,152.821812,Station Unknown,Unknown,,⛽ Independent
+61477665,-27.630712,152.986492,Station Unknown,Unknown,,⛽ Independent
+61477669,-27.371366,153.062734,Station Unknown,Unknown,,⛽ Independent
+61477670,-27.656816,152.746774,Station Unknown,Unknown,,⛽ Independent
+61477671,-27.564733,153.023797,Station Unknown,Unknown,,⛽ Independent
+61477675,-27.687281,153.137458,Station Unknown,Unknown,,⛽ Independent
+61477685,-27.232713,152.992111,Station Unknown,Unknown,,⛽ Independent
+61477687,-27.085727,152.986338,Station Unknown,Unknown,,⛽ Independent
+61477691,-27.503935408699785,153.0348827811191,Station Unknown,Unknown,,⛽ Independent
+61477692,-27.531673,153.016922,Station Unknown,Unknown,,⛽ Independent
+61477694,-27.618121,152.750201,Station Unknown,Unknown,,⛽ Independent
+61477695,-27.537417,153.003541,Station Unknown,Unknown,,⛽ Independent
+61477696,-27.524539,153.256024,Station Unknown,Unknown,,⛽ Independent
+61477701,-27.603381,152.761975,Station Unknown,Unknown,,⛽ Independent
+61477707,-27.076328,152.928023,Station Unknown,Unknown,,⛽ Independent
+61477709,-27.326447,152.974796,Station Unknown,Unknown,,⛽ Independent
+61477716,-27.620482,152.779606,Station Unknown,Unknown,,⛽ Independent
+61477718,-27.471719,153.110322,Station Unknown,Unknown,,⛽ Independent
+61477720,-27.544513,153.039614,Station Unknown,Unknown,,⛽ Independent
+61477722,-27.697954,153.039827,Station Unknown,Unknown,,⛽ Independent
+61477723,-27.569702,153.024658,Station Unknown,Unknown,,⛽ Independent
+61477731,-27.593842,153.003908,Station Unknown,Unknown,,⛽ Independent
+61477733,-27.060554,152.957646,Station Unknown,Unknown,,⛽ Independent
+61477737,-27.153675,152.970824,Station Unknown,Unknown,,⛽ Independent
+61477738,-27.402657,153.031179,Station Unknown,Unknown,,⛽ Independent
+61477739,-27.613345,152.784396,Station Unknown,Unknown,,⛽ Independent
+61477740,-27.260491,153.024233,Station Unknown,Unknown,,⛽ Independent
+61477741,-27.238573,153.008647,Station Unknown,Unknown,,⛽ Independent
+61477742,-27.657134,152.778673,Station Unknown,Unknown,,⛽ Independent
+61477749,-27.077539,152.950377,Station Unknown,Unknown,,⛽ Independent
+61477751,-27.467655,153.152472,Station Unknown,Unknown,,⛽ Independent
+61477752,-27.696584,153.102784,Station Unknown,Unknown,,⛽ Independent
+61477754,-27.608486,153.289542,Station Unknown,Unknown,,⛽ Independent
+61477755,-27.567265,153.024317,Station Unknown,Unknown,,⛽ Independent
+61477760,-27.391023,152.972139,Station Unknown,Unknown,,⛽ Independent
+61477762,-27.417095,152.982146,Station Unknown,Unknown,,⛽ Independent
+61477763,-27.426788,153.001672,Station Unknown,Unknown,,⛽ Independent
+61477765,-27.641024743458107,152.8483229398117,Station Unknown,Unknown,,⛽ Independent
+61477767,-27.328192,152.987104,Station Unknown,Unknown,,⛽ Independent
+61477775,-27.202741,153.010792,Station Unknown,Unknown,,⛽ Independent
+61477776,-27.61827792410671,153.1060272625656,Station Unknown,Unknown,,⛽ Independent
+61477778,-27.561096,153.010123,Station Unknown,Unknown,,⛽ Independent
+61477779,-27.621919,152.747585,Station Unknown,Unknown,,⛽ Independent
+61477780,-27.139707,152.982665,Station Unknown,Unknown,,⛽ Independent
+61477783,-27.529372,153.196826,Station Unknown,Unknown,,⛽ Independent
+61477786,-27.251764,152.991435,Station Unknown,Unknown,,⛽ Independent
+61477787,-27.397698,153.032006,Station Unknown,Unknown,,⛽ Independent
+61477855,-27.243654,153.025408,Station Unknown,Unknown,,⛽ Independent
+61477856,-27.368481,153.048696,Station Unknown,Unknown,,⛽ Independent
+61477877,-27.651963,152.921313,Station Unknown,Unknown,,⛽ Independent
+61477882,-27.119833,152.955668,Station Unknown,Unknown,,⛽ Independent
+61477883,-27.211363,153.046688,Station Unknown,Unknown,,⛽ Independent
+61477885,-27.308062,152.989949,Station Unknown,Unknown,,⛽ Independent
+61477886,-27.254183,152.982414,Station Unknown,Unknown,,⛽ Independent
+61477890,-27.585578,153.103765,Station Unknown,Unknown,,⛽ Independent
+61477897,-27.663668,153.034904,Station Unknown,Unknown,,⛽ Independent
+61477928,-27.086517,152.965723,Station Unknown,Unknown,,⛽ Independent
+61477934,-27.42016890675928,152.94846237168883,Station Unknown,Unknown,,⛽ Independent
+61477936,-27.589553,152.829909,Station Unknown,Unknown,,⛽ Independent
+61477937,-27.487922,153.036159,Station Unknown,Unknown,,⛽ Independent
+61477940,-27.590552,153.065192,Station Unknown,Unknown,,⛽ Independent
+61477943,-27.612414,152.987602,Station Unknown,Unknown,,⛽ Independent
+61477946,-27.410275,153.072089,Station Unknown,Unknown,,⛽ Independent
+61477949,-27.696955,153.013438,Station Unknown,Unknown,,⛽ Independent
+61477953,-27.088853,152.927838,Station Unknown,Unknown,,⛽ Independent
+61477956,-27.472766,153.114344,Station Unknown,Unknown,,⛽ Independent
+61477960,-27.698996,153.040984,Station Unknown,Unknown,,⛽ Independent
+61477962,-27.637203,153.306042,Station Unknown,Unknown,,⛽ Independent
+61477963,-27.474108,153.121802,Station Unknown,Unknown,,⛽ Independent
+61477971,-27.593553,152.922853,Station Unknown,Unknown,,⛽ Independent
+61477972,-27.572239,152.960523,Station Unknown,Unknown,,⛽ Independent
+61477974,-27.688181,153.037662,Station Unknown,Unknown,,⛽ Independent
+61477979,-27.668754,152.842579,Station Unknown,Unknown,,⛽ Independent
+61477986,-27.456745,153.087078,Station Unknown,Unknown,,⛽ Independent
+61478004,-27.242988,153.107046,Station Unknown,Unknown,,⛽ Independent
+61478011,-27.676026,153.079144,Station Unknown,Unknown,,⛽ Independent
+61478018,-27.109139,152.967497,Station Unknown,Unknown,,⛽ Independent
+61478027,-27.104792,152.947002,Station Unknown,Unknown,,⛽ Independent
+61478030,-27.573523,153.090669,Station Unknown,Unknown,,⛽ Independent
+61478041,-27.309904,153.025512,Station Unknown,Unknown,,⛽ Independent
+61478046,-27.21651197626366,153.04596229926682,Station Unknown,Unknown,,⛽ Independent
+61478047,-27.52739717949918,153.02112599140165,Station Unknown,Unknown,,⛽ Independent
+61478057,-27.516123,153.181907,Station Unknown,Unknown,,⛽ Independent
+61478059,-27.315004,152.966679,Station Unknown,Unknown,,⛽ Independent
+61478087,-27.69378632229072,153.07724963194656,Station Unknown,Unknown,,⛽ Independent
+61478089,-27.488400458163543,153.04863777560195,Station Unknown,Unknown,,⛽ Independent
+61478093,-27.07143526607884,153.13532772452643,Station Unknown,Unknown,,⛽ Independent
+61478106,-27.670202149976504,153.20282614329264,Station Unknown,Unknown,,⛽ Independent
+61478112,-27.436792733114075,153.02339601223372,Station Unknown,Unknown,,⛽ Independent
+61478114,-27.53565350399373,153.07665807073778,Station Unknown,Unknown,,⛽ Independent
+61478193,-27.391817254810277,153.07109543650816,Station Unknown,Unknown,,⛽ Independent
+61478198,-27.41471648666694,152.97730429677327,Station Unknown,Unknown,,⛽ Independent
+61478201,-27.09330237184169,152.94949876197776,Station Unknown,Unknown,,⛽ Independent
+61478213,-27.594301151904503,153.00589252347183,Station Unknown,Unknown,,⛽ Independent
+61478219,-27.096278400080852,152.9488247396431,Station Unknown,Unknown,,⛽ Independent
+61478220,-27.69132089938983,152.8031637374344,Station Unknown,Unknown,,⛽ Independent
+61478222,-27.572149765742434,153.03519868684006,Station Unknown,Unknown,,⛽ Independent
+61478226,-27.56659811542577,153.24974251182522,Station Unknown,Unknown,,⛽ Independent
+61478227,-27.625835034179666,153.11769409325404,Station Unknown,Unknown,,⛽ Independent
+61478231,-27.39863917071317,153.03197252883606,Station Unknown,Unknown,,⛽ Independent
+61478233,-27.57247896542318,152.79030419172994,Station Unknown,Unknown,,⛽ Independent
+61478236,-27.651243269301546,153.0758083748688,Station Unknown,Unknown,,⛽ Independent
+61478246,-27.225416496521763,152.9907472804582,Station Unknown,Unknown,,⛽ Independent
+61478248,-27.675319041570603,152.83636513523064,Station Unknown,Unknown,,⛽ Independent
+61478249,-27.59946027258888,152.9493657962952,Station Unknown,Unknown,,⛽ Independent
+61478257,-27.672811401191908,152.7845945423279,Station Unknown,Unknown,,⛽ Independent
+61478283,-27.10930972378493,152.97310703367856,Station Unknown,Unknown,,⛽ Independent
+61478288,-27.62425080880812,152.85782253032556,Station Unknown,Unknown,,⛽ Independent
+61402234,-27.616944,152.790529,Station Unknown,Unknown,,⛽ Independent
+61402098,-27.673109458819063,153.05285839123795,Station Unknown,Unknown,,⛽ Independent
+61401524,-27.52262732061367,153.2196999651111,Station Unknown,Unknown,,⛽ Independent

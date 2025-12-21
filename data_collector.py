@@ -3,10 +3,10 @@ import os
 import sys
 from datetime import datetime
 from fuel_engine import FuelEngine
+import config
 
 # Configuration
-COLLECTION_FILE = os.path.join(os.path.dirname(__file__), "brisbane_fuel_live_collection.csv")
-TOKEN = "028c992c-dc6a-4509-a94b-db707308841d" 
+COLLECTION_FILE = config.COLLECTION_FILE
 
 def collect_live_data():
     """
@@ -16,7 +16,7 @@ def collect_live_data():
     print(f"🔄 Starting Data Collection at {datetime.now()}...")
     
     try:
-        engine = FuelEngine(TOKEN)
+        engine = FuelEngine() # Uses config token automatically
         snapshot = engine.get_market_snapshot()
         
         if snapshot is None or snapshot.empty:
