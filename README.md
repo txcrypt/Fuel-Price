@@ -32,6 +32,11 @@ A comprehensive, AI-powered dashboard for monitoring, predicting, and analyzing 
     ```bash
     streamlit run fuel_dashboard.py
     ```
+    or
+
+    ```bash
+    python streamlit run fuel_dashboard.py
+    ```
 
 ## 📂 Project Structure
 
