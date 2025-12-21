@@ -33,9 +33,199 @@ function loadViewData(viewId) {
         case 'live': initLiveView(); break;
         case 'sentiment': loadSentiment(); break;
         case 'ratings': loadRatings(); break;
+        case 'planner': loadPlanner(); break;
         case 'analytics': loadAnalytics(); break;
         case 'data': loadDataStatus(); break;
+        case 'sandbox': initSandbox(); break;
     }
+}
+
+// --- Tab 4: Planner ---
+function loadPlanner() {
+    const btn = document.querySelector('#view-planner button');
+    
+    // Remove old listeners to avoid dupes
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', async () => {
+        const inputs = document.querySelectorAll('#view-planner input');
+        const start = inputs[0].value;
+        const end = inputs[1].value;
+        
+        if (!start || !end) return alert("Please enter both locations.");
+        
+        newBtn.disabled = true;
+        newBtn.innerText = "Calculating...";
+        
+        try {
+            const res = await fetch(`${API_BASE}/planner`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({start, end})
+            });
+            const data = await res.json();
+            
+            if (data.error) {
+                alert(data.error);
+            } else {
+                // Show Results
+                let html = `<div style="margin-top:20px; padding:15px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                    <h3>Route: ${data.start.name} ➝ ${data.end.name}</h3>
+                    <p>Distance: ${data.distance_km.toFixed(1)} km</p>
+                </div>`;
+                
+                if (data.stations.length > 0) {
+                    html += `<table style="margin-top:20px;">
+                        <tr><th>Station</th><th>Price</th><th>Utility</th></tr>
+                        ${data.stations.map(s => `
+                            <tr>
+                                <td>${s.name}</td>
+                                <td style="font-weight:bold; color:${s.price_cpl < data.market_avg ? '#10b981' : '#fff'}">${s.price_cpl}c</td>
+                                <td>$${s.net_utility.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>`;
+                } else {
+                    html += `<p>No suitable stations found along route.</p>`;
+                }
+                
+                // Append to view
+                const container = document.querySelector('#view-planner .card');
+                const oldRes = document.getElementById('planner-results');
+                if (oldRes) oldRes.remove();
+                
+                const resDiv = document.createElement('div');
+                resDiv.id = 'planner-results';
+                resDiv.innerHTML = html;
+                container.appendChild(resDiv);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Planning failed. See console.");
+        } finally {
+            newBtn.disabled = false;
+            newBtn.innerText = "Find Cheapest Stops";
+        }
+    });
+}
+
+// --- Tab 5: Analytics ---
+async function loadAnalytics() {
+    const res = await fetch(`${API_BASE}/analytics`);
+    const data = await res.json();
+
+    // Suburb Table
+    document.getElementById('table-suburbs').innerHTML = `
+        <table>
+            <tr><th>Suburb</th><th>Avg Price</th></tr>
+            ${data.suburb_ranking.map(r => `
+                <tr><td>${r.suburb}</td><td>${r.price_cpl.toFixed(1)}c</td></tr>
+            `).join('')}
+        </table>
+    `;
+
+    // Chart
+    const ctx = document.getElementById('analyticsChart').getContext('2d');
+    if (trendChart) trendChart.destroy();
+
+    const history = data.trend.history || {date:[], tgp:[]};
+    const forecast = data.trend.forecast_tgp; // Single value? Or SARIMAX?
+    // Check structure from tgp_forecast.py
+    const sx = data.trend.sarimax || {forecast_dates:[], forecast_mean:[]};
+
+    // Combine for continuous line
+    const labels = [...history.date.map(d => d.split('T')[0]), ...sx.forecast_dates.map(d => d.split('T')[0])];
+    const histData = history.tgp;
+    
+    // Pad forecast
+    const forecastData = new Array(histData.length).fill(null);
+    // Link last point
+    if (histData.length > 0) {
+        forecastData[histData.length-1] = histData[histData.length-1];
+    }
+    sx.forecast_mean.forEach(v => forecastData.push(v));
+
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Historical TGP',
+                    data: histData,
+                    borderColor: '#3b82f6',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3
+                },
+                {
+                    label: 'Forecast',
+                    data: forecastData,
+                    borderColor: '#f59e0b',
+                    borderDash: [5,5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { grid: { color: '#334155' } }, x: { display: false } }
+        }
+    });
+}
+
+// --- Tab 7: Sandbox ---
+function initSandbox() {
+    const btn = document.querySelector('#view-sandbox button');
+    
+    // Replace logic
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.disabled = false; // Enable for demo
+    newBtn.innerText = "Run Backtest (on current data)";
+    
+    newBtn.addEventListener('click', async () => {
+        newBtn.disabled = true;
+        newBtn.innerText = "Running Simulation...";
+        
+        try {
+            const res = await fetch(`${API_BASE}/sandbox/backtest`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({threshold: 5.0})
+            });
+            const data = await res.json();
+            
+            if (data.metrics) {
+                const m = data.metrics;
+                const html = `<div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div style="background:#1e293b; padding:10px; border-radius:4px;">Accuracy: ${(m.accuracy*100).toFixed(1)}%</div>
+                    <div style="background:#1e293b; padding:10px; border-radius:4px;">F1 Score: ${(m.f1_score).toFixed(2)}</div>
+                    <div style="background:#1e293b; padding:10px; border-radius:4px; color:#10b981">Correct Hikes: ${m.confusion.tp}</div>
+                    <div style="background:#1e293b; padding:10px; border-radius:4px; color:#ef4444">False Alarms: ${m.confusion.fp}</div>
+                </div>`;
+                
+                const container = document.querySelector('#view-sandbox .card');
+                let oldRes = document.getElementById('sandbox-results');
+                if (oldRes) oldRes.remove();
+                
+                const resDiv = document.createElement('div');
+                resDiv.id = 'sandbox-results';
+                resDiv.innerHTML = html;
+                container.appendChild(resDiv);
+            }
+            
+        } catch (e) {
+            alert("Backtest failed: " + e);
+        } finally {
+            newBtn.disabled = false;
+            newBtn.innerText = "Run Backtest (on current data)";
+        }
+    });
 }
 
 // --- Tab 1: Live Market ---

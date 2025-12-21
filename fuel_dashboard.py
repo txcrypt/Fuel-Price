@@ -20,6 +20,8 @@ import cycle_prediction
 import tgp_forecast
 import data_collector
 import station_metadata
+import route_optimizer
+import backtester
 
 # --- Configuration ---
 app = FastAPI(
@@ -81,21 +83,28 @@ def load_live_data_latest():
             if 'site_id' in df.columns:
                 df['site_id'] = df['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
             
-            # Filter for latest per station
-            # Assuming appended data, so last occurrence is newest? 
-            # Better to sort by time if available
             ts_col = 'scraped_at' if 'scraped_at' in df.columns else 'reported_at'
             if ts_col in df.columns:
                 df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
-                # Filter last 48h only
+                
+                # Strategy 1: Last 48h
                 cutoff = pd.Timestamp.now() - pd.Timedelta(hours=48)
-                df = df[df[ts_col] > cutoff]
+                recent = df[df[ts_col] > cutoff]
+                
+                # Strategy 2: If empty, Last 7 Days (Stale Warning)
+                if recent.empty:
+                    cutoff = pd.Timestamp.now() - pd.Timedelta(days=7)
+                    recent = df[df[ts_col] > cutoff]
+                    
+                # Strategy 3: Latest Snapshot available
+                if recent.empty:
+                     recent = df
                 
                 # Get latest entry per site
-                df = df.sort_values(ts_col).drop_duplicates('site_id', keep='last')
+                recent = recent.sort_values(ts_col).drop_duplicates('site_id', keep='last')
+                return recent
             else:
-                # Just drop dupes keep last
-                df = df.drop_duplicates('site_id', keep='last')
+                return df.drop_duplicates('site_id', keep='last')
                 
             return df
         except Exception as e:
@@ -275,6 +284,65 @@ def trigger_collect():
     """Tab 6: Manual Collection Trigger"""
     count = data_collector.collect_live_data()
     return {"success": True, "count": count}
+
+from pydantic import BaseModel
+
+class RouteRequest(BaseModel):
+    start: str
+    end: str
+
+class SandboxRequest(BaseModel):
+    threshold: float
+
+@app.post("/api/planner")
+def plan_route(req: RouteRequest):
+    """Tab 4: Route Optimizer"""
+    try:
+        res = route_optimizer.optimize_route(req.start, req.end)
+        if not res:
+            return JSONResponse(status_code=404, content={"error": "Could not resolve locations or find route."})
+        
+        # Clean NaN for JSON
+        if 'stations' in res and not res['stations'].empty:
+            res['stations'] = res['stations'].to_dict(orient='records')
+        else:
+            res['stations'] = []
+            
+        return clean_nan(res)
+    except Exception as e:
+        print(f"Planner Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/sandbox/backtest")
+def run_sandbox_backtest(req: SandboxRequest):
+    """Tab 7: Sandbox Backtest"""
+    try:
+        # Load uploaded data or master file
+        # For simplicity, we'll run on the master file if no upload logic yet
+        # Or better, this endpoint assumes the file was uploaded via another endpoint.
+        # Given the scope, let's run on the CURRENT collection file as a demo
+        df = data_collector.collect_live_data() # This triggers fetch, not load.
+        
+        # Load from disk
+        if os.path.exists(data_collector.COLLECTION_FILE):
+            df = pd.read_csv(data_collector.COLLECTION_FILE)
+            metrics, res_df = backtester.run_backtest(df, ground_truth_threshold=req.threshold)
+            
+            if metrics:
+                # Prepare chart data
+                chart_data = []
+                if res_df is not None:
+                    # Limit for performance
+                    res_df = res_df.tail(100)
+                    chart_data = res_df.to_dict(orient='records')
+                    
+                return clean_nan({
+                    "metrics": metrics,
+                    "chart": chart_data
+                })
+        return JSONResponse(status_code=400, content={"error": "No data available for backtest."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 # --- Server Logic ---
 

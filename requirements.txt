@@ -12,3 +12,5 @@ yfinance
 geopandas
 libpysal
 esda
+statsmodels
+scipy

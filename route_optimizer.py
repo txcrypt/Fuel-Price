@@ -7,10 +7,8 @@ import urllib.parse
 import polyline  
 from math import radians, cos, sin, asin, sqrt
 
-# Import FuelEngine from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Working_Version')))
 try:
-    from fuel_engine import FuelEngine # pyright: ignore[reportMissingImports]
+    from fuel_engine import FuelEngine 
 except ImportError:
     print("❌ Error: Could not import FuelEngine. Check path.")
     sys.exit(1)
