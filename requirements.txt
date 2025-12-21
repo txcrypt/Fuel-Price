@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+plotly
+folium
+streamlit-folium
+pgeocode
+requests
+beautifulsoup4
+polyline
+yfinance
