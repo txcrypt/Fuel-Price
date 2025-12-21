@@ -94,13 +94,23 @@ async def get_market_status():
     
     rec_map = {'HIKE': "FILL NOW", 'HIKE_STARTED': "FILL NOW", 'OVERDUE': "WARNING", 'BOTTOM': "BUY", 'DROPPING': "WAIT"}
     trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+
+    # History for Graph
+    history = {}
+    if daily_df is not None and not daily_df.empty:
+        hist_data = daily_df.sort_index().tail(45)
+        history = {
+            "dates": hist_data.index.strftime('%Y-%m-%d').tolist(),
+            "prices": hist_data['price_cpl'].tolist()
+        }
     
     return clean_nan({
         "status": final_status,
         "advice": rec_map.get(final_status, "Hold"),
         "next_hike_est": (last_hike + timedelta(days=avg_len)).strftime("%Y-%m-%d"),
         "days_elapsed": int(status_obj['days_elapsed']),
-        "ticker": {"mogas": trend.get('current_mogas'), "tgp": trend.get('current_tgp'), "oil": trend.get('current_oil')}
+        "ticker": {"mogas": trend.get('current_mogas'), "tgp": trend.get('current_tgp'), "oil": trend.get('current_oil')},
+        "history": history
     })
 
 @app.get("/api/stations")
@@ -174,7 +184,24 @@ async def get_sentiment():
     try:
         import market_news
         # Run blocking network call in threadpool
-        return clean_nan(await run_in_threadpool(market_news.get_market_sentiment))
+        sentiment = await run_in_threadpool(market_news.get_market_sentiment)
+        
+        # Enriched Sentiment with TGP Trend
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+        oil_trend = trend.get('oil_trend_pct', 0)
+        
+        # Adjust score: +1 for decreasing oil/tgp (Good), -1 for increasing (Bad)
+        if oil_trend > 1.0: sentiment['score'] -= 2 # Strong Price Pressure
+        elif oil_trend < -1.0: sentiment['score'] += 2 # Strong Relief
+        
+        # Recalculate Mood string based on new score
+        s = sentiment['score']
+        if s <= -3: sentiment['mood'] = "Market Stress (Prices Rising)"
+        elif s >= 3: sentiment['mood'] = "Consumer Relief (Prices Falling)"
+        elif s < 0: sentiment['mood'] = "Slightly Inflationary"
+        else: sentiment['mood'] = "Stable / Mixed"
+        
+        return clean_nan(sentiment)
     except Exception as e:
         print(f"Sentiment Error: {e}")
         return {"score": 0, "mood": "Error", "color": "#64748b", "articles": []}

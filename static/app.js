@@ -1,15 +1,16 @@
-
 // --- Configuration & State ---
 const API_BASE = '/api';
 let map, plannerMap;
 let markers = [];
 let plannerLayer = null;
 let trendChart = null;
+let cycleChart = null;
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initLiveView(); 
+    initCalculator();
 });
 
 // --- Navigation ---
@@ -84,12 +85,46 @@ async function initLiveView() {
         
         document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est || "?"}`;
 
+        // Cycle Chart
+        if (data.history && data.history.dates) {
+            const ctx = document.getElementById('cycleChart');
+            if (ctx) {
+                if (cycleChart) cycleChart.destroy();
+                cycleChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.history.dates,
+                        datasets: [{
+                            label: 'Avg Price (cpl)',
+                            data: data.history.prices,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHitRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw.toFixed(1)}c` } } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: '#94a3b8' } },
+                            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            }
+        }
+
         // Map
         initMap();
         loadStations();
         
-        // Calculator
-        setupCalculator(data.ticker.tgp);
+        // Calculator Update
+        updateCalculator(data.ticker.tgp);
 
     } catch (e) { 
         console.error(e);
@@ -127,7 +162,7 @@ async function loadStations() {
                         radius: 6, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.8
                     }).addTo(map);
                     
-                    m.bindPopup(`<b>${s.brand}</b><br>${s.name}<br><b style="color:${color}">${s.price}c</b>`);
+                    m.bindPopup(`<b>${s.brand}</b><br>${s.name}<br>${s.suburb}<br><b style="color:${color}">${s.price}c</b>`);
                     markers.push(m);
                 }
             });
@@ -135,15 +170,29 @@ async function loadStations() {
     } catch(e) { console.warn("Station load failed", e); }
 }
 
-function setupCalculator(tgp) {
-    const calc = () => {
-        const tank = document.getElementById('calc-tank').value;
-        const potentialSave = 25; // Default assumption
-        const total = (potentialSave * tank) / 100;
-        document.getElementById('calc-result').innerHTML = `Potential savings of <b>$${total.toFixed(2)}</b>`;
-    };
+function initCalculator() {
+    const toggle = document.getElementById('toggle-calc-details');
+    if (toggle) {
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const box = document.getElementById('calc-details-box');
+            if (box) box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        });
+    }
+    
     const inp = document.getElementById('calc-tank');
-    if(inp) { inp.removeEventListener('change', calc); inp.addEventListener('change', calc); calc(); }
+    if(inp) inp.addEventListener('change', () => updateCalculator());
+}
+
+function updateCalculator(tgp) {
+    const inp = document.getElementById('calc-tank');
+    const res = document.getElementById('calc-result');
+    if(!inp || !res) return;
+    
+    const tank = inp.value;
+    const potentialSave = 25; // Default assumption
+    const total = (potentialSave * tank) / 100;
+    res.innerHTML = `Potential Savings: $${total.toFixed(2)}`;
 }
 
 // --- Tab 2: Sentiment ---
@@ -152,9 +201,12 @@ async function loadSentiment() {
         const res = await fetch(`${API_BASE}/sentiment`);
         const data = await res.json();
         
-        document.getElementById('mood-val').innerText = data.mood || "Unknown";
-        document.getElementById('mood-val').style.color = data.color || "#fff";
-        document.getElementById('mood-score').innerText = `Score: ${data.score || 0}`;
+        const moodVal = document.getElementById('mood-val');
+        if (moodVal) {
+            moodVal.innerText = data.mood || "Unknown";
+            moodVal.style.color = data.color || "#fff";
+        }
+        document.getElementById('mood-score').innerText = `Score: ${data.score !== undefined ? data.score : '--'}/10`;
         
         const feed = document.getElementById('news-feed');
         if (data.articles && data.articles.length > 0) {
@@ -163,13 +215,13 @@ async function loadSentiment() {
                     <div class="news-title"><a href="${a.link}" target="_blank" style="color:${data.color};text-decoration:none;">${a.title}</a></div>
                     <div class="news-meta">
                         <span>${a.publisher}</span>
-                        <span>${a.published}</span>
+                        <span>${a.published.substring(0, 16)}</span>
                         <span style="color:${a.sentiment.includes('High') ? '#ef4444' : '#10b981'}">${a.sentiment}</span>
                     </div>
                 </div>
             `).join('');
         } else {
-            feed.innerHTML = "<p>No news available.</p>";
+            feed.innerHTML = "<p style='padding:10px; opacity:0.6;'>No news available right now.</p>";
         }
     } catch(e) {
         console.error(e);
@@ -191,13 +243,13 @@ async function loadRatings() {
             
             el.innerHTML = `
                 <table>
-                    <tr><th>Station</th><th>Suburb</th><th>Price</th><th>Rating</th></tr>
+                    <tr><th>Station</th><th>Suburb</th><th>Price</th><th>Score</th></tr>
                     ${data.map(s => `
                         <tr>
                             <td>${s.name}</td>
-                            <td>${s.suburb}</td>
-                            <td>${s.price}c</td>
-                            <td>${s.rating}</td>
+                            <td>${s.suburb !== 'Unknown' ? s.suburb : '-'}</td>
+                            <td style="font-weight:bold;">${s.price}c</td>
+                            <td>${s.fairness_score.toFixed(1)}</td>
                         </tr>
                     `).join('')}
                 </table>
@@ -214,7 +266,6 @@ async function loadRatings() {
 
 // --- Tab 4: Planner ---
 function loadPlanner() {
-    // Init Planner Map if needed
     if (!plannerMap) {
         const pmEl = document.getElementById('planner-map');
         if (pmEl) {
@@ -228,7 +279,6 @@ function loadPlanner() {
     const btn = document.querySelector('#view-planner button');
     if (!btn) return;
     
-    // Simple way to avoid duplicate listeners: clone
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
@@ -250,13 +300,10 @@ function loadPlanner() {
             });
             const data = await res.json();
             
-            // Clear old layers
             if (plannerLayer) {
                 plannerMap.removeLayer(plannerLayer);
                 plannerLayer = null;
             }
-            
-            // Close old popups
             plannerMap.closePopup();
 
             const container = document.querySelector('#view-planner .card');
@@ -274,16 +321,15 @@ function loadPlanner() {
                     <p>Distance: ${data.distance_km.toFixed(1)} km</p>
                 </div>`;
                 
-                // Draw Route on Map
                 const routeGroup = L.featureGroup();
                 
                 if (data.route_path) {
-                    const line = L.polyline(data.route_path, {color: '#3b82f6', weight: 4}).addTo(routeGroup);
+                    L.polyline(data.route_path, {color: '#3b82f6', weight: 4}).addTo(routeGroup);
                 }
 
                 if (data.stations && data.stations.length > 0) {
                     html += `<table style="margin-top:20px;">
-                        <tr><th>Station</th><th>Price</th><th>Utility</th></tr>
+                        <tr><th>Station</th><th>Price</th><th>Save</th></tr>
                         ${data.stations.map(s => `
                             <tr>
                                 <td>${s.name}</td>
@@ -330,10 +376,10 @@ async function loadAnalytics() {
         
         // 1. Suburb Table
         const el = document.getElementById('table-suburbs');
-        if(el && data.suburb_ranking) {
-             el.innerHTML = `<table><tr><th>Suburb</th><th>Avg Price</th></tr>${data.suburb_ranking.map(r=>`<tr><td>${r.suburb}</td><td>${r.price_cpl.toFixed(1)}c</td></tr>`).join('')}</table>`;
+        if(el && data.suburb_ranking && data.suburb_ranking.length > 0) {
+             el.innerHTML = `<table><tr><th>Suburb</th><th>Avg Price</th></tr>${data.suburb_ranking.map(r=>`<tr><td>${r.suburb !== 'Unknown' ? r.suburb : '-'}</td><td>${r.price_cpl.toFixed(1)}c</td></tr>`).join('')}</table>`;
         } else if (el) {
-            el.innerHTML = "<p>No data available.</p>";
+            el.innerHTML = "<p style='padding:10px; opacity:0.6;'>No live data available to rank suburbs.</p>";
         }
 
         // 2. Chart
@@ -345,35 +391,34 @@ async function loadAnalytics() {
             const historyTgp = data.trend.history.tgp || [];
             
             // Format dates
-            const labels = historyDates.map(d => new Date(d).toLocaleDateString());
+            const labels = historyDates.map(d => new Date(d).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
             
             // Add Forecast
-            const forecastDates = data.trend.sarimax.forecast_dates.map(d => new Date(d).toLocaleDateString());
+            const forecastDates = data.trend.sarimax.forecast_dates.map(d => new Date(d).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
             const forecastVals = data.trend.sarimax.forecast_mean;
             
             const allLabels = [...labels, ...forecastDates];
             const allData = [...historyTgp, ...forecastVals];
-            
-            // Color split (History vs Forecast) requires more complex config or multiple datasets
-            // Simple approach: One line
             
             trendChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: allLabels,
                     datasets: [{
-                        label: 'TGP (cpl)',
+                        label: 'TGP Forecast (cpl)',
                         data: allData,
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        pointHitRadius: 10
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
                     scales: {
                         y: { 
                             grid: { color: '#334155' },

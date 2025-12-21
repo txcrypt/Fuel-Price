@@ -4,7 +4,7 @@ import numpy as np
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LIVE_FILE = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
+LIVE_FILE = os.path.join(BASE_DIR, "live_snapshot.csv")
 RATINGS_FILE = os.path.join(BASE_DIR, "station_ratings.csv")
 METADATA_FILE = os.path.join(BASE_DIR, "station_metadata.csv")
 
@@ -18,10 +18,16 @@ def generate_metadata():
     
     # 1. Load Live Data (Primary Source for IDs)
     if not os.path.exists(LIVE_FILE):
-        print("❌ Live data missing.")
-        return
-        
-    live_df = pd.read_csv(LIVE_FILE)
+        # Fallback to legacy file if snapshot missing
+        legacy = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
+        if os.path.exists(legacy):
+            print("⚠️ Snapshot missing, using legacy collection file.")
+            live_df = pd.read_csv(legacy)
+        else:
+            print("❌ Live data missing.")
+            return
+    else:
+        live_df = pd.read_csv(LIVE_FILE)
     
     # 2. Load Ratings (Secondary Source for Suburbs/Names)
     ratings_df = pd.DataFrame()
