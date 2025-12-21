@@ -141,7 +141,33 @@ async def get_stations():
 @app.get("/api/analytics")
 async def get_analytics():
     trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-    return clean_nan({"trend": trend, "suburb_ranking": [], "price_distribution": []})
+    
+    # Calculate Suburb Ranking & Distribution from Live Data
+    live_df = await run_in_threadpool(load_live_data_latest)
+    suburb_ranking = []
+    price_dist = []
+    
+    if not live_df.empty:
+        # Suburb Ranking (Cheapest)
+        if 'suburb' in live_df.columns and 'price_cpl' in live_df.columns:
+            grp = live_df.groupby('suburb')['price_cpl'].mean().reset_index()
+            grp = grp.sort_values('price_cpl').head(10)
+            suburb_ranking = grp.to_dict(orient='records')
+            
+        # Price Distribution (Histogram buckets)
+        if 'price_cpl' in live_df.columns:
+            # Create simple buckets
+            prices = live_df['price_cpl'].dropna()
+            if not prices.empty:
+                counts, bins = np.histogram(prices, bins=10)
+                # Format for frontend
+                for i in range(len(counts)):
+                    price_dist.append({
+                        "range": f"{int(bins[i])}-{int(bins[i+1])}",
+                        "count": int(counts[i])
+                    })
+
+    return clean_nan({"trend": trend, "suburb_ranking": suburb_ranking, "price_distribution": price_dist})
 
 @app.get("/api/sentiment")
 async def get_sentiment():

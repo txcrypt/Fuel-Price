@@ -119,8 +119,6 @@
             <div class="nav-item" data-view="ratings">⚖️ Ratings</div>
             <div class="nav-item" data-view="planner">🛣️ Planner</div>
             <div class="nav-item" data-view="analytics">📈 Analytics</div>
-            <div class="nav-item" data-view="data">💾 Data</div>
-            <div class="nav-item" data-view="sandbox">🧪 Sandbox</div>
         </nav>
 
         <!-- TAB 1: LIVE MARKET -->
@@ -199,6 +197,7 @@
                         <p style="color:var(--text-secondary);">Route planning logic uses historical zone averages to predict the best filling window.</p>
                     </div>
                 </div>
+                <div id="planner-map" style="height: 400px; width: 100%; margin-top: 20px; border-radius: 8px;"></div>
             </div>
         </div>
 
@@ -215,26 +214,6 @@
                     <h2>Cheapest Suburbs</h2>
                     <div id="table-suburbs"></div>
                 </div>
-            </div>
-        </div>
-
-        <!-- TAB 6: DATA -->
-        <div class="view" id="view-data">
-            <div class="card">
-                <h2>Data Collector</h2>
-                <div id="data-status" style="margin-bottom:20px; padding:15px; border-radius:8px; background:rgba(0,0,0,0.2);">--</div>
-                <button id="btn-collect">Trigger Live Snapshot</button>
-                <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:10px;">Note: Rate limits apply to protect API quota. Cooldown is 15 minutes.</p>
-            </div>
-        </div>
-
-        <!-- TAB 7: SANDBOX -->
-        <div class="view" id="view-sandbox">
-            <div class="card">
-                <h2>Algorithm Sandbox</h2>
-                <p>Upload a CSV to validate prediction accuracy.</p>
-                <input type="file" id="sandbox-file">
-                <button disabled>Run Backtest</button>
             </div>
         </div>
 

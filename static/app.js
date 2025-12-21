@@ -1,13 +1,15 @@
+
 // --- Configuration & State ---
 const API_BASE = '/api';
-let map, markers = [];
+let map, plannerMap;
+let markers = [];
+let plannerLayer = null;
 let trendChart = null;
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initLiveView(); 
-    // Note: Verify that 'data' and 'sandbox' nav items are hidden in index.html
 });
 
 // --- Navigation ---
@@ -23,12 +25,15 @@ function initNavigation() {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(`view-${viewId}`).classList.add('active');
             
-            // Map Resize Fix (Leaflet needs this when tab becomes visible)
+            // Map Resize Fixes
             if (viewId === 'live' && map) {
                 setTimeout(() => map.invalidateSize(), 100);
             }
+            if (viewId === 'planner' && plannerMap) {
+                setTimeout(() => plannerMap.invalidateSize(), 100);
+            }
 
-            // Data Load with Error Handling
+            // Data Load
             loadViewData(viewId);
         });
     });
@@ -42,7 +47,6 @@ function loadViewData(viewId) {
             case 'ratings': loadRatings(); break;
             case 'planner': loadPlanner(); break;
             case 'analytics': loadAnalytics(); break;
-            // Removed: 'data' and 'sandbox'
         }
     } catch (e) {
         console.error("View Load Error:", e);
@@ -142,6 +146,37 @@ function setupCalculator(tgp) {
     if(inp) { inp.removeEventListener('change', calc); inp.addEventListener('change', calc); calc(); }
 }
 
+// --- Tab 2: Sentiment ---
+async function loadSentiment() { 
+    try {
+        const res = await fetch(`${API_BASE}/sentiment`);
+        const data = await res.json();
+        
+        document.getElementById('mood-val').innerText = data.mood || "Unknown";
+        document.getElementById('mood-val').style.color = data.color || "#fff";
+        document.getElementById('mood-score').innerText = `Score: ${data.score || 0}`;
+        
+        const feed = document.getElementById('news-feed');
+        if (data.articles && data.articles.length > 0) {
+            feed.innerHTML = data.articles.map(a => `
+                <div class="news-item">
+                    <div class="news-title"><a href="${a.link}" target="_blank" style="color:${data.color};text-decoration:none;">${a.title}</a></div>
+                    <div class="news-meta">
+                        <span>${a.publisher}</span>
+                        <span>${a.published}</span>
+                        <span style="color:${a.sentiment.includes('High') ? '#ef4444' : '#10b981'}">${a.sentiment}</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            feed.innerHTML = "<p>No news available.</p>";
+        }
+    } catch(e) {
+        console.error(e);
+        document.getElementById('news-feed').innerHTML = "<p>Failed to load news.</p>";
+    }
+}
+
 // --- Tab 3: Ratings ---
 async function loadRatings() {
     try {
@@ -179,6 +214,17 @@ async function loadRatings() {
 
 // --- Tab 4: Planner ---
 function loadPlanner() {
+    // Init Planner Map if needed
+    if (!plannerMap) {
+        const pmEl = document.getElementById('planner-map');
+        if (pmEl) {
+            plannerMap = L.map('planner-map').setView([-27.47, 153.02], 10);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
+            }).addTo(plannerMap);
+        }
+    }
+
     const btn = document.querySelector('#view-planner button');
     if (!btn) return;
     
@@ -204,6 +250,15 @@ function loadPlanner() {
             });
             const data = await res.json();
             
+            // Clear old layers
+            if (plannerLayer) {
+                plannerMap.removeLayer(plannerLayer);
+                plannerLayer = null;
+            }
+            
+            // Close old popups
+            plannerMap.closePopup();
+
             const container = document.querySelector('#view-planner .card');
             const oldRes = document.getElementById('planner-results');
             if (oldRes) oldRes.remove();
@@ -219,6 +274,13 @@ function loadPlanner() {
                     <p>Distance: ${data.distance_km.toFixed(1)} km</p>
                 </div>`;
                 
+                // Draw Route on Map
+                const routeGroup = L.featureGroup();
+                
+                if (data.route_path) {
+                    const line = L.polyline(data.route_path, {color: '#3b82f6', weight: 4}).addTo(routeGroup);
+                }
+
                 if (data.stations && data.stations.length > 0) {
                     html += `<table style="margin-top:20px;">
                         <tr><th>Station</th><th>Price</th><th>Utility</th></tr>
@@ -230,9 +292,22 @@ function loadPlanner() {
                             </tr>
                         `).join('')}
                     </table>`;
+                    
+                    data.stations.forEach(s => {
+                         const m = L.circleMarker([s.latitude, s.longitude], {
+                            radius: 8, fillColor: '#10b981', color: '#fff', weight: 2, fillOpacity: 0.9
+                        }).addTo(routeGroup);
+                        m.bindPopup(`<b>${s.name}</b><br>${s.price_cpl}c`);
+                    });
                 } else {
                     html += `<p style="margin-top:10px; opacity:0.7">No suitable stations found along route.</p>`;
                 }
+                
+                if (plannerMap) {
+                    plannerLayer = routeGroup.addTo(plannerMap);
+                    plannerMap.fitBounds(routeGroup.getBounds(), {padding: [50, 50]});
+                }
+                
                 resDiv.innerHTML = html;
             }
             container.appendChild(resDiv);
@@ -247,22 +322,74 @@ function loadPlanner() {
     });
 }
 
-// --- Other Stubs ---
-async function loadSentiment() { 
-    // Basic Stub
-    const el = document.getElementById('mood-val');
-    if(el) el.innerText = "Neutral";
-}
+// --- Tab 5: Analytics ---
 async function loadAnalytics() {
-    // Basic Stub for robustness
-    const el = document.getElementById('table-suburbs');
-    if(el) el.innerHTML = "Loading...";
     try {
         const res = await fetch(`${API_BASE}/analytics`);
         const data = await res.json();
-        // ... (Chart logic skipped for brevity, but won't crash)
+        
+        // 1. Suburb Table
+        const el = document.getElementById('table-suburbs');
         if(el && data.suburb_ranking) {
-             el.innerHTML = `<table><tr><th>Suburb</th><th>Price</th></tr>${data.suburb_ranking.map(r=>`<tr><td>${r.suburb}</td><td>${r.price_cpl.toFixed(1)}</td></tr>`).join('')}</table>`;
+             el.innerHTML = `<table><tr><th>Suburb</th><th>Avg Price</th></tr>${data.suburb_ranking.map(r=>`<tr><td>${r.suburb}</td><td>${r.price_cpl.toFixed(1)}c</td></tr>`).join('')}</table>`;
+        } else if (el) {
+            el.innerHTML = "<p>No data available.</p>";
         }
-    } catch(e) {}
+
+        // 2. Chart
+        const ctx = document.getElementById('analyticsChart');
+        if (ctx && data.trend && data.trend.history) {
+            if (trendChart) trendChart.destroy();
+            
+            const historyDates = data.trend.history.date || [];
+            const historyTgp = data.trend.history.tgp || [];
+            
+            // Format dates
+            const labels = historyDates.map(d => new Date(d).toLocaleDateString());
+            
+            // Add Forecast
+            const forecastDates = data.trend.sarimax.forecast_dates.map(d => new Date(d).toLocaleDateString());
+            const forecastVals = data.trend.sarimax.forecast_mean;
+            
+            const allLabels = [...labels, ...forecastDates];
+            const allData = [...historyTgp, ...forecastVals];
+            
+            // Color split (History vs Forecast) requires more complex config or multiple datasets
+            // Simple approach: One line
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allLabels,
+                    datasets: [{
+                        label: 'TGP (cpl)',
+                        data: allData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' } 
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', maxTicksLimit: 8 } 
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+    } catch(e) { console.error("Analytics Error", e); }
 }
