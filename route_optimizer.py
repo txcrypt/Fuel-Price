@@ -10,10 +10,11 @@ import config
 # Note: Removed FuelEngine import as requested to avoid external API calls for pricing.
 
 def load_local_data():
-    """Load from local CSV."""
-    if os.path.exists(config.COLLECTION_FILE):
+    """Load from local snapshot."""
+    snapshot_file = "live_snapshot.csv"
+    if os.path.exists(snapshot_file):
         try:
-            df = pd.read_csv(config.COLLECTION_FILE)
+            df = pd.read_csv(snapshot_file)
             # Ensure required columns exist
             req_cols = ['latitude', 'longitude', 'price_cpl']
             if not all(col in df.columns for col in req_cols):

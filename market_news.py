@@ -18,7 +18,8 @@ def fetch_google_news_rss():
     url = "https://news.google.com/rss/search?q=Crude+Oil+Fuel+Price+Australia&hl=en-AU&gl=AU&ceid=AU:en"
     
     try:
-        resp = requests.get(url, timeout=5)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        resp = requests.get(url, headers=headers, timeout=5)
         if resp.status_code != 200:
             return []
             

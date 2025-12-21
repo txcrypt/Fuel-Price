@@ -1,4 +1,3 @@
-
 // --- Configuration & State ---
 const API_BASE = '/api';
 let map, markers = [];
@@ -8,6 +7,7 @@ let trendChart = null;
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initLiveView(); 
+    // Note: Verify that 'data' and 'sandbox' nav items are hidden in index.html
 });
 
 // --- Navigation ---
@@ -42,8 +42,7 @@ function loadViewData(viewId) {
             case 'ratings': loadRatings(); break;
             case 'planner': loadPlanner(); break;
             case 'analytics': loadAnalytics(); break;
-            case 'data': loadDataStatus(); break;
-            case 'sandbox': initSandbox(); break;
+            // Removed: 'data' and 'sandbox'
         }
     } catch (e) {
         console.error("View Load Error:", e);
@@ -267,22 +266,3 @@ async function loadAnalytics() {
         }
     } catch(e) {}
 }
-async function loadDataStatus() {
-    const res = await fetch(`${API_BASE}/collect-status`);
-    const data = await res.json();
-    document.getElementById('data-status').innerHTML = `<b>File:</b> ${data.file}<br><b>Last Run:</b> ${data.last_run}`;
-    
-    const btn = document.getElementById('btn-collect');
-    const newBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(newBtn, btn);
-    
-    newBtn.addEventListener('click', async () => {
-        newBtn.disabled = true; 
-        newBtn.innerText = "Collecting (Wait 10s)...";
-        await fetch(`${API_BASE}/trigger-collect`, { method: 'POST' });
-        loadDataStatus();
-        newBtn.disabled = false;
-        newBtn.innerText = "Trigger Live Snapshot";
-    });
-}
-function initSandbox() {}
