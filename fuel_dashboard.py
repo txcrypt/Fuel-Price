@@ -42,6 +42,9 @@ async def startup_event():
 
 def clean_nan(obj):
     if isinstance(obj, float): return None if (np.isnan(obj) or np.isinf(obj)) else obj
+    if isinstance(obj, (np.integer, int)): return int(obj)
+    if isinstance(obj, (np.floating, float)): return None if (np.isnan(obj) or np.isinf(obj)) else float(obj)
+    if isinstance(obj, (np.bool_, bool)): return bool(obj)
     if isinstance(obj, dict): return {k: clean_nan(v) for k, v in obj.items()}
     if isinstance(obj, list): return [clean_nan(v) for v in obj]
     return obj
@@ -108,7 +111,9 @@ async def get_stations():
     market_avg = live_df['price_cpl'].median() if not live_df.empty else 180.0
     for _, row in live_df.iterrows():
         try:
-            if pd.isna(row.get('latitude')): continue
+            # Explicit NaN check for coordinates
+            if pd.isna(row.get('latitude')) or pd.isna(row.get('longitude')): continue
+            
             stations.append({
                 "id": str(row['site_id']),
                 "name": str(row.get('name', row['site_id'])),
@@ -119,7 +124,7 @@ async def get_stations():
                 "price": float(row['price_cpl']),
                 "fairness_score": float(row.get('fairness_score', 0)),
                 "rating": str(row.get('rating', 'Neutral')),
-                "is_cheap": float(row['price_cpl']) < (market_avg - 2.0),
+                "is_cheap": bool(float(row['price_cpl']) < (market_avg - 2.0)),
                 "updated_at": str(row.get('scraped_at', row.get('reported_at')))
             })
         except: continue

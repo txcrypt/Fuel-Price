@@ -16,7 +16,12 @@ def collect_live_data():
     print(f"🔄 Starting Data Collection at {datetime.now()}...")
     
     try:
-        engine = FuelEngine() # Uses config token automatically
+        token = os.getenv("FUEL_API_TOKEN")
+        if not token:
+            # Fallback for dev environment if needed, or error out
+            token = config.FUEL_API_TOKEN
+            
+        engine = FuelEngine(token=token) 
         snapshot = engine.get_market_snapshot()
         
         if snapshot is None or snapshot.empty:
