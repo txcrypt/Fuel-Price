@@ -149,6 +149,9 @@ def get_market_status():
     # Calculate next hike date
     next_hike_est = last_hike + timedelta(days=avg_len)
     
+    # Ticker Data
+    trend = tgp_forecast.analyze_trend()
+    
     response = {
         "status": final_status,
         "advice": rec_msg,
@@ -156,7 +159,13 @@ def get_market_status():
         "last_hike_date": last_hike.strftime("%Y-%m-%d"),
         "next_hike_est": next_hike_est.strftime("%Y-%m-%d"),
         "days_elapsed": int(status_obj['days_elapsed']),
-        "avg_cycle_length": float(avg_len)
+        "avg_cycle_length": float(avg_len),
+        "ticker": {
+            "mogas": trend.get('current_mogas'),
+            "tgp": trend.get('current_tgp'),
+            "oil": trend.get('current_oil'),
+            "excise": 0.496
+        }
     }
     return clean_nan(response)
 
@@ -175,7 +184,6 @@ def get_stations():
         if 'site_id' in metadata.columns:
             metadata['site_id'] = metadata['site_id'].astype(str)
         live_df = live_df.merge(metadata, on='site_id', how='left', suffixes=('', '_meta'))
-        # Coalesce Lat/Lon
         if 'latitude_meta' in live_df.columns: 
             live_df['latitude'] = live_df['latitude'].fillna(live_df['latitude_meta'])
         if 'longitude_meta' in live_df.columns: 
@@ -189,22 +197,13 @@ def get_stations():
     
     # Format Response
     stations = []
-    
-    # Calculate Market Avg for "is_cheap" logic
     market_avg = live_df['price_cpl'].median() if not live_df.empty else 180.0
     
     for _, row in live_df.iterrows():
         try:
-            # Skip invalid coords
-            if pd.isna(row.get('latitude')) or pd.isna(row.get('longitude')):
-                continue
-                
+            if pd.isna(row.get('latitude')) or pd.isna(row.get('longitude')): continue
             price = float(row['price_cpl'])
-            
-            # Determine Name/Brand
             name = row.get('name', f"Station {row['site_id']}")
-            if pd.isna(name): name = str(row['site_id'])
-            
             brand = row.get('brand', 'Unknown')
             if pd.isna(brand) and 'display_brand' in row: brand = row['display_brand']
             
@@ -212,65 +211,70 @@ def get_stations():
                 "id": str(row['site_id']),
                 "name": str(name),
                 "brand": str(brand),
+                "suburb": str(row.get('suburb', 'Unknown')),
                 "lat": float(row['latitude']),
                 "lng": float(row['longitude']),
                 "price": price,
                 "fairness_score": float(row.get('fairness_score', 0.0)) if pd.notnull(row.get('fairness_score')) else 0.0,
                 "rating": str(row.get('rating', 'Neutral')) if pd.notnull(row.get('rating')) else 'Neutral',
-                "is_cheap": price < (market_avg - 2.0),
-                "updated_at": str(row.get('scraped_at', row.get('reported_at')))
+                "is_cheap": price < (market_avg - 2.0)
             })
-        except Exception as e:
-            continue
+        except: continue
             
     return clean_nan(stations)
 
+@app.get("/api/sentiment")
+def get_sentiment():
+    """Tab 2: Global Sentiment and News Feed"""
+    import market_news
+    sentiment = market_news.get_market_sentiment()
+    return clean_nan(sentiment)
+
 @app.get("/api/analytics")
 def get_analytics():
-    """
-    Returns TGP trend data and forecast charts.
-    """
+    """Tab 5: Econometric and Suburb Analytics"""
     try:
         trend = tgp_forecast.analyze_trend()
+        live_df = load_live_data_latest()
+        metadata = get_cached_metadata()
         
-        # Format chart data
-        # Historical TGP
-        history = trend.get('history', {})
-        chart_history = []
-        if history:
-            dates = history.get('date', [])
-            vals = history.get('tgp', [])
-            for d, v in zip(dates, vals):
-                chart_history.append({"date": str(pd.to_datetime(d).date()), "value": v})
-        
-        # Forecast
-        forecast_data = []
-        sx = trend.get('sarimax', {})
-        if sx:
-            f_dates = sx.get('forecast_dates', [])
-            f_means = sx.get('forecast_mean', [])
-            f_lower = sx.get('lower_ci', [])
-            f_upper = sx.get('upper_ci', [])
-            
-            for i in range(len(f_dates)):
-                forecast_data.append({
-                    "date": str(pd.to_datetime(f_dates[i]).date()),
-                    "mean": f_means[i],
-                    "lower": f_lower[i],
-                    "upper": f_upper[i]
-                })
+        # Suburb Ranking
+        suburb_rank = []
+        if not live_df.empty and not metadata.empty:
+            merged = live_df.merge(metadata[['site_id', 'suburb']], on='site_id', how='left')
+            valid = merged.dropna(subset=['suburb', 'price_cpl'])
+            valid = valid[valid['suburb'] != "Unknown"]
+            if not valid.empty:
+                ranks = valid.groupby('suburb')['price_cpl'].mean().sort_values().head(10).reset_index()
+                suburb_rank = ranks.to_dict(orient='records')
+
+        # Price Distribution
+        prices = live_df['price_cpl'].dropna().tolist() if not live_df.empty else []
 
         return clean_nan({
-            "current_tgp": trend.get('current_tgp'),
-            "forecast_tgp": trend.get('forecast_tgp'),
-            "fair_retail_price": trend.get('current_mogas'),
-            "regime": trend.get('regime'),
-            "history": chart_history,
-            "forecast": forecast_data
+            "trend": trend,
+            "suburb_ranking": suburb_rank,
+            "price_distribution": prices
         })
     except Exception as e:
-        print(f"Analytics Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/collect-status")
+def get_collect_status():
+    """Tab 6: Data Collector Status"""
+    last_run = "Never"
+    file_path = data_collector.COLLECTION_FILE
+    if os.path.exists(file_path):
+        mtime = os.path.getmtime(file_path)
+        last_run = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+    
+    return {"last_run": last_run, "file": file_path}
+
+@app.post("/api/trigger-collect")
+def trigger_collect():
+    """Tab 6: Manual Collection Trigger"""
+    count = data_collector.collect_live_data()
+    return {"success": True, "count": count}
 
 # --- Server Logic ---
 
