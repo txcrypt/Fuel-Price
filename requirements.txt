@@ -11,3 +11,4 @@ polyline
 yfinance
 geopandas
 libpysal
+esda
