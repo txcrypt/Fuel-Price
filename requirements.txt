@@ -14,3 +14,4 @@ libpysal
 esda
 statsmodels
 scipy
+openpyxl
