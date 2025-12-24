@@ -1,7 +1,7 @@
 import os
 
 # Security
-FUEL_API_TOKEN = os.getenv("FUEL_API_TOKEN") # Must be set in environment
+FUEL_API_TOKEN = os.getenv("FUEL_API_TOKEN", "028c992c-dc6a-4509-a94b-db707308841d") # Default fallback for dev
 
 # Geolocation (Brisbane Defaults)
 DEFAULT_CENTER_LAT = -27.470

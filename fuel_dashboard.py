@@ -98,11 +98,22 @@ async def get_market_status():
     # History for Graph
     history = {}
     if daily_df is not None and not daily_df.empty:
-        hist_data = daily_df.sort_index().tail(45)
-        history = {
-            "dates": hist_data.index.strftime('%Y-%m-%d').tolist(),
-            "prices": hist_data['price_cpl'].tolist()
-        }
+        try:
+            hist_data = daily_df.sort_index().tail(45)
+            # Ensure DatetimeIndex
+            if not isinstance(hist_data.index, pd.DatetimeIndex):
+                 hist_data.index = pd.to_datetime(hist_data.index, errors='coerce')
+                 
+            # Filter out NaT if conversion failed
+            hist_data = hist_data[hist_data.index.notnull()]
+            
+            history = {
+                "dates": hist_data.index.strftime('%Y-%m-%d').tolist(),
+                "prices": hist_data['price_cpl'].tolist()
+            }
+        except Exception as e:
+            print(f"History generation error: {e}")
+            history = {}
     
     return clean_nan({
         "status": final_status,
@@ -154,6 +165,12 @@ async def get_analytics():
     
     # Calculate Suburb Ranking & Distribution from Live Data
     live_df = await run_in_threadpool(load_live_data_latest)
+    
+    # Merge Metadata to get Suburbs
+    meta = get_cached_metadata()
+    if not live_df.empty and not meta.empty:
+        live_df = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
+
     suburb_ranking = []
     price_dist = []
     

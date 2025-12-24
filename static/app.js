@@ -236,12 +236,15 @@ async function loadRatings() {
         let stations = await res.json();
         if (!Array.isArray(stations)) stations = [];
         
-        const renderTable = (data, container) => {
+        const renderTable = (data, container, isBest) => {
             const el = document.getElementById(container);
             if(!el) return;
             if(data.length === 0) { el.innerHTML = "<p style='padding:1rem; opacity:0.5'>No data available.</p>"; return; }
             
             el.innerHTML = `
+                <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">
+                    ${isBest ? '📉 Lower score = Better value' : '📈 Higher score = More expensive'}
+                </p>
                 <table>
                     <tr><th>Station</th><th>Suburb</th><th>Price</th><th>Score</th></tr>
                     ${data.map(s => `
@@ -249,18 +252,20 @@ async function loadRatings() {
                             <td>${s.name}</td>
                             <td>${s.suburb !== 'Unknown' ? s.suburb : '-'}</td>
                             <td style="font-weight:bold;">${s.price}c</td>
-                            <td>${s.fairness_score.toFixed(1)}</td>
+                            <td style="color:${s.fairness_score < 0 ? '#10b981' : '#ef4444'}">${s.fairness_score.toFixed(1)}</td>
                         </tr>
                     `).join('')}
                 </table>
             `;
         };
 
-        const best = [...stations].sort((a, b) => b.fairness_score - a.fairness_score).slice(0, 10);
-        renderTable(best, 'table-best');
+        // Best Value: Lowest Score First (Ascending)
+        const best = [...stations].sort((a, b) => a.fairness_score - b.fairness_score).slice(0, 10);
+        renderTable(best, 'table-best', true);
 
-        const worst = [...stations].sort((a, b) => a.fairness_score - b.fairness_score).slice(0, 10);
-        renderTable(worst, 'table-worst');
+        // Most Expensive: Highest Score First (Descending)
+        const worst = [...stations].sort((a, b) => b.fairness_score - a.fairness_score).slice(0, 10);
+        renderTable(worst, 'table-worst', false);
     } catch(e) { console.error(e); }
 }
 
