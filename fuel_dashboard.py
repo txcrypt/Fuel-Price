@@ -17,6 +17,7 @@ from fuel_engine import FuelEngine
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import station_fairness, cycle_prediction, tgp_forecast, station_metadata, route_optimizer
+from savings_calculator import SavingsCalculator
 
 app = FastAPI(title="Brisbane Fuel AI API", version="2.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -201,29 +202,47 @@ async def get_sentiment():
     try:
         import market_news
         # Run blocking network call in threadpool
-        sentiment = await run_in_threadpool(market_news.get_market_sentiment)
-        
-        # Enriched Sentiment with TGP Trend
-        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-        oil_trend = trend.get('oil_trend_pct', 0)
-        
-        # Adjust score: +1 for decreasing oil/tgp (Good), -1 for increasing (Bad)
-        if oil_trend > 1.0: sentiment['score'] -= 2 # Strong Price Pressure
-        elif oil_trend < -1.0: sentiment['score'] += 2 # Strong Relief
-        
-        # Recalculate Mood string based on new score
-        s = sentiment['score']
-        if s <= -3: sentiment['mood'] = "Market Stress (Prices Rising)"
-        elif s >= 3: sentiment['mood'] = "Consumer Relief (Prices Falling)"
-        elif s < 0: sentiment['mood'] = "Slightly Inflationary"
-        else: sentiment['mood'] = "Stable / Mixed"
-        
-        return clean_nan(sentiment)
+        news_data = await run_in_threadpool(market_news.get_market_news)
+        return clean_nan(news_data)
     except Exception as e:
         print(f"Sentiment Error: {e}")
-        return {"score": 0, "mood": "Error", "color": "#64748b", "articles": []}
+        return {"global": [], "domestic": []}
 
 from pydantic import BaseModel
+class SavingsRequest(BaseModel):
+    tank_size: int
+
+@app.post("/api/calculate-savings")
+async def calculate_savings(req: SavingsRequest):
+    # 1. Get Market Data
+    live_df = await run_in_threadpool(load_live_data_latest)
+    if live_df.empty: return {"error": "No market data"}
+    
+    current_avg = live_df['price_cpl'].median()
+    best_price = live_df['price_cpl'].min()
+    
+    # 2. Get Cycle Data
+    daily_df = await run_in_threadpool(cycle_prediction.load_daily_data)
+    avg_len, avg_relent, last_hike = await run_in_threadpool(cycle_prediction.analyze_cycles, daily_df)
+    status_obj = cycle_prediction.predict_status(avg_relent, last_hike)
+    
+    phase = "Restoration" if "HIKE" in status_obj['status'] else "Relenting"
+    
+    # Fetch TGP for bottom prediction baseline
+    trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+    pred_bottom = trend.get('current_tgp', 150.0) + 2.0 
+    
+    # 3. Calculate
+    calc = SavingsCalculator(
+        current_avg_price=current_avg,
+        best_local_price=best_price,
+        cycle_phase=phase,
+        predicted_bottom=pred_bottom,
+        tank_size=req.tank_size
+    )
+    
+    return clean_nan(calc.get_report())
+
 class RouteRequest(BaseModel): start: str; end: str
 
 @app.post("/api/planner")

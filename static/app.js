@@ -171,28 +171,45 @@ async function loadStations() {
 }
 
 function initCalculator() {
-    const toggle = document.getElementById('toggle-calc-details');
-    if (toggle) {
-        toggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            const box = document.getElementById('calc-details-box');
-            if (box) box.style.display = box.style.display === 'block' ? 'none' : 'block';
-        });
-    }
-    
     const inp = document.getElementById('calc-tank');
-    if(inp) inp.addEventListener('change', () => updateCalculator());
+    if(inp) {
+        inp.addEventListener('change', () => updateCalculator());
+        // Initial call after a delay to ensure backend is ready
+        setTimeout(() => updateCalculator(), 1500); 
+    }
 }
 
-function updateCalculator(tgp) {
+async function updateCalculator() {
     const inp = document.getElementById('calc-tank');
-    const res = document.getElementById('calc-result');
-    if(!inp || !res) return;
+    const container = document.getElementById('calc-results-container');
     
-    const tank = inp.value;
-    const potentialSave = 25; // Default assumption
-    const total = (potentialSave * tank) / 100;
-    res.innerHTML = `Potential Savings: $${total.toFixed(2)}`;
+    if(!inp || !container) return;
+    
+    container.style.opacity = '0.5';
+    
+    try {
+        const res = await fetch(`${API_BASE}/calculate-savings`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ tank_size: parseInt(inp.value) })
+        });
+        
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        document.getElementById('calc-result').innerHTML = `Immediate Save: $${data.immediate_saving_dollars.toFixed(2)}`;
+        document.getElementById('calc-opportunity').innerText = `$${data.opportunity_cost_dollars.toFixed(2)}`;
+        document.getElementById('calc-annual').innerText = `$${data.projected_annual_saving.toFixed(0)}`;
+        document.getElementById('calc-recommendation').innerText = data.recommendation_text;
+        
+        container.style.opacity = '1';
+        
+    } catch (e) {
+        console.error("Calc Error:", e);
+        document.getElementById('calc-result').innerText = "Unavailable";
+        container.style.opacity = '1';
+    }
 }
 
 // --- Tab 2: Sentiment ---
@@ -201,31 +218,31 @@ async function loadSentiment() {
         const res = await fetch(`${API_BASE}/sentiment`);
         const data = await res.json();
         
-        const moodVal = document.getElementById('mood-val');
-        if (moodVal) {
-            moodVal.innerText = data.mood || "Unknown";
-            moodVal.style.color = data.color || "#fff";
-        }
-        document.getElementById('mood-score').innerText = `Score: ${data.score !== undefined ? data.score : '--'}/10`;
-        
-        const feed = document.getElementById('news-feed');
-        if (data.articles && data.articles.length > 0) {
-            feed.innerHTML = data.articles.map(a => `
-                <div class="news-item">
-                    <div class="news-title"><a href="${a.link}" target="_blank" style="color:${data.color};text-decoration:none;">${a.title}</a></div>
-                    <div class="news-meta">
-                        <span>${a.publisher}</span>
-                        <span>${a.published.substring(0, 16)}</span>
-                        <span style="color:${a.sentiment.includes('High') ? '#ef4444' : '#10b981'}">${a.sentiment}</span>
+        const renderFeed = (items, containerId) => {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            
+            if (items && items.length > 0) {
+                el.innerHTML = items.map(a => `
+                    <div class="news-item">
+                        <div class="news-title"><a href="${a.link}" target="_blank" style="color:#fff;text-decoration:none;">${a.title}</a></div>
+                        <div class="news-meta">
+                            <span>${a.publisher}</span>
+                            <span>${a.published ? a.published.substring(0, 16) : ''}</span>
+                            <span style="color:${a.sentiment.includes('High') ? '#ef4444' : '#10b981'}">${a.sentiment}</span>
+                        </div>
                     </div>
-                </div>
-            `).join('');
-        } else {
-            feed.innerHTML = "<p style='padding:10px; opacity:0.6;'>No news available right now.</p>";
-        }
+                `).join('');
+            } else {
+                el.innerHTML = "<p style='padding:10px; opacity:0.6;'>No news available.</p>";
+            }
+        };
+
+        renderFeed(data.global, 'feed-global');
+        renderFeed(data.domestic, 'feed-domestic');
+
     } catch(e) {
         console.error(e);
-        document.getElementById('news-feed').innerHTML = "<p>Failed to load news.</p>";
     }
 }
 
@@ -241,10 +258,19 @@ async function loadRatings() {
             if(!el) return;
             if(data.length === 0) { el.innerHTML = "<p style='padding:1rem; opacity:0.5'>No data available.</p>"; return; }
             
+            const hintId = isBest ? 'hint-best' : 'hint-worst';
+            const toggleId = isBest ? 'toggle-best' : 'toggle-worst';
+            
             el.innerHTML = `
-                <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">
-                    ${isBest ? '📉 Lower score = Better value' : '📈 Higher score = More expensive'}
-                </p>
+                <div style="margin-bottom:10px;">
+                    <a href="#" id="${toggleId}" style="font-size:0.8rem; color:var(--accent-blue); text-decoration:none;">❓ What does this score mean?</a>
+                    <div id="${hintId}" style="display:none; margin-top:5px; font-size:0.8rem; color:var(--text-secondary); background:rgba(0,0,0,0.2); padding:8px; border-radius:4px;">
+                        The Fairness Score compares the station's price to the local average.<br>
+                        <b>Negative Score (e.g. -5.0):</b> Station is 5c <i>cheaper</i> than average.<br>
+                        <b>Positive Score (e.g. +5.0):</b> Station is 5c <i>more expensive</i> than average.<br>
+                        Lower is better!
+                    </div>
+                </div>
                 <table>
                     <tr><th>Station</th><th>Suburb</th><th>Price</th><th>Score</th></tr>
                     ${data.map(s => `
@@ -257,6 +283,17 @@ async function loadRatings() {
                     `).join('')}
                 </table>
             `;
+            
+            setTimeout(() => {
+                const toggle = document.getElementById(toggleId);
+                if(toggle) {
+                    toggle.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const hint = document.getElementById(hintId);
+                        hint.style.display = hint.style.display === 'block' ? 'none' : 'block';
+                    });
+                }
+            }, 0);
         };
 
         // Best Value: Lowest Score First (Ascending)

@@ -168,13 +168,18 @@
                         <option value="50" selected>Medium (50L)</option>
                         <option value="80">SUV (80L)</option>
                     </select>
-                    <div id="calc-result" style="padding:10px; border-radius:4px; font-size:1.1rem; background:rgba(255,255,255,0.05); font-weight:bold; color:var(--accent-green);">--</div>
-                    <div style="text-align:right; margin-top:5px;">
-                        <a href="#" id="toggle-calc-details" style="font-size:0.8rem; color:var(--accent-blue); text-decoration:none;">How is this calculated?</a>
-                    </div>
-                    <div class="calc-details" id="calc-details-box">
-                        <p>Calculation assumes a potential saving of <b>25c/L</b> compared to the market high.</p>
-                        <p>Total = Tank Size × 25c</p>
+                    
+                    <div id="calc-results-container" style="opacity: 0.5;">
+                        <div id="calc-result" style="padding:10px; border-radius:4px; font-size:1.1rem; background:rgba(16,185,129,0.1); font-weight:bold; color:var(--accent-green); margin-bottom:10px; text-align:center;">--</div>
+                        
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.9rem;">
+                            <span>⏱️ Opportunity: <b id="calc-opportunity" style="color:#f59e0b;">--</b></span>
+                            <span>📅 Annual: <b id="calc-annual" style="color:#3b82f6;">--</b></span>
+                        </div>
+                        
+                        <div id="calc-recommendation" style="font-size:0.85rem; padding:10px; background:rgba(255,255,255,0.05); border-left: 3px solid var(--accent-blue); color: #e2e8f0; line-height: 1.4; border-radius: 0 4px 4px 0;">
+                            Initializing...
+                        </div>
                     </div>
                 </div>
             </div>
@@ -200,13 +205,12 @@
         <div class="view" id="view-sentiment">
             <div class="grid">
                 <div class="card">
-                    <h2>Market Mood</h2>
-                    <div id="mood-val" class="metric-val" style="text-align:center; padding:20px; font-size:1.5rem;">--</div>
-                    <div id="mood-score" style="text-align:center; font-weight:700;">Score: --/10</div>
+                    <h2>International News Feed</h2>
+                    <div id="feed-global">Loading...</div>
                 </div>
-                <div class="card" style="grid-column: span 1 / -1;">
-                    <h2>Energy News Feed</h2>
-                    <div id="news-feed">Loading headlines...</div>
+                <div class="card">
+                    <h2>Domestic News Feed</h2>
+                    <div id="feed-domestic">Loading...</div>
                 </div>
             </div>
         </div>
