@@ -3,6 +3,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
+from math import radians, cos, sin, asin, sqrt
 from datetime import datetime, timedelta
 from functools import lru_cache
 import threading
@@ -221,16 +222,19 @@ async def calculate_savings(req: SavingsRequest):
     current_avg = live_df['price_cpl'].median()
     best_price = live_df['price_cpl'].min()
     
-    # 2. Get Cycle Data
-    daily_df = await run_in_threadpool(cycle_prediction.load_daily_data)
-    avg_len, avg_relent, last_hike = await run_in_threadpool(cycle_prediction.analyze_cycles, daily_df)
-    status_obj = cycle_prediction.predict_status(avg_relent, last_hike)
-    
-    phase = "Restoration" if "HIKE" in status_obj['status'] else "Relenting"
-    
-    # Fetch TGP for bottom prediction baseline
+    # 2. Get Phase (Simplified reuse of market-status logic)
     trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-    pred_bottom = trend.get('current_tgp', 150.0) + 2.0 
+    current_tgp = trend.get('current_tgp', 160.0)
+    
+    # We ideally need yesterday's data for full accuracy, but for savings calc
+    # we can use a simpler fallback or try to load history.
+    # For speed, let's use the TGP logic directly or call the detector with None history (Bottom check only)
+    cycle_analysis = cycle_prediction.detect_market_phase(live_df, None, tgp=current_tgp)
+    
+    phase = "Restoration" if cycle_analysis['phase'] == "RESTORATION" else "Relenting"
+    
+    # Predicted Bottom
+    pred_bottom = current_tgp + 2.0 
     
     # 3. Calculate
     calc = SavingsCalculator(
@@ -250,6 +254,59 @@ async def plan_route(req: RouteRequest):
     res = await run_in_threadpool(route_optimizer.optimize_route, req.start, req.end)
     if res and 'stations' in res and not res['stations'].empty: res['stations'] = res['stations'].to_dict(orient='records')
     return clean_nan(res if res else {"error": "Route not found"})
+
+# Helper for Distance
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers
+    return c * r
+
+class LocationRequest(BaseModel):
+    latitude: float
+    longitude: float
+
+@app.post("/api/find_cheapest_nearby")
+async def find_cheapest_nearby(loc: LocationRequest):
+    live_df = await run_in_threadpool(load_live_data_latest)
+    if live_df.empty: return []
+    
+    # Merge Metadata for nice names
+    meta = get_cached_metadata()
+    if not meta.empty:
+        live_df = live_df.merge(meta[['site_id', 'name', 'suburb', 'brand']], on='site_id', how='left', suffixes=('', '_meta'))
+        if 'name_meta' in live_df.columns: live_df['name'] = live_df['name'].fillna(live_df['name_meta'])
+        if 'brand_meta' in live_df.columns: live_df['brand'] = live_df['brand'].fillna(live_df['brand_meta'])
+    
+    results = []
+    for _, row in live_df.iterrows():
+        try:
+            if pd.isna(row['latitude']) or pd.isna(row['longitude']): continue
+            
+            slat, slon = float(row['latitude']), float(row['longitude'])
+            dist = haversine(loc.longitude, loc.latitude, slon, slat)
+            
+            if dist <= 10.0: # 10km Radius
+                results.append({
+                    "name": str(row.get('name', 'Unknown Station')),
+                    "price": float(row['price_cpl']),
+                    "distance": dist,
+                    "brand": str(row.get('brand', 'Unknown')),
+                    "suburb": str(row.get('suburb', ''))
+                })
+        except: continue
+        
+    # Sort: Price (asc), then Distance (asc)
+    results.sort(key=lambda x: (x['price'], x['distance']))
+    
+    return clean_nan(results[:5])
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")

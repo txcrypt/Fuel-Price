@@ -11,7 +11,77 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initLiveView(); 
     initCalculator();
+    initFindNearMe();
 });
+
+// --- Find Near Me ---
+function initFindNearMe() {
+    const btn = document.getElementById('btn-find-near');
+    const container = document.getElementById('near-me-results');
+    
+    if(!btn) return;
+    
+    btn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerText = "Locating...";
+        container.style.display = 'block';
+        container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Getting your location...</p>';
+        
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                btn.innerText = "Searching stations...";
+                const { latitude, longitude } = position.coords;
+                
+                try {
+                    const res = await fetch(`${API_BASE}/find_cheapest_nearby`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ latitude, longitude })
+                    });
+                    const data = await res.json();
+                    
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<p style="text-align:center; color:#ef4444;">No stations found within 10km.</p>';
+                    } else {
+                        let html = '<div style="display:grid; gap:10px;">';
+                        data.forEach(s => {
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border-left: 3px solid #10b981;">
+                                    <div>
+                                        <div style="font-weight:bold; color:#fff;">${s.name}</div>
+                                        <div style="font-size:0.8rem; color:#94a3b8;">${s.distance.toFixed(1)} km away • ${s.suburb}</div>
+                                    </div>
+                                    <div style="font-size:1.2rem; font-weight:bold; color:#10b981;">${s.price.toFixed(1)}c</div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    container.innerHTML = '<p style="text-align:center; color:#ef4444;">Error fetching data.</p>';
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "📍 Find Cheapest Fuel Near Me";
+                }
+            },
+            (error) => {
+                console.error(error);
+                let msg = "Unable to retrieve location.";
+                if(error.code === 1) msg = "Location permission denied.";
+                container.innerHTML = `<p style="text-align:center; color:#ef4444;">${msg}</p>`;
+                btn.disabled = false;
+                btn.innerText = "📍 Find Cheapest Fuel Near Me";
+            }
+        );
+    });
+}
 
 // --- Navigation ---
 function initNavigation() {
