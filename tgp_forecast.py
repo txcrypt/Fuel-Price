@@ -1,28 +1,32 @@
 import pandas as pd
 import numpy as np
-import os
-from datetime import datetime, timedelta
-import warnings
 import requests
 from bs4 import BeautifulSoup
 import re
+import warnings
+from datetime import datetime, timedelta
 
 warnings.filterwarnings("ignore")
 
-def fetch_market_data(days=365):
+# --- Constants ---
+AIP_URL = "https://www.aip.com.au/pricing/terminal-gate-prices"
+VIVA_URL = "https://www.vivaenergy.com.au/quick-links/terminal-gate-pricing"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+def fetch_market_data(days=90):
     """
     Fetches market indicators: Brent Crude (Oil) and AUD/USD Exchange Rate.
     Returns a merged DataFrame.
     """
-    import yfinance as yf # Lazy import
+    import yfinance as yf
     
-    print("📉 Fetching Market Indicators (Oil & FX)...")
+    # print("📉 Fetching Market Indicators (Oil & FX)...")
     try:
         # Brent Crude Oil (BZ=F)
-        oil = yf.Ticker("BZ=F").history(period=f"{days}d")['Close'].rename("oil_price")
+        oil = yf.Ticker("BZ=F").history(period=f"{days+10}d")['Close'].rename("oil_price")
         
-        # AUD to USD (AUD=X) - Inverse is USD/AUD which impacts import cost
-        fx = yf.Ticker("AUD=X").history(period=f"{days}d")['Close'].rename("aud_fx")
+        # AUD to USD (AUD=X)
+        fx = yf.Ticker("AUD=X").history(period=f"{days+10}d")['Close'].rename("aud_fx")
         
         if oil.empty or fx.empty:
             raise ValueError("Empty data from yfinance")
@@ -30,14 +34,12 @@ def fetch_market_data(days=365):
         # Merge and clean
         df = pd.concat([oil, fx], axis=1).ffill().bfill()
         df.index = pd.to_datetime(df.index).tz_localize(None)
-        return df
+        
+        # Trim to requested days
+        return df.tail(days)
     except Exception as e:
         print(f"❌ Error fetching market data: {e}. Using synthetic fallback.")
-        # Synthetic Data Generation - STABLE FALLBACK
-        # We use fixed values to prevent dashboard jitter
         dates = pd.date_range(end=datetime.now(), periods=days)
-        
-        # Stable fallback: Oil at $75, FX at 0.65
         df = pd.DataFrame({
             'oil_price': [75.0] * days,
             'aud_fx': [0.65] * days
@@ -46,122 +48,138 @@ def fetch_market_data(days=365):
 
 def fetch_live_tgp():
     """
-    Scrapes the current Terminal Gate Price for Brisbane from Viva Energy.
-    Returns the price (float) or None if failed.
+    Scrapes the current Terminal Gate Price (Brisbane) from AIP (Primary) or Viva (Secondary).
+    Returns float (cents per litre).
     """
-    url = "https://www.vivaenergy.com.au/quick-links/terminal-gate-pricing"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    
+    # 1. Try AIP
     try:
-        print("🌐 Fetching Live TGP from Viva Energy...")
-        r = requests.get(url, headers=headers, timeout=10)
-        if r.status_code != 200: return None
-        
-        soup = BeautifulSoup(r.text, 'html.parser')
-        rows = soup.find_all('tr')
-        
-        for row in rows:
-            text = row.get_text().upper()
-            if "BRISBANE" in text:
-                cols = row.find_all('td')
-                # Iterate columns to find the first valid price
-                for col in cols:
-                    raw = col.get_text().strip()
-                    if not raw or "BRISBANE" in raw.upper(): continue
-                    
-                    try:
-                        clean = re.sub(r'[^\d.]', '', raw)
-                        price = float(clean)
-                        if 100 < price < 250: # Sanity check
-                            print(f"✅ Scraped TGP: {price}c")
-                            return price
-                    except: continue
-        return None
+        r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            # AIP Table structure: Look for Brisbane row
+            # Usually in a table with 'Brisbane' and 'ULP'
+            for row in soup.find_all('tr'):
+                text = row.get_text().upper()
+                if "BRISBANE" in text:
+                    # Look for value in columns
+                    cols = row.find_all('td')
+                    # ULP is usually the first or second numeric column
+                    for col in cols:
+                        val_text = col.get_text().strip()
+                        try:
+                            val = float(re.sub(r'[^\d.]', '', val_text))
+                            if 100 < val < 250: # Sanity check
+                                # print(f"✅ Scraped TGP (AIP): {val}c")
+                                return val
+                        except: continue
     except Exception as e:
-        print(f"⚠️ TGP Fetch Failed: {e}")
-        return None
+        print(f"⚠️ AIP Fetch Failed: {e}")
+
+    # 2. Try Viva Energy (Fallback)
+    try:
+        r = requests.get(VIVA_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            for row in soup.find_all('tr'):
+                text = row.get_text().upper()
+                if "BRISBANE" in text:
+                    cols = row.find_all('td')
+                    for col in cols:
+                        raw = col.get_text().strip()
+                        if not raw or "BRISBANE" in raw.upper(): continue
+                        try:
+                            price = float(re.sub(r'[^\d.]', '', raw))
+                            if 100 < price < 250:
+                                # print(f"✅ Scraped TGP (Viva): {price}c")
+                                return price
+                        except: continue
+    except Exception as e:
+        print(f"⚠️ Viva Fetch Failed: {e}")
+
+    return None
+
+def get_tgp_history(days=90):
+    """
+    Returns a pandas Series of TGP history.
+    Strategy:
+    1. Get current LIVE TGP.
+    2. Get Market Data (Oil, FX).
+    3. Calculate 'Theoretical TGP' history based on Import Parity.
+    4. Bias/Shift the theoretical curve so the last point matches the LIVE TGP.
+    """
+    # 1. Live Anchor
+    live_tgp = fetch_live_tgp()
+    if live_tgp is None:
+        live_tgp = 170.0 # Emergency Fallback
+        
+    # 2. Market Drivers
+    market_df = fetch_market_data(days)
+    
+    # 3. Calculate Import Parity (Theoretical)
+    # MOPS95 ~ Brent + Crack Spread ($12 USD/bbl approx)
+    # TGP = (Oil + 12) / 159 * FX_Rate * 100 + Quality_Premium + Taxes(Excise+GST)
+    # Actually simpler: TGP follows Oil/FX with a lag.
+    # We construct a shape curve.
+    
+    # Constants
+    CRACK_SPREAD = 15.0 # USD/bbl
+    # Note: This is a rough proxy for the shape, not exact accounting
+    
+    market_df['mogas_aud'] = (market_df['oil_price'] + CRACK_SPREAD) / market_df['aud_fx']
+    
+    # 4. Anchor to Real Reality
+    # We want the last value of the series to be `live_tgp`
+    # We calculate the scaling factor or offset needed
+    
+    last_theoretical = market_df['mogas_aud'].iloc[-1]
+    
+    # Using a simple linear scaling for shape preservation
+    # TGP_est = A * Mogas_AUD + B. 
+    # Let's just use a ratio for simplicity as we want the *Trend* primarily.
+    # ratio = live_tgp / last_theoretical ( This converts the raw 'oil/fx number' to 'cents per litre' roughly)
+    
+    # However, Excise is fixed (~50c), GST is 10%. 
+    # Better model: TGP = (Base_Cost * 1.1) + Excise. 
+    # But strictly anchoring is safer for the "Physics" model.
+    
+    if last_theoretical > 0:
+        ratio = live_tgp / last_theoretical
+        tgp_series = market_df['mogas_aud'] * ratio
+    else:
+        tgp_series = pd.Series([live_tgp]*len(market_df), index=market_df.index)
+        
+    tgp_series.name = 'tgp'
+    return tgp_series
 
 def analyze_trend():
     """
-    Robust TGP Forecast & Analysis.
-    Uses live scraped TGP and Real Market Data (YFinance) for benchmarks.
+    Returns the trend analysis for the Dashboard.
     """
-    # 1. Establish "Actual" TGP
-    live_tgp = fetch_live_tgp()
+    history = get_tgp_history(days=30)
+    current_tgp = history.iloc[-1]
     
-    if live_tgp:
-        CURRENT_TGP_BASELINE = live_tgp
-        regime_note = "Live (Viva Energy)"
+    # Trend (Last 7 days)
+    delta_7d = current_tgp - history.iloc[-8] if len(history) > 7 else 0
+    trend_direction = "RISING" if delta_7d > 0.5 else "FALLING" if delta_7d < -0.5 else "STABLE"
+    
+    # Singapore Lag (Proxy using Oil 10 days ago vs today)
+    # In a real system we'd use MOPS95 prices. We use Oil as proxy.
+    market = fetch_market_data(days=20)
+    if len(market) > 10:
+        oil_10_ago = market['oil_price'].iloc[-11]
+        oil_now = market['oil_price'].iloc[-1]
+        lag_delta = (oil_now - oil_10_ago)
+        lag_msg = "ROCKET (Rising Cost)" if lag_delta > 2 else "FEATHER (Dropping Cost)" if lag_delta < -2 else "NEUTRAL"
     else:
-        # Fallback based on recent averages
-        CURRENT_TGP_BASELINE = 161.63 
-        regime_note = "Estimated (Fallback)"
-    
-    # 2. Fetch Real Market Data (Oil/FX)
-    market_df = fetch_market_data(180)
-    current_oil = market_df['oil_price'].iloc[-1]
-    current_fx = market_df['aud_fx'].iloc[-1]
-    
-    # 3. Calculate Mogas 95 Benchmark (The "Import Parity Price")
-    # Formula: (Brent($USD/bbl) + Crack Spread($USD/bbl)) / 159 (L/bbl) / FX(AUD/USD) * 100 (cents)
-    CRACK_SPREAD_USD = 12.0 # Average refining margin
-    
-    mogas_usd_bbl = current_oil + CRACK_SPREAD_USD
-    mogas_aud_liter = (mogas_usd_bbl / 159) / current_fx
-    mogas_benchmark = mogas_aud_liter * 100
-    
-    # 4. Generate Synthetic TGP History (aligned to current baseline)
-    # We use the shape of the Oil Price chart to make the TGP history look realistic
-    # TGP ~ Oil * Factor
-    dates = market_df.index
-    
-    # Normalize oil price to match TGP level at the end
-    scaling_factor = CURRENT_TGP_BASELINE / current_oil
-    synthetic_tgp = market_df['oil_price'] * scaling_factor
-    
-    # Smooth it slightly (TGP is less volatile than raw crude)
-    synthetic_tgp = synthetic_tgp.rolling(window=3).mean().fillna(method='bfill')
-    
-    history_df = pd.DataFrame({'tgp': synthetic_tgp}, index=dates)
-    history_df.index.name = 'date'
-    
-    # 5. Forecast (Simple Trend Extension)
-    fc_dates = pd.date_range(start=dates[-1] + timedelta(days=1), periods=14)
-    fc_values = []
-    current = synthetic_tgp.iloc[-1]
-    
-    # Calculate recent trend (last 7 days)
-    recent_trend = (synthetic_tgp.iloc[-1] - synthetic_tgp.iloc[-7]) / 7.0
-    
-    for _ in range(14):
-        # Stable linear projection based on recent momentum
-        current += recent_trend
-        fc_values.append(current)
-        
-    # 6. Market Regime
-    recent_vol = synthetic_tgp.tail(7).std()
-    if recent_vol > 2.0: regime = "RESTORATION (Hike)"
-    elif synthetic_tgp.iloc[-1] < synthetic_tgp.iloc[-14]: regime = "RELENTING (Drop)"
-    else: regime = "STABLE"
-    
-    oil_trend = 0.0
-    if len(market_df) > 7:
-        oil_trend = ((current_oil - market_df['oil_price'].iloc[-7]) / market_df['oil_price'].iloc[-7]) * 100
-    
+        lag_msg = "UNKNOWN"
+
     return {
-        'current_oil': current_oil,
-        'current_mogas': mogas_benchmark, # Real calculated value
-        'oil_trend_pct': oil_trend,
-        'current_tgp': CURRENT_TGP_BASELINE,
-        'forecast_tgp': fc_values[-1],
-        'direction': 'UP' if fc_values[-1] > CURRENT_TGP_BASELINE else 'DOWN',
-        'sarimax': {
-            'forecast_dates': fc_dates.tolist(),
-            'forecast_mean': fc_values,
-            'lower_ci': [v - 2.0 for v in fc_values],
-            'upper_ci': [v + 2.0 for v in fc_values]
-        },
-        'regime': f"{regime} - {regime_note}",
-        'regime_prob': 0.85,
-        'history': history_df.reset_index().tail(60).to_dict(orient='list')
+        'current_tgp': round(current_tgp, 2),
+        'trend_direction': trend_direction,
+        'delta_7d': round(delta_7d, 2),
+        'import_parity_lag': lag_msg,
+        'history': {
+            'dates': history.index.strftime('%Y-%m-%d').tolist(),
+            'values': history.round(2).tolist()
+        }
     }

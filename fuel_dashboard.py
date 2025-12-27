@@ -17,7 +17,7 @@ from fuel_engine import FuelEngine
 
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-import station_fairness, cycle_prediction, tgp_forecast, station_metadata, route_optimizer
+import station_fairness, market_physics, tgp_forecast, station_metadata, route_optimizer
 from savings_calculator import SavingsCalculator
 
 app = FastAPI(title="Brisbane Fuel AI API", version="2.0.0")
@@ -84,46 +84,68 @@ def load_live_data_latest():
 
 @app.get("/api/market-status")
 async def get_market_status():
-    daily_df = await run_in_threadpool(cycle_prediction.load_daily_data)
-    if daily_df is None or daily_df.empty: return clean_nan({"status": "UNKNOWN", "ticker": {"mogas": 0, "tgp": 0}})
-    
-    avg_len, avg_relent, last_hike = await run_in_threadpool(cycle_prediction.analyze_cycles, daily_df)
-    status_obj = cycle_prediction.predict_status(avg_relent, last_hike)
+    # 1. Load Data
+    daily_df = await run_in_threadpool(market_physics.load_daily_data)
     live_df = await run_in_threadpool(load_live_data_latest)
-    
-    hike_status = await run_in_threadpool(cycle_prediction.detect_leader_hike, live_df) if not live_df.empty else "STABLE"
-    final_status = "HIKE_STARTED" if hike_status == "HIKE_STARTED" else status_obj['status']
-    
-    rec_map = {'HIKE': "FILL NOW", 'HIKE_STARTED': "FILL NOW", 'OVERDUE': "WARNING", 'BOTTOM': "BUY", 'DROPPING': "WAIT"}
     trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-
-    # History for Graph
-    history = {}
-    if daily_df is not None and not daily_df.empty:
-        try:
-            hist_data = daily_df.sort_index().tail(45)
-            # Ensure DatetimeIndex
-            if not isinstance(hist_data.index, pd.DatetimeIndex):
-                 hist_data.index = pd.to_datetime(hist_data.index, errors='coerce')
-                 
-            # Filter out NaT if conversion failed
-            hist_data = hist_data[hist_data.index.notnull()]
-            
-            history = {
-                "dates": hist_data.index.strftime('%Y-%m-%d').tolist(),
-                "prices": hist_data['price_cpl'].tolist()
-            }
-        except Exception as e:
-            print(f"History generation error: {e}")
-            history = {}
     
+    current_tgp = trend.get('current_tgp', 165.0)
+    current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
+    
+    # 2. Analyze Cycles
+    avg_len, avg_relent, last_hike = await run_in_threadpool(market_physics.analyze_cycles, daily_df)
+    days_elapsed = (pd.Timestamp.now() - last_hike).days
+    
+    # 3. Market Physics Logic
+    volatility = 0.0 # Requires previous snapshot which we don't have easily here without history load
+    # Use delta from TGP trend as proxy for now or 0
+    
+    status_obj = market_physics.predict_status(
+        current_median, 
+        current_tgp, 
+        days_elapsed, 
+        trend.get('delta_7d', 0), 
+        volatility
+    )
+    
+    # 4. Construct Squeeze Chart Data (Retail vs TGP)
+    # Get TGP History
+    tgp_hist_series = await run_in_threadpool(tgp_forecast.get_tgp_history, 60)
+    squeeze_data = {
+        "dates": [],
+        "retail": [],
+        "tgp": [],
+        "margin": []
+    }
+    
+    if daily_df is not None and not daily_df.empty:
+        # Align daily retail with TGP
+        # Convert daily_df to Series
+        daily_s = daily_df.set_index('day')['price_cpl']
+        
+        # Merge
+        combined = pd.DataFrame({'tgp': tgp_hist_series, 'retail': daily_s}).dropna()
+        combined['margin'] = combined['retail'] - combined['tgp']
+        
+        squeeze_data = {
+            "dates": combined.index.strftime('%Y-%m-%d').tolist(),
+            "retail": combined['retail'].tolist(),
+            "tgp": combined['tgp'].tolist(),
+            "margin": combined['margin'].tolist()
+        }
+
     return clean_nan({
-        "status": final_status,
-        "advice": rec_map.get(final_status, "Hold"),
+        "status": status_obj['status'],
+        "advice": status_obj['advice'],
+        "hike_probability": status_obj['hike_probability'],
         "next_hike_est": (last_hike + timedelta(days=avg_len)).strftime("%Y-%m-%d"),
-        "days_elapsed": int(status_obj['days_elapsed']),
-        "ticker": {"mogas": trend.get('current_mogas'), "tgp": trend.get('current_tgp'), "oil": trend.get('current_oil')},
-        "history": history
+        "days_elapsed": days_elapsed,
+        "ticker": {
+            "mogas": trend.get('current_tgp'), # Using TGP as main proxy
+            "import_parity_lag": trend.get('import_parity_lag', 'Neutral'),
+            "tgp_trend": trend.get('trend_direction')
+        },
+        "squeeze_chart": squeeze_data
     })
 
 @app.get("/api/stations")
@@ -229,9 +251,11 @@ async def calculate_savings(req: SavingsRequest):
     # We ideally need yesterday's data for full accuracy, but for savings calc
     # we can use a simpler fallback or try to load history.
     # For speed, let's use the TGP logic directly or call the detector with None history (Bottom check only)
-    cycle_analysis = cycle_prediction.detect_market_phase(live_df, None, tgp=current_tgp)
+    # Note: detect_market_phase was moved/deprecated, but kept in market_physics for legacy if needed.
+    # But we should rely on predict_status now.
     
-    phase = "Restoration" if cycle_analysis['phase'] == "RESTORATION" else "Relenting"
+    status_obj = market_physics.predict_status(current_avg, current_tgp, 30, 0, 0)
+    phase = status_obj['status']
     
     # Predicted Bottom
     pred_bottom = current_tgp + 2.0 
@@ -281,9 +305,17 @@ async def find_cheapest_nearby(loc: LocationRequest):
     # Merge Metadata for nice names
     meta = get_cached_metadata()
     if not meta.empty:
-        live_df = live_df.merge(meta[['site_id', 'name', 'suburb', 'brand']], on='site_id', how='left', suffixes=('', '_meta'))
+        # Check available columns
+        cols_to_merge = ['site_id', 'name', 'suburb']
+        if 'display_brand' in meta.columns: cols_to_merge.append('display_brand')
+        elif 'brand' in meta.columns: cols_to_merge.append('brand')
+        
+        live_df = live_df.merge(meta[cols_to_merge], on='site_id', how='left', suffixes=('', '_meta'))
+        
         if 'name_meta' in live_df.columns: live_df['name'] = live_df['name'].fillna(live_df['name_meta'])
-        if 'brand_meta' in live_df.columns: live_df['brand'] = live_df['brand'].fillna(live_df['brand_meta'])
+        # Coalesce Brand
+        if 'display_brand' in live_df.columns: live_df['brand'] = live_df['display_brand']
+        elif 'brand_meta' in live_df.columns: live_df['brand'] = live_df['brand'].fillna(live_df['brand_meta'])
     
     results = []
     for _, row in live_df.iterrows():
