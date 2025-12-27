@@ -94,11 +94,11 @@ async def get_market_status():
     
     # 2. Analyze Cycles
     avg_len, avg_relent, last_hike = await run_in_threadpool(market_physics.analyze_cycles, daily_df)
-    days_elapsed = (pd.Timestamp.now() - last_hike).days
+    now = pd.Timestamp.now()
+    days_elapsed = (now - last_hike).days
     
     # 3. Market Physics Logic
-    volatility = 0.0 # Requires previous snapshot which we don't have easily here without history load
-    # Use delta from TGP trend as proxy for now or 0
+    volatility = 0.0 
     
     status_obj = market_physics.predict_status(
         current_median, 
@@ -108,44 +108,83 @@ async def get_market_status():
         volatility
     )
     
-    # 4. Construct Squeeze Chart Data (Retail vs TGP)
-    # Get TGP History
-    tgp_hist_series = await run_in_threadpool(tgp_forecast.get_tgp_history, 60)
-    squeeze_data = {
-        "dates": [],
-        "retail": [],
-        "tgp": [],
-        "margin": []
-    }
+    # Refined Next Hike Estimation
+    projected_date = last_hike + timedelta(days=avg_len)
+    next_hike_str = projected_date.strftime("%Y-%m-%d")
     
+    # Logic Overrides
+    prob = status_obj.get('hike_probability', 0)
+    status = status_obj.get('status', 'STABLE')
+    
+    if status == "HIKE_STARTED":
+        next_hike_str = "HAPPENING NOW"
+    elif prob >= 70.0:
+        next_hike_str = "Within 24h"
+    elif prob >= 50.0:
+        # If projected date is far away, bring it closer
+        if projected_date > (now + timedelta(days=3)):
+             next_hike_str = "Within 3 Days"
+    elif projected_date < now:
+        # Overdue case
+        next_hike_str = "Overdue (Imminent)"
+
+    # 4. Construct Graph Data
+    # History (Past 60 days)
+    history = {"dates": [], "prices": []}
     if daily_df is not None and not daily_df.empty:
-        # Align daily retail with TGP
-        # Convert daily_df to Series
-        daily_s = daily_df.set_index('day')['price_cpl']
-        
-        # Merge
-        combined = pd.DataFrame({'tgp': tgp_hist_series, 'retail': daily_s}).dropna()
-        combined['margin'] = combined['retail'] - combined['tgp']
-        
-        squeeze_data = {
-            "dates": combined.index.strftime('%Y-%m-%d').tolist(),
-            "retail": combined['retail'].tolist(),
-            "tgp": combined['tgp'].tolist(),
-            "margin": combined['margin'].tolist()
+        # Sort and filter
+        h_df = daily_df.sort_values('day').tail(60)
+        history = {
+            "dates": h_df['day'].dt.strftime('%Y-%m-%d').tolist(),
+            "prices": h_df['price_cpl'].tolist()
         }
+        
+    # Forecast (Next 14 days)
+    # Simple projection: If hiking, go up. If dropping, decay to TGP.
+    forecast = {"dates": [], "prices": []}
+    if history['dates']:
+        last_date = pd.to_datetime(history['dates'][-1])
+        last_price = history['prices'][-1]
+        
+        fc_dates = []
+        fc_prices = []
+        
+        curr = last_price
+        for i in range(1, 15):
+            date = last_date + timedelta(days=i)
+            fc_dates.append(date.strftime('%Y-%m-%d'))
+            
+            # Simple Logic based on Status
+            if status_obj['status'] in ["HIKE_STARTED", "HIKE_IMMINENT"]:
+                target = current_tgp + 25.0 # Hike Peak
+                curr += (target - curr) * 0.3 # Fast rise
+            elif status_obj['status'] == "DROPPING":
+                target = current_tgp + 12.0
+                curr += (target - curr) * 0.1 # Slow decay
+            else: # Stable/Bottom
+                target = current_tgp + 5.0
+                curr += (target - curr) * 0.2
+                
+            fc_prices.append(round(curr, 1))
+            
+        forecast = {"dates": fc_dates, "prices": fc_prices}
 
     return clean_nan({
         "status": status_obj['status'],
         "advice": status_obj['advice'],
+        "advice_type": "success" if status_obj['advice'] == "Buy" else ("error" if "FILL" in status_obj['advice'] else "info"),
         "hike_probability": status_obj['hike_probability'],
-        "next_hike_est": (last_hike + timedelta(days=avg_len)).strftime("%Y-%m-%d"),
+        "next_hike_est": next_hike_str,
         "days_elapsed": days_elapsed,
         "ticker": {
-            "mogas": trend.get('current_tgp'), # Using TGP as main proxy
+            "tgp": current_tgp, 
+            "oil": trend.get('current_oil', 0),
+            "mogas": trend.get('current_mogas', 0),
             "import_parity_lag": trend.get('import_parity_lag', 'Neutral'),
-            "tgp_trend": trend.get('trend_direction')
+            "excise": 0.496 # Fixed approx
         },
-        "squeeze_chart": squeeze_data
+        "history": history,
+        "forecast": forecast
     })
 
 @app.get("/api/stations")
@@ -325,7 +364,7 @@ async def find_cheapest_nearby(loc: LocationRequest):
             slat, slon = float(row['latitude']), float(row['longitude'])
             dist = haversine(loc.longitude, loc.latitude, slon, slat)
             
-            if dist <= 10.0: # 10km Radius
+            if dist <= 15.0: # Increased Radius to 15km to find better deals
                 results.append({
                     "name": str(row.get('name', 'Unknown Station')),
                     "price": float(row['price_cpl']),
@@ -335,10 +374,11 @@ async def find_cheapest_nearby(loc: LocationRequest):
                 })
         except: continue
         
-    # Sort: Price (asc), then Distance (asc)
+    # Sort: Primary = Price (Asc), Secondary = Distance (Asc)
+    # This fulfills "Cheapest fuel near me" - strict cheapest first.
     results.sort(key=lambda x: (x['price'], x['distance']))
     
-    return clean_nan(results[:5])
+    return clean_nan(results[:10])
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")

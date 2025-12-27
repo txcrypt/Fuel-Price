@@ -2,6 +2,7 @@
 const API_BASE = '/api';
 let map, plannerMap;
 let markers = [];
+let stationData = []; // Store raw data for filtering
 let plannerLayer = null;
 let trendChart = null;
 let cycleChart = null;
@@ -12,7 +13,42 @@ document.addEventListener('DOMContentLoaded', () => {
     initLiveView(); 
     initCalculator();
     initFindNearMe();
+    initMapSearch();
 });
+
+function initMapSearch() {
+    const input = document.getElementById('map-search');
+    if (!input) return;
+    
+    input.addEventListener('keyup', (e) => {
+        const term = e.target.value.toLowerCase();
+        filterMap(term);
+    });
+}
+
+function filterMap(term) {
+    if (!map) return;
+    
+    // Clear current
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    
+    // Filter & Re-add
+    stationData.forEach(s => {
+        const txt = (s.name + " " + s.suburb + " " + s.brand).toLowerCase();
+        if (term === "" || txt.includes(term)) {
+             if(s.lat && s.lng) {
+                const color = s.is_cheap ? '#10b981' : '#ef4444';
+                const m = L.circleMarker([s.lat, s.lng], {
+                    radius: 6, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.8
+                }).addTo(map);
+                
+                m.bindPopup(`<b>${s.brand}</b><br>${s.name}<br>${s.suburb}<br><b style="color:${color}">${s.price}c</b>`);
+                markers.push(m);
+            }
+        }
+    });
+}
 
 // --- Find Near Me ---
 function initFindNearMe() {
@@ -46,7 +82,7 @@ function initFindNearMe() {
                     const data = await res.json();
                     
                     if (!data || data.length === 0) {
-                        container.innerHTML = '<p style="text-align:center; color:#ef4444;">No stations found within 10km.</p>';
+                        container.innerHTML = '<p style="text-align:center; color:#ef4444;">No stations found within 15km.</p>';
                     } else {
                         let html = '<div style="display:grid; gap:10px;">';
                         data.forEach(s => {
@@ -155,31 +191,59 @@ async function initLiveView() {
         
         document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est || "?"}`;
 
-        // Cycle Chart
+        // Cycle Chart (History + Forecast)
         if (data.history && data.history.dates) {
             const ctx = document.getElementById('cycleChart');
             if (ctx) {
                 if (cycleChart) cycleChart.destroy();
+                
+                // Merge Data
+                const histDates = data.history.dates;
+                const histPrices = data.history.prices;
+                const fcDates = data.forecast ? data.forecast.dates : [];
+                const fcPrices = data.forecast ? data.forecast.prices : [];
+                
+                const allLabels = [...histDates, ...fcDates];
+                
+                // Pad forecast with nulls for history part
+                const paddedFc = new Array(histDates.length).fill(null);
+                // Connect lines: start forecast at last history point
+                if(histPrices.length > 0) paddedFc[paddedFc.length-1] = histPrices[histPrices.length-1];
+                
+                const finalFc = [...paddedFc, ...fcPrices];
+                
                 cycleChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: data.history.dates,
-                        datasets: [{
-                            label: 'Avg Price (cpl)',
-                            data: data.history.prices,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        }]
+                        labels: allLabels,
+                        datasets: [
+                            {
+                                label: 'History',
+                                data: [...histPrices, ...new Array(fcPrices.length).fill(null)],
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                pointHitRadius: 10
+                            },
+                            {
+                                label: 'Forecast',
+                                data: finalFc,
+                                borderColor: '#f59e0b',
+                                borderDash: [5, 5],
+                                backgroundColor: 'rgba(0,0,0,0)',
+                                fill: false,
+                                tension: 0.4,
+                                pointRadius: 0
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         interaction: { intersect: false, mode: 'index' },
-                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw.toFixed(1)}c` } } },
+                        plugins: { legend: { display: true, labels: {color:'#94a3b8'} }, tooltip: { callbacks: { label: (c) => `${c.raw.toFixed(1)}c` } } },
                         scales: {
                             x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: '#94a3b8' } },
                             y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
@@ -219,6 +283,7 @@ async function loadStations() {
         const stations = await res.json();
         
         if (!map) return;
+        stationData = stations; // Store for search
         
         // Clear old markers
         markers.forEach(m => map.removeLayer(m));
@@ -499,8 +564,9 @@ async function loadAnalytics() {
         if (ctx && data.trend && data.trend.history) {
             if (trendChart) trendChart.destroy();
             
-            const historyDates = data.trend.history.date || [];
-            const historyTgp = data.trend.history.tgp || [];
+            // Fix: Use correct keys (dates/values from backend)
+            const historyDates = data.trend.history.dates || [];
+            const historyTgp = data.trend.history.values || [];
             
             // Format dates
             const labels = historyDates.map(d => new Date(d).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
