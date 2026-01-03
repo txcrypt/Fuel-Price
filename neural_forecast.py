@@ -24,7 +24,7 @@ class NeuralForecaster:
         self.HIKE_DURATION = 5       # Days to reach peak
         self.DECAY_RATE = 0.85       # Smoothing factor
 
-    def predict_next_14_days(self):
+    def predict_next_14_days(self, start_date=None):
         """
         Generates a 14-day price trace.
         """
@@ -35,10 +35,10 @@ class NeuralForecaster:
         sim_price = self.current_price
         sim_days = self.days_since_hike
         
-        start_date = pd.Timestamp.now()
+        base_date = start_date if start_date else pd.Timestamp.now()
         
         for i in range(1, 15):
-            date = start_date + timedelta(days=i)
+            date = base_date + timedelta(days=i)
             sim_days += 1
             
             # --- The 'Model' Logic ---

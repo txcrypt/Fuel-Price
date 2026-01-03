@@ -13,7 +13,6 @@ let wakeLock = null;
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initLiveView(); 
-    initCalculator();
     initFindNearMe();
     initMapSearch();
 });
@@ -206,23 +205,41 @@ function loadViewData(viewId) {
 // --- Tab 1: Live Market ---
 async function initLiveView() {
     try {
-        const res = await fetch(`${API_BASE}/market-status`);
-        if (!res.ok) throw new Error("API Error");
-        const data = await res.json();
+        // Fetch Market Status and News in parallel
+        const [statusRes, newsRes] = await Promise.all([
+            fetch(`${API_BASE}/market-status`),
+            fetch(`${API_BASE}/sentiment`)
+        ]);
+
+        if (!statusRes.ok) throw new Error("API Error");
+        const data = await statusRes.json();
+        const newsData = await newsRes.json();
         
         if (!data || !data.ticker) {
             document.getElementById('status-text').innerText = "No Data";
             return;
         }
 
-        // Ticker
-        document.getElementById('global-ticker').innerHTML = `
+        // --- Ticker (Market Data + News Headlines) ---
+        const tickerEl = document.getElementById('global-ticker');
+        
+        // Market Data Part
+        let tickerHtml = `
             <span>🛢️ BRENT: $${(data.ticker.oil||0).toFixed(2)}</span>
             <span>🏭 TGP: ${(data.ticker.tgp||0).toFixed(1)}c</span>
             <span>⛽ MOGAS 95: $${(data.ticker.mogas||0).toFixed(2)}</span>
-            <span>🏛️ EXCISE: ${(data.ticker.excise * 100||0).toFixed(1)}c</span>
             <span>📉 TREND: ${data.status}</span>
         `;
+
+        // News Headlines Part
+        if (newsData.domestic && newsData.domestic.length > 0) {
+            newsData.domestic.forEach(n => {
+                const icon = n.sentiment.includes('Relief') ? '🟢' : (n.sentiment.includes('Pressure') ? '🔴' : '📰');
+                tickerHtml += `<span>${icon} ${n.title.toUpperCase()}</span>`;
+            });
+        }
+        
+        tickerEl.innerHTML = tickerHtml;
 
         // KPIs
         document.getElementById('status-text').innerText = data.status || "--";
@@ -234,6 +251,10 @@ async function initLiveView() {
         
         if (data.last_updated) {
             document.getElementById('last-updated').innerText = `Data updated: ${data.last_updated}`;
+        }
+
+        if (data.savings_insight) {
+            document.getElementById('savings-insight').innerText = data.savings_insight;
         }
 
         document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est || "?"}`;
@@ -304,9 +325,6 @@ async function initLiveView() {
         initMap();
         loadStations();
         
-        // Calculator Update
-        updateCalculator(data.ticker.tgp);
-
     } catch (e) { 
         console.error(e);
         document.getElementById('status-text').innerText = "Offline"; 
@@ -350,48 +368,6 @@ async function loadStations() {
             });
         }
     } catch(e) { console.warn("Station load failed", e); }
-}
-
-function initCalculator() {
-    const inp = document.getElementById('calc-tank');
-    if(inp) {
-        inp.addEventListener('change', () => updateCalculator());
-        // Initial call after a delay to ensure backend is ready
-        setTimeout(() => updateCalculator(), 1500); 
-    }
-}
-
-async function updateCalculator() {
-    const inp = document.getElementById('calc-tank');
-    const container = document.getElementById('calc-results-container');
-    
-    if(!inp || !container) return;
-    
-    container.style.opacity = '0.5';
-    
-    try {
-        const res = await fetch(`${API_BASE}/calculate-savings`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ tank_size: parseInt(inp.value) })
-        });
-        
-        const data = await res.json();
-        
-        if (data.error) throw new Error(data.error);
-        
-        document.getElementById('calc-result').innerHTML = `Immediate Save: $${data.immediate_saving_dollars.toFixed(2)}`;
-        document.getElementById('calc-opportunity').innerText = `$${data.opportunity_cost_dollars.toFixed(2)}`;
-        document.getElementById('calc-annual').innerText = `$${data.projected_annual_saving.toFixed(0)}`;
-        document.getElementById('calc-recommendation').innerText = data.recommendation_text;
-        
-        container.style.opacity = '1';
-        
-    } catch (e) {
-        console.error("Calc Error:", e);
-        document.getElementById('calc-result').innerText = "Unavailable";
-        container.style.opacity = '1';
-    }
 }
 
 // --- DRIVE MODE ---

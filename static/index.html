@@ -212,7 +212,6 @@
             
             nav#main-nav { display: none; } /* Hide Desktop Nav */
             .bottom-nav { display: flex; }  /* Show Mobile Nav */
-            .ticker-wrap { display: none; } /* Save space on mobile */
             h2 { font-size: 0.85rem; }
             
             /* Drive Mode Mobile Tweaks */
@@ -246,33 +245,13 @@
                     <div id="status-text" class="metric-val">Checking...</div>
                     <div id="advice-badge" class="status-badge">STANDBY</div>
                     <div id="last-updated" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 8px; opacity: 0.8;"></div>
-                    <div style="margin-top:15px; font-size: 0.9rem; color: var(--text-secondary);" id="hike-prediction">--</div>
+                    <div id="savings-insight" style="margin-top: 15px; font-size: 1rem; color: var(--accent-green); font-weight: 600; font-style: italic;"></div>
+                    <div style="margin-top:10px; font-size: 0.9rem; color: var(--text-secondary);" id="hike-prediction">--</div>
                 </div>
                 <div class="card">
                     <h2>Wholesale Benchmarks</h2>
                     <div id="tgp-val" class="metric-val">--.-c</div>
                     <div style="color: var(--text-secondary);">Brisbane Terminal Gate Price</div>
-                </div>
-                <div class="card">
-                    <h2>💰 Savings Calculator</h2>
-                    <select id="calc-tank">
-                        <option value="40">Small (40L)</option>
-                        <option value="50" selected>Medium (50L)</option>
-                        <option value="80">SUV (80L)</option>
-                    </select>
-                    
-                    <div id="calc-results-container" style="opacity: 0.5;">
-                        <div id="calc-result" style="padding:10px; border-radius:4px; font-size:1.1rem; background:rgba(16,185,129,0.1); font-weight:bold; color:var(--accent-green); margin-bottom:10px; text-align:center;">--</div>
-                        
-                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.9rem;">
-                            <span>⏱️ Opportunity: <b id="calc-opportunity" style="color:#f59e0b;">--</b></span>
-                            <span>📅 Annual: <b id="calc-annual" style="color:#3b82f6;">--</b></span>
-                        </div>
-                        
-                        <div id="calc-recommendation" style="font-size:0.85rem; padding:10px; background:rgba(255,255,255,0.05); border-left: 3px solid var(--accent-blue); color: #e2e8f0; line-height: 1.4; border-radius: 0 4px 4px 0;">
-                            Initializing...
-                        </div>
-                    </div>
                 </div>
             </div>
             

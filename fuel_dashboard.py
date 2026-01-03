@@ -150,8 +150,22 @@ async def get_market_status():
     # History (Past 60 days)
     history = {"dates": [], "prices": []}
     if daily_df is not None and not daily_df.empty:
-        # Sort and filter
-        h_df = daily_df.sort_values('day').tail(60)
+        # Sort
+        h_df = daily_df.sort_values('day')
+        
+        # FIX: Inject Today's Live Data if missing from historical CSV
+        # This ensures the graph connects the static history to the live reality
+        last_history_date = h_df['day'].max().date()
+        today_date = pd.Timestamp.now().date()
+        
+        if last_history_date < today_date and current_median > 0:
+            # Create a dataframe for today
+            today_row = pd.DataFrame([{'day': pd.Timestamp(today_date), 'price_cpl': current_median}])
+            h_df = pd.concat([h_df, today_row], ignore_index=True)
+
+        # Slice last 60
+        h_df = h_df.tail(60)
+        
         history = {
             "dates": h_df['day'].dt.strftime('%Y-%m-%d').tolist(),
             "prices": h_df['price_cpl'].tolist()
@@ -162,6 +176,7 @@ async def get_market_status():
     forecast = {"dates": [], "prices": []}
     if history['dates']:
         last_price = history['prices'][-1]
+        last_hist_date = pd.to_datetime(history['dates'][-1])
         
         forecaster = NeuralForecaster(
             tgp=current_tgp,
@@ -169,7 +184,33 @@ async def get_market_status():
             days_since_hike=days_elapsed,
             status=status_obj['status']
         )
-        forecast = forecaster.predict_next_14_days()
+        
+        # Align forecast to start from the day AFTER the last history point
+        forecast = forecaster.predict_next_14_days(start_date=last_hist_date)
+
+    # 5. Calculate Savings Insight (Standard 50L Tank)
+    # Replaces the interactive calculator with a passive insight
+    savings_insight = "Market is stable."
+    try:
+        calc = SavingsCalculator(
+            current_avg_price=current_median,
+            best_local_price=live_df['price_cpl'].min() if not live_df.empty else current_median,
+            cycle_phase="Restoration" if status in ["HIKE_STARTED", "HIKE_IMMINENT"] else "Relenting",
+            predicted_bottom=current_tgp + 2.0,
+            tank_size=50
+        )
+        opp = calc.calculate_opportunity()
+        
+        if status in ["HIKE_STARTED", "HIKE_IMMINENT", "WARNING"]:
+            savings_insight = f"⚡ Fill 50L now to save ~${opp:.2f} vs coming peak."
+        elif status == "DROPPING":
+            savings_insight = f"📉 Wait to save ~${opp:.2f} on 50L."
+        elif status == "BOTTOM":
+             savings_insight = "✅ Prices at bottom. Great time to fill."
+        else:
+            savings_insight = f"ℹ️ Market stable. Potential variance ~${opp:.2f}."
+    except Exception as e:
+        print(f"Savings calc error: {e}")
 
     return clean_nan({
         "status": status_obj['status'],
@@ -179,6 +220,7 @@ async def get_market_status():
         "next_hike_est": next_hike_str,
         "days_elapsed": days_elapsed,
         "last_updated": last_updated,
+        "savings_insight": savings_insight,
         "ticker": {
             "tgp": current_tgp, 
             "oil": trend.get('current_oil', 0),
@@ -189,129 +231,6 @@ async def get_market_status():
         "history": history,
         "forecast": forecast
     })
-
-@app.get("/api/stations")
-async def get_stations():
-    live_df = await run_in_threadpool(load_live_data_latest)
-    if live_df.empty: return []
-    meta = get_cached_metadata()
-    if not meta.empty: live_df = live_df.merge(meta, on='site_id', how='left', suffixes=('', '_meta'))
-    
-    ratings_file = config.RATINGS_FILE
-    if os.path.exists(ratings_file):
-        r_df = pd.read_csv(ratings_file, dtype={'site_id': str})
-        live_df = live_df.merge(r_df[['site_id', 'fairness_score', 'rating']], on='site_id', how='left')
-
-    stations = []
-    market_avg = live_df['price_cpl'].median() if not live_df.empty else 180.0
-    for _, row in live_df.iterrows():
-        try:
-            # Explicit NaN check for coordinates
-            if pd.isna(row.get('latitude')) or pd.isna(row.get('longitude')): continue
-            
-            stations.append({
-                "id": str(row['site_id']),
-                "name": str(row.get('name', row['site_id'])),
-                "brand": str(row.get('display_brand', row.get('brand', 'Unknown'))),
-                "suburb": str(row.get('suburb', 'Unknown')),
-                "lat": float(row['latitude']),
-                "lng": float(row['longitude']),
-                "price": float(row['price_cpl']),
-                "fairness_score": float(row.get('fairness_score', 0)),
-                "rating": str(row.get('rating', 'Neutral')),
-                "is_cheap": bool(float(row['price_cpl']) < (market_avg - 2.0)),
-                "updated_at": str(row.get('scraped_at', row.get('reported_at')))
-            })
-        except: continue
-    return clean_nan(stations)
-
-@app.get("/api/analytics")
-async def get_analytics():
-    trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-    
-    # Calculate Suburb Ranking & Distribution from Live Data
-    live_df = await run_in_threadpool(load_live_data_latest)
-    
-    # Merge Metadata to get Suburbs
-    meta = get_cached_metadata()
-    if not live_df.empty and not meta.empty:
-        live_df = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
-
-    suburb_ranking = []
-    price_dist = []
-    
-    if not live_df.empty:
-        # Suburb Ranking (Cheapest)
-        if 'suburb' in live_df.columns and 'price_cpl' in live_df.columns:
-            grp = live_df.groupby('suburb')['price_cpl'].mean().reset_index()
-            grp = grp.sort_values('price_cpl').head(10)
-            suburb_ranking = grp.to_dict(orient='records')
-            
-        # Price Distribution (Histogram buckets)
-        if 'price_cpl' in live_df.columns:
-            # Create simple buckets
-            prices = live_df['price_cpl'].dropna()
-            if not prices.empty:
-                counts, bins = np.histogram(prices, bins=10)
-                # Format for frontend
-                for i in range(len(counts)):
-                    price_dist.append({
-                        "range": f"{int(bins[i])}-{int(bins[i+1])}",
-                        "count": int(counts[i])
-                    })
-
-    return clean_nan({"trend": trend, "suburb_ranking": suburb_ranking, "price_distribution": price_dist})
-
-@app.get("/api/sentiment")
-async def get_sentiment():
-    try:
-        import market_news
-        # Run blocking network call in threadpool
-        news_data = await run_in_threadpool(market_news.get_market_news)
-        return clean_nan(news_data)
-    except Exception as e:
-        print(f"Sentiment Error: {e}")
-        return {"global": [], "domestic": []}
-
-from pydantic import BaseModel
-class SavingsRequest(BaseModel):
-    tank_size: int
-
-@app.post("/api/calculate-savings")
-async def calculate_savings(req: SavingsRequest):
-    # 1. Get Market Data
-    live_df = await run_in_threadpool(load_live_data_latest)
-    if live_df.empty: return {"error": "No market data"}
-    
-    current_avg = live_df['price_cpl'].median()
-    best_price = live_df['price_cpl'].min()
-    
-    # 2. Get Phase (Simplified reuse of market-status logic)
-    trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-    current_tgp = trend.get('current_tgp', 160.0)
-    
-    # We ideally need yesterday's data for full accuracy, but for savings calc
-    # we can use a simpler fallback or try to load history.
-    # For speed, let's use the TGP logic directly or call the detector with None history (Bottom check only)
-    # Note: detect_market_phase was moved/deprecated, but kept in market_physics for legacy if needed.
-    # But we should rely on predict_status now.
-    
-    status_obj = market_physics.predict_status(current_avg, current_tgp, 30, 0, 0)
-    phase = status_obj['status']
-    
-    # Predicted Bottom
-    pred_bottom = current_tgp + 2.0 
-    
-    # 3. Calculate
-    calc = SavingsCalculator(
-        current_avg_price=current_avg,
-        best_local_price=best_price,
-        cycle_phase=phase,
-        predicted_bottom=pred_bottom,
-        tank_size=req.tank_size
-    )
-    
-    return clean_nan(calc.get_report())
 
 class RouteRequest(BaseModel): start: str; end: str
 
