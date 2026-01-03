@@ -6,6 +6,8 @@ let stationData = []; // Store raw data for filtering
 let plannerLayer = null;
 let trendChart = null;
 let cycleChart = null;
+let driveWatchId = null;
+let wakeLock = null;
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,6 +56,7 @@ function filterMap(term) {
 function initFindNearMe() {
     const btn = document.getElementById('btn-find-near');
     const container = document.getElementById('near-me-results');
+    let watchId = null;
     
     if(!btn) return;
     
@@ -63,15 +66,29 @@ function initFindNearMe() {
             return;
         }
         
-        btn.disabled = true;
-        btn.innerText = "Locating...";
-        container.style.display = 'block';
-        container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Getting your location...</p>';
+        // Toggle Logic
+        if (watchId !== null) {
+            // Stop watching
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            btn.innerText = "📍 Find Cheapest Fuel Near Me";
+            btn.classList.remove('active-tracking'); // Optional styling hook
+            container.style.opacity = '0.5';
+            return;
+        }
         
-        navigator.geolocation.getCurrentPosition(
+        // Start watching
+        btn.innerText = "🛑 Stop Tracking";
+        btn.classList.add('active-tracking');
+        container.style.display = 'block';
+        container.style.opacity = '1';
+        container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Acquiring precise location...</p>';
+        
+        watchId = navigator.geolocation.watchPosition(
             async (position) => {
-                btn.innerText = "Searching stations...";
-                const { latitude, longitude } = position.coords;
+                const { latitude, longitude, accuracy } = position.coords;
+                // Optional: Show accuracy radius or debug info
+                // console.log(`Location update: ${latitude}, ${longitude} (Acc: ${accuracy}m)`);
                 
                 try {
                     const res = await fetch(`${API_BASE}/find_cheapest_nearby`, {
@@ -84,13 +101,17 @@ function initFindNearMe() {
                     if (!data || data.length === 0) {
                         container.innerHTML = '<p style="text-align:center; color:#ef4444;">No stations found within 15km.</p>';
                     } else {
-                        let html = '<div style="display:grid; gap:10px;">';
+                        let html = `<div style="text-align:center; color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">
+                            Updating live based on your location (±${Math.round(accuracy)}m)
+                        </div>`;
+                        
+                        html += '<div style="display:grid; gap:10px;">';
                         data.forEach(s => {
                             html += `
                                 <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border-left: 3px solid #10b981;">
                                     <div>
                                         <div style="font-weight:bold; color:#fff;">${s.name}</div>
-                                        <div style="font-size:0.8rem; color:#94a3b8;">${s.distance.toFixed(1)} km away • ${s.suburb}</div>
+                                        <div style="font-size:0.8rem; color:#94a3b8;">${s.distance.toFixed(2)} km away • ${s.suburb}</div>
                                     </div>
                                     <div style="font-size:1.2rem; font-weight:bold; color:#10b981;">${s.price.toFixed(1)}c</div>
                                 </div>
@@ -101,10 +122,7 @@ function initFindNearMe() {
                     }
                 } catch (e) {
                     console.error(e);
-                    container.innerHTML = '<p style="text-align:center; color:#ef4444;">Error fetching data.</p>';
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = "📍 Find Cheapest Fuel Near Me";
+                    // Don't wipe container on transient network error, just log
                 }
             },
             (error) => {
@@ -112,8 +130,19 @@ function initFindNearMe() {
                 let msg = "Unable to retrieve location.";
                 if(error.code === 1) msg = "Location permission denied.";
                 container.innerHTML = `<p style="text-align:center; color:#ef4444;">${msg}</p>`;
-                btn.disabled = false;
-                btn.innerText = "📍 Find Cheapest Fuel Near Me";
+                
+                // Stop on fatal error
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                    btn.innerText = "📍 Find Cheapest Fuel Near Me";
+                    btn.classList.remove('active-tracking');
+                }
+            },
+            {
+                enableHighAccuracy: true, // Request precise GPS
+                timeout: 10000,
+                maximumAge: 0 // Do not use cached positions
             }
         );
     });
@@ -121,29 +150,42 @@ function initFindNearMe() {
 
 // --- Navigation ---
 function initNavigation() {
+    // Desktop Tabs
     const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            // UI Toggle
-            navItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            
-            const viewId = item.getAttribute('data-view');
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(`view-${viewId}`).classList.add('active');
-            
-            // Map Resize Fixes
-            if (viewId === 'live' && map) {
-                setTimeout(() => map.invalidateSize(), 100);
-            }
-            if (viewId === 'planner' && plannerMap) {
-                setTimeout(() => plannerMap.invalidateSize(), 100);
-            }
-
-            // Data Load
-            loadViewData(viewId);
+    // Mobile Bottom Tabs
+    const bottomNavItems = document.querySelectorAll('.b-nav-item');
+    
+    const switchView = (item) => {
+        // UI Toggle (Both Navs)
+        const viewId = item.getAttribute('data-view');
+        
+        // Update Desktop Classes
+        navItems.forEach(i => {
+            if(i.getAttribute('data-view') === viewId) i.classList.add('active');
+            else i.classList.remove('active');
         });
-    });
+        
+        // Update Mobile Classes
+        bottomNavItems.forEach(i => {
+             if(i.getAttribute('data-view') === viewId) i.classList.add('active');
+             else i.classList.remove('active');
+        });
+
+        // Toggle Views
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`view-${viewId}`).classList.add('active');
+        
+        // Map Resize Fixes
+        if (viewId === 'live' && map) setTimeout(() => map.invalidateSize(), 100);
+        if (viewId === 'planner' && plannerMap) setTimeout(() => plannerMap.invalidateSize(), 100);
+
+        // Logic Switch
+        if (viewId !== 'drive') stopDriveMode();
+        loadViewData(viewId);
+    };
+
+    navItems.forEach(item => item.addEventListener('click', () => switchView(item)));
+    bottomNavItems.forEach(item => item.addEventListener('click', () => switchView(item)));
 }
 
 function loadViewData(viewId) {
@@ -154,6 +196,7 @@ function loadViewData(viewId) {
             case 'ratings': loadRatings(); break;
             case 'planner': loadPlanner(); break;
             case 'analytics': loadAnalytics(); break;
+            case 'drive': initDriveMode(); break;
         }
     } catch (e) {
         console.error("View Load Error:", e);
@@ -189,6 +232,10 @@ async function initLiveView() {
         badge.innerText = data.advice || "Hold";
         badge.style.background = data.advice_type === 'error' ? '#ef4444' : (data.advice_type === 'success' ? '#10b981' : '#3b82f6');
         
+        if (data.last_updated) {
+            document.getElementById('last-updated').innerText = `Data updated: ${data.last_updated}`;
+        }
+
         document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est || "?"}`;
 
         // Cycle Chart (History + Forecast)
@@ -344,6 +391,111 @@ async function updateCalculator() {
         console.error("Calc Error:", e);
         document.getElementById('calc-result').innerText = "Unavailable";
         container.style.opacity = '1';
+    }
+}
+
+// --- DRIVE MODE ---
+async function initDriveMode() {
+    // 1. Wake Lock
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock active');
+        }
+    } catch (err) { console.warn("Wake Lock failed:", err); }
+
+    // 2. Clear previous watch
+    if (driveWatchId !== null) navigator.geolocation.clearWatch(driveWatchId);
+
+    // 3. Start Geolocation
+    const speedEl = document.getElementById('drive-speed');
+    const accEl = document.getElementById('drive-acc');
+    const cardEl = document.getElementById('drive-main-card');
+    const navBtn = document.getElementById('drive-nav-btn');
+    
+    // Card placeholders
+    const cName = cardEl.querySelector('.big-name');
+    const cPrice = cardEl.querySelector('.big-price');
+    const cMeta = cardEl.querySelector('.big-meta');
+
+    driveWatchId = navigator.geolocation.watchPosition(
+        async (position) => {
+            const { latitude, longitude, accuracy, speed } = position.coords;
+            
+            // Speed (m/s to km/h)
+            if (speed !== null && speed >= 0) {
+                speedEl.innerHTML = `${Math.round(speed * 3.6)} <span style="font-size:0.8rem; font-weight:normal;">km/h</span>`;
+            }
+            
+            // Accuracy
+            if(accuracy < 20) {
+                 accEl.innerText = "Excellent";
+                 accEl.style.color = "#10b981";
+            } else if (accuracy < 100) {
+                 accEl.innerText = "Good";
+                 accEl.style.color = "#f59e0b";
+            } else {
+                 accEl.innerText = "Poor";
+                 accEl.style.color = "#ef4444";
+            }
+
+            // Fetch Nearest
+            try {
+                const res = await fetch(`${API_BASE}/find_cheapest_nearby`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ latitude, longitude })
+                });
+                const data = await res.json();
+                
+                if (data && data.length > 0) {
+                    const best = data[0]; // Already sorted by Price then Distance
+                    
+                    cName.innerText = best.name;
+                    cPrice.innerText = `${best.price.toFixed(1)}c`;
+                    cMeta.innerText = `${best.distance.toFixed(1)} km • ${best.brand}`;
+                    
+                    // Highlight if cheap (< 165c approx logic)
+                    if(best.price < 170) cardEl.classList.add('highlight');
+                    else cardEl.classList.remove('highlight');
+                    
+                    // Activate Nav Button
+                    navBtn.style.opacity = '1';
+                    navBtn.style.pointerEvents = 'auto';
+                    navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&destination_place_id=${best.name}&travelmode=driving`; 
+                    // Note: Ideally backend sends Lat/Lng of station. 
+                    // Backend `find_cheapest_nearby` sends distance but not explicit lat/lng in the response object currently?
+                    // Let's assume we might need to patch backend or just use Name search for Google Maps if Coords missing.
+                    // Actually, let's fix the Nav link to use the station's lat/lng if we can.
+                    // Checking backend: `find_cheapest_nearby` returns {name, price, distance, brand, suburb}. 
+                    // It DOES NOT return lat/lng. 
+                    // FIX: I will use the current user location + name query for now, OR rely on the fact that standard Google Maps query works well.
+                    navBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(best.name + " " + best.suburb + " Fuel Station")}`;
+                    
+                } else {
+                    cName.innerText = "No Stations";
+                    cPrice.innerText = "--.-";
+                }
+            } catch (e) { console.error(e); }
+        }, 
+        (err) => {
+            console.error(err);
+            accEl.innerText = "GPS Error";
+            accEl.style.color = "#ef4444";
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+}
+
+async function stopDriveMode() {
+    if (driveWatchId !== null) {
+        navigator.geolocation.clearWatch(driveWatchId);
+        driveWatchId = null;
+    }
+    if (wakeLock !== null) {
+        await wakeLock.release();
+        wakeLock = null;
+        console.log('Wake Lock released');
     }
 }
 

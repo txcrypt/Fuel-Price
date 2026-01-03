@@ -1,6 +1,8 @@
 import sys
 import os
 import json
+import time
+import asyncio
 import pandas as pd
 import numpy as np
 from math import radians, cos, sin, asin, sqrt
@@ -14,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 import config
 from fuel_engine import FuelEngine
+from neural_forecast import NeuralForecaster
 
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -34,11 +37,18 @@ def fetch_snapshot():
         df = engine.get_market_snapshot()
         if df is not None and not df.empty:
             df.to_csv(SNAPSHOT_FILE, index=False)
-            print(f"✅ Snapshot saved: {len(df)} records.")
+            print(f"✅ Snapshot saved: {len(df)} records at {datetime.now().strftime('%H:%M:%S')}")
             return True
     except Exception as e:
         print(f"❌ Snapshot failed: {e}")
     return False
+
+async def background_refresher():
+    """Background task to refresh data every 30 minutes"""
+    while True:
+        await asyncio.sleep(1800) # 30 minutes
+        print("🔄 Periodic Refresh Triggered...")
+        await run_in_threadpool(fetch_snapshot)
 
 @app.on_event("startup")
 async def startup_event():
@@ -54,6 +64,9 @@ async def startup_event():
     
     try: await run_in_threadpool(station_fairness.main)
     except Exception as e: print(f"❌ Ratings failed: {e}")
+    
+    # 3. Start Background Refresher
+    asyncio.create_task(background_refresher())
     
     print("✅ System Ready.")
 
@@ -91,6 +104,11 @@ async def get_market_status():
     
     current_tgp = trend.get('current_tgp', 165.0)
     current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
+    
+    # Extract last updated time from live data
+    last_updated = "Unknown"
+    if not live_df.empty and 'scraped_at' in live_df.columns:
+        last_updated = str(live_df['scraped_at'].iloc[0])
     
     # 2. Analyze Cycles
     avg_len, avg_relent, last_hike = await run_in_threadpool(market_physics.analyze_cycles, daily_df)
@@ -140,34 +158,18 @@ async def get_market_status():
         }
         
     # Forecast (Next 14 days)
-    # Simple projection: If hiking, go up. If dropping, decay to TGP.
+    # Uses NeuralForecaster (TabM concept) for realistic cycle shapes
     forecast = {"dates": [], "prices": []}
     if history['dates']:
-        last_date = pd.to_datetime(history['dates'][-1])
         last_price = history['prices'][-1]
         
-        fc_dates = []
-        fc_prices = []
-        
-        curr = last_price
-        for i in range(1, 15):
-            date = last_date + timedelta(days=i)
-            fc_dates.append(date.strftime('%Y-%m-%d'))
-            
-            # Simple Logic based on Status
-            if status_obj['status'] in ["HIKE_STARTED", "HIKE_IMMINENT"]:
-                target = current_tgp + 25.0 # Hike Peak
-                curr += (target - curr) * 0.3 # Fast rise
-            elif status_obj['status'] == "DROPPING":
-                target = current_tgp + 12.0
-                curr += (target - curr) * 0.1 # Slow decay
-            else: # Stable/Bottom
-                target = current_tgp + 5.0
-                curr += (target - curr) * 0.2
-                
-            fc_prices.append(round(curr, 1))
-            
-        forecast = {"dates": fc_dates, "prices": fc_prices}
+        forecaster = NeuralForecaster(
+            tgp=current_tgp,
+            current_price=last_price,
+            days_since_hike=days_elapsed,
+            status=status_obj['status']
+        )
+        forecast = forecaster.predict_next_14_days()
 
     return clean_nan({
         "status": status_obj['status'],
@@ -176,6 +178,7 @@ async def get_market_status():
         "hike_probability": status_obj['hike_probability'],
         "next_hike_est": next_hike_str,
         "days_elapsed": days_elapsed,
+        "last_updated": last_updated,
         "ticker": {
             "tgp": current_tgp, 
             "oil": trend.get('current_oil', 0),

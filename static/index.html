@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Brisbane Fuel AI</title>
+    <link rel="manifest" href="/static/manifest.json">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <style>
@@ -17,6 +21,7 @@
             --accent-blue: #3b82f6;
             --accent-yellow: #f59e0b;
             --border: #334155;
+            --nav-height: 65px;
         }
 
         body {
@@ -26,6 +31,7 @@
             margin: 0; padding: 0;
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
+            padding-bottom: calc(var(--nav-height) + 20px); /* Space for bottom nav */
         }
 
         /* Ticker */
@@ -53,18 +59,14 @@
 
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
-        /* Navigation */
-        nav {
+        /* Top Navigation (Desktop) */
+        nav#main-nav {
             display: flex;
             gap: 10px;
             margin-bottom: 25px;
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; /* Firefox */
         }
-        nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
         
         .nav-item {
             padding: 10px 20px;
@@ -78,6 +80,36 @@
         }
         .nav-item:hover { background: rgba(255,255,255,0.05); }
         .nav-item.active { background: var(--accent-blue); color: white; }
+
+        /* Bottom Navigation (Mobile) */
+        .bottom-nav {
+            display: none; /* Hidden on Desktop */
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--nav-height);
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            z-index: 2000;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .b-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            gap: 4px;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .b-nav-item.active { color: var(--accent-blue); }
+        .b-nav-item svg { width: 24px; height: 24px; fill: currentColor; }
 
         /* Views */
         .view { display: none; animation: fadeIn 0.3s ease; }
@@ -117,16 +149,75 @@
 
         .chart-container { height: 250px; position: relative; width: 100%; }
         
-        .calc-details { display: none; margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+        /* DRIVE MODE STYLES */
+        .drive-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--nav-height) - 40px);
+            justify-content: space-between;
+        }
+        .drive-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .drive-stat-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+        .drive-stat-val { font-size: 1.2rem; font-weight: bold; color: #fff; }
+        
+        .drive-card {
+            flex-grow: 1;
+            background: #1e293b;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        .drive-card.highlight { border-color: var(--accent-green); box-shadow: 0 0 30px rgba(16, 185, 129, 0.2); }
+        
+        .big-price { font-size: 4rem; font-weight: 800; color: var(--accent-green); margin: 10px 0; letter-spacing: -2px; }
+        .big-name { font-size: 1.8rem; font-weight: 700; color: white; margin-bottom: 5px; line-height: 1.1; }
+        .big-meta { font-size: 1.1rem; color: var(--text-secondary); }
+        
+        .btn-navigate {
+            background: var(--accent-blue);
+            color: white;
+            font-size: 1.2rem;
+            padding: 18px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            text-decoration: none;
+        }
 
         /* Mobile Adjustments */
         @media (max-width: 768px) {
-            .container { padding: 15px; }
+            .container { padding: 15px; padding-bottom: 0; } /* Remove bottom pad for container, body handles it */
             .grid { grid-template-columns: 1fr; }
             .metric-val { font-size: 1.8rem; }
             #map, #planner-map { height: 350px; }
-            .nav-item { padding: 8px 15px; font-size: 0.9rem; }
+            
+            nav#main-nav { display: none; } /* Hide Desktop Nav */
+            .bottom-nav { display: flex; }  /* Show Mobile Nav */
+            .ticker-wrap { display: none; } /* Save space on mobile */
             h2 { font-size: 0.85rem; }
+            
+            /* Drive Mode Mobile Tweaks */
+            .big-price { font-size: 3.5rem; }
+            .big-name { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -154,6 +245,7 @@
                     <h2>Market Status</h2>
                     <div id="status-text" class="metric-val">Checking...</div>
                     <div id="advice-badge" class="status-badge">STANDBY</div>
+                    <div id="last-updated" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 8px; opacity: 0.8;"></div>
                     <div style="margin-top:15px; font-size: 0.9rem; color: var(--text-secondary);" id="hike-prediction">--</div>
                 </div>
                 <div class="card">
@@ -206,6 +298,34 @@
                     <input type="text" id="map-search" placeholder="Search Suburb..." style="width:100%; max-width:250px; margin:0;">
                 </div>
                 <div id="map"></div>
+            </div>
+        </div>
+        
+        <!-- NEW VIEW: DRIVE MODE -->
+        <div class="view" id="view-drive">
+            <div class="drive-container">
+                <div class="drive-header">
+                    <div>
+                        <div class="drive-stat-label">Speed</div>
+                        <div class="drive-stat-val" id="drive-speed">0 <span style="font-size:0.8rem; font-weight:normal;">km/h</span></div>
+                    </div>
+                    <div>
+                        <div class="drive-stat-label" style="text-align:right;">GPS Accuracy</div>
+                        <div class="drive-stat-val" id="drive-acc" style="text-align:right; color:#f59e0b;">Waiting...</div>
+                    </div>
+                </div>
+
+                <div class="drive-card" id="drive-main-card">
+                    <div style="color:#94a3b8; margin-bottom:20px;">Scanning for deals...</div>
+                    <div class="big-name">--</div>
+                    <div class="big-price">--.-</div>
+                    <div class="big-meta">--</div>
+                </div>
+
+                <a href="#" class="btn-navigate" id="drive-nav-btn" style="opacity:0.5; pointer-events:none;">
+                    <svg style="width:24px;height:24px;" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    Start Navigation
+                </a>
             </div>
         </div>
 
@@ -271,6 +391,30 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="b-nav-item active" data-view="live">
+            <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+            <span>Live</span>
+        </div>
+        <div class="b-nav-item" data-view="drive">
+            <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+            <span>Drive</span>
+        </div>
+        <div class="b-nav-item" data-view="planner">
+            <svg viewBox="0 0 24 24"><path d="M21.71 11.29l-9-9c-.39-.39-1.02-.39-1.41 0l-9 9c-.39.39-.39 1.02 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9c.39-.38.39-1.01 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/></svg>
+            <span>Plan</span>
+        </div>
+        <div class="b-nav-item" data-view="ratings">
+            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <span>Rates</span>
+        </div>
+        <div class="b-nav-item" data-view="sentiment">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <span>More</span>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
