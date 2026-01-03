@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel
 import config
 from fuel_engine import FuelEngine
 from neural_forecast import NeuralForecaster
