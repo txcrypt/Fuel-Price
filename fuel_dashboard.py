@@ -21,7 +21,7 @@ from neural_forecast import NeuralForecaster
 
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-import station_fairness, market_physics, tgp_forecast, station_metadata, route_optimizer
+import station_fairness, market_physics, tgp_forecast, station_metadata, route_optimizer, market_news
 from savings_calculator import SavingsCalculator
 
 app = FastAPI(title="Brisbane Fuel AI API", version="2.0.0")
@@ -374,6 +374,132 @@ async def find_cheapest_nearby(loc: LocationRequest):
     results.sort(key=lambda x: (x['price'], x['distance']))
     
     return clean_nan(results[:10])
+
+@app.get("/api/sentiment")
+async def get_sentiment():
+    try:
+        # Use run_in_threadpool for potentially blocking network calls
+        news = await run_in_threadpool(market_news.get_market_news)
+        return news
+    except Exception as e:
+        print(f"Sentiment Error: {e}")
+        return {"global": [], "domestic": []}
+
+@app.get("/api/stations")
+async def get_stations():
+    """Returns the full station list with ratings for the map and tables."""
+    try:
+        ratings_file = "station_ratings.csv"
+        if os.path.exists(ratings_file):
+            df = pd.read_csv(ratings_file)
+            # Standardize columns for frontend
+            df = df.rename(columns={
+                "price_cpl": "price",
+                "latitude": "lat", 
+                "longitude": "lng"
+            })
+            
+            # Helper for cheap/expensive flag (simple median logic if not present)
+            if 'price' in df.columns:
+                median = df['price'].median()
+                df['is_cheap'] = df['price'] < median
+            
+            # Handle NaN
+            return clean_nan(df.to_dict(orient='records'))
+        else:
+            # Fallback to live snapshot if ratings not ready
+            live_df = await run_in_threadpool(load_live_data_latest)
+            if not live_df.empty:
+                # Merge metadata for coords
+                meta = get_cached_metadata()
+                if not meta.empty:
+                    live_df = live_df.merge(meta[['site_id', 'latitude', 'longitude', 'name', 'brand', 'suburb']], on='site_id', how='left', suffixes=('', '_meta'))
+                    # Coalesce
+                    for col in ['latitude', 'longitude', 'name', 'brand', 'suburb']:
+                        if f'{col}_meta' in live_df.columns:
+                            live_df[col] = live_df[col].fillna(live_df[f'{col}_meta'])
+                
+                live_df = live_df.rename(columns={"price_cpl": "price", "latitude": "lat", "longitude": "lng"})
+                live_df = live_df.dropna(subset=['lat', 'lng'])
+                if 'price' in live_df.columns:
+                    median = live_df['price'].median()
+                    live_df['is_cheap'] = live_df['price'] < median
+                    # Add dummy fairness score
+                    live_df['fairness_score'] = live_df['price'] - median
+                
+                return clean_nan(live_df.to_dict(orient='records'))
+            
+            return []
+    except Exception as e:
+        print(f"Stations Error: {e}")
+        return []
+
+@app.get("/api/analytics")
+async def get_analytics():
+    try:
+        live_df = await run_in_threadpool(load_live_data_latest)
+        suburb_stats = []
+        
+        if not live_df.empty:
+            # Merge suburb if missing
+            if 'suburb' not in live_df.columns:
+                 meta = get_cached_metadata()
+                 if not meta.empty:
+                     live_df = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
+            
+            if 'suburb' in live_df.columns:
+                # Group by Suburb
+                grp = live_df.groupby('suburb')['price_cpl'].mean().reset_index()
+                grp = grp.sort_values('price_cpl').head(10)
+                suburb_stats = grp.to_dict(orient='records')
+
+        # Forecast Data (Re-using market status logic essentially, but tailored for the chart)
+        # We need TGP history and Forecast
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+        current_tgp = trend.get('current_tgp', 165.0)
+        
+        # We need a proper forecast structure matching frontend expectations:
+        # data.trend.history.dates, data.trend.history.values
+        # data.trend.sarimax.forecast_dates, data.trend.sarimax.forecast_mean
+        
+        # Use NeuralForecaster for consistency
+        forecaster = NeuralForecaster(
+            tgp=current_tgp,
+            current_price=current_tgp, # Approx
+            days_since_hike=0,
+            status="STABLE"
+        )
+        # Predict TGP trend (simplified)
+        # Actually tgp_forecast.analyze_trend returns history. 
+        # Let's project TGP flat or slightly trending for the visual.
+        
+        fc_dates = []
+        fc_values = []
+        last_date_str = trend['history']['dates'][-1] if trend['history']['dates'] else datetime.now().strftime('%Y-%m-%d')
+        last_date = pd.to_datetime(last_date_str)
+        
+        for i in range(1, 15):
+            d = last_date + timedelta(days=i)
+            fc_dates.append(d.strftime('%Y-%m-%d'))
+            # Simple projection based on trend direction
+            direction = 1 if trend['trend_direction'] == "RISING" else (-1 if trend['trend_direction'] == "FALLING" else 0)
+            val = current_tgp + (i * 0.1 * direction)
+            fc_values.append(round(val, 2))
+
+        return clean_nan({
+            "suburb_ranking": suburb_stats,
+            "trend": {
+                "history": trend['history'],
+                "sarimax": { # Frontend calls it sarimax, we provide our simple forecast
+                    "forecast_dates": fc_dates,
+                    "forecast_mean": fc_values
+                }
+            }
+        })
+
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+        return {"suburb_ranking": [], "trend": {}}
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")

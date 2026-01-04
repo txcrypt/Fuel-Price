@@ -165,6 +165,22 @@ def analyze_trend():
     # Singapore Lag (Proxy using Oil 10 days ago vs today)
     # In a real system we'd use MOPS95 prices. We use Oil as proxy.
     market = fetch_market_data(days=20)
+    current_oil = 0.0
+    current_mogas = 0.0
+    
+    if not market.empty:
+        current_oil = market['oil_price'].iloc[-1]
+        # Rough proxy: Mogas ~ Oil + Crack Spread. Converted to AUD/barrel then cents/litre? 
+        # Actually the frontend expects a dollar/cents value. 
+        # Let's return the theoretical Mogas AUD value we calculated earlier or just a simple proxy.
+        # Re-using the logic from get_tgp_history for consistency:
+        # mogas_aud = (oil + 15) / fx
+        # But here we just want a "ticker" value. Let's send the raw Oil price and maybe a calculated Mogas (USD) or just the AUD equivalent.
+        # Frontend displays: "MOGAS 95: $..." so likely expects a dollar figure (AUD or USD). 
+        # Let's provide the AUD/bbl value as a proxy for the commodity cost.
+        if 'aud_fx' in market.columns and market['aud_fx'].iloc[-1] > 0:
+            current_mogas = (current_oil + 15.0) / market['aud_fx'].iloc[-1]
+    
     if len(market) > 10:
         oil_10_ago = market['oil_price'].iloc[-11]
         oil_now = market['oil_price'].iloc[-1]
@@ -175,6 +191,8 @@ def analyze_trend():
 
     return {
         'current_tgp': round(current_tgp, 2),
+        'current_oil': round(current_oil, 2),
+        'current_mogas': round(current_mogas, 2),
         'trend_direction': trend_direction,
         'delta_7d': round(delta_7d, 2),
         'import_parity_lag': lag_msg,
