@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import os
+import json
 from datetime import timedelta
 
 def calculate_margin_pressure(retail_median, tgp):
@@ -123,29 +125,55 @@ def predict_status(current_median, tgp, duration, tgp_trend_val, volatility):
         'volatility': round(volatility, 2)
     }
 
-# --- Legacy Wrapper for Dashboard Compatibility ---
-# The dashboard calls load_daily_data which was in this file.
-# We keep it here or re-export it if it was moved? 
-# Check original file content: load_daily_data was defined there.
-def load_daily_data():
-    # We need to import the data loader logic. 
-    # Since we can't easily import from 'self' or circular, we rewrite simpler here or assume usage of data_collector logic
-    # But wait, the original file had load_data and load_daily_data.
-    # I should preserve them for the dashboard.
-    import os
+def load_daily_data(force_refresh=False):
+    """
+    Loads daily median prices. Uses a JSON cache to avoid parsing the huge CSV every time.
+    """
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     HISTORY_FILE = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
+    CACHE_FILE = os.path.join(BASE_DIR, "daily_stats.json")
     
-    if not os.path.exists(HISTORY_FILE): return pd.DataFrame(columns=['day', 'price_cpl'])
+    # 1. Try Cache
+    if not force_refresh and os.path.exists(CACHE_FILE):
+        try:
+            # Check if cache is fresh enough (e.g. modified < 1 hour ago)
+            mtime = os.path.getmtime(CACHE_FILE)
+            if (pd.Timestamp.now().timestamp() - mtime) < 3600:
+                with open(CACHE_FILE, 'r') as f:
+                    data = json.load(f)
+                df = pd.DataFrame(data)
+                df['day'] = pd.to_datetime(df['day'])
+                return df
+        except Exception as e:
+            print(f"⚠️ Cache load failed: {e}")
+
+    # 2. Build from CSV
+    if not os.path.exists(HISTORY_FILE): 
+        return pd.DataFrame(columns=['day', 'price_cpl'])
     
     try:
-        df = pd.read_csv(HISTORY_FILE)
-        # Handle various date columns
-        col = 'reported_at' if 'reported_at' in df.columns else 'scraped_at'
-        if col not in df.columns: return pd.DataFrame()
+        # Optimized load: Only needed columns
+        df = pd.read_csv(HISTORY_FILE, usecols=['price_cpl', 'reported_at', 'scraped_at'])
+        
+        # Prefer scraped_at for "Market State on Day X", fallback to reported_at
+        col = 'scraped_at' if 'scraped_at' in df.columns else 'reported_at'
         
         df['date'] = pd.to_datetime(df[col], errors='coerce')
+        df = df.dropna(subset=['date', 'price_cpl'])
         df['day'] = df['date'].dt.normalize()
-        return df.groupby('day')['price_cpl'].median().reset_index().sort_values('day')
-    except:
+        
+        # Group
+        daily_df = df.groupby('day')['price_cpl'].median().reset_index().sort_values('day')
+        
+        # Save Cache
+        daily_df['day_str'] = daily_df['day'].dt.strftime('%Y-%m-%d')
+        cache_data = daily_df[['day_str', 'price_cpl']].rename(columns={'day_str': 'day'}).to_dict(orient='records')
+        
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f)
+            
+        return daily_df[['day', 'price_cpl']]
+        
+    except Exception as e:
+        print(f"❌ Daily Data Load Error: {e}")
         return pd.DataFrame()

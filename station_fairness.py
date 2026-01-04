@@ -52,6 +52,38 @@ def load_metadata(df):
     """
     print("🗺️  Augmenting Metadata...")
     
+    # Ensure site_id is string for merging
+    df['site_id'] = df['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
+    
+    # 1. Try Loading Static Metadata File
+    if os.path.exists(METADATA_FILE):
+        try:
+            meta = pd.read_csv(METADATA_FILE, dtype={'site_id': str, 'postcode': str})
+            print(f"   Loaded {len(meta)} records from {METADATA_FILE}")
+            
+            # Merge
+            # We want to keep all rows from 'df' (live data), so left join
+            merged = df.merge(meta, on='site_id', how='left', suffixes=('', '_meta'))
+            
+            # Overwrite with metadata where available
+            cols_to_fix = ['name', 'brand', 'suburb', 'latitude', 'longitude', 'postcode']
+            for col in cols_to_fix:
+                meta_col = f"{col}_meta"
+                if meta_col in merged.columns:
+                    merged[col] = merged[col].fillna(merged[meta_col]) # Fill gaps
+                    # OPTIONAL: Force overwrite if metadata is trusted more than live feed? 
+                    # Usually live feed has lat/lng, but maybe no name.
+                    # Let's prioritize Metadata for Name/Suburb/Brand, but Live for Lat/Lng (if moving? unlikely).
+                    if col in ['name', 'suburb', 'brand']:
+                        merged[col] = merged[meta_col].fillna(merged[col])
+            
+            # Cleanup
+            df = merged.drop(columns=[c for c in merged.columns if c.endswith('_meta')])
+            
+        except Exception as e:
+            print(f"⚠️ Metadata merge failed: {e}")
+
+    # 2. Fallbacks
     if 'latitude' not in df.columns or 'longitude' not in df.columns:
         df['latitude'] = np.nan
         df['longitude'] = np.nan
@@ -65,18 +97,22 @@ def load_metadata(df):
              df['name'] = df['brand'].fillna('Station') + " " + df['suburb'].fillna(df['site_id'].astype(str))
         else:
              df['name'] = "Station " + df['site_id'].astype(str)
-        
+    
+    # Fill remaining missing names
+    df['name'] = df['name'].fillna("Station " + df['site_id'].astype(str))
+
     # Fill missing coords
     if 'postcode' in df.columns:
         missing_coords = df[df['latitude'].isna() | df['longitude'].isna()]
         for idx, row in missing_coords.iterrows():
             try:
-                pc = str(int(float(row['postcode'])))
-                loc = nomi.query_postal_code(pc)
-                if not np.isnan(loc.latitude):
-                    df.at[idx, 'latitude'] = loc.latitude
-                    df.at[idx, 'longitude'] = loc.longitude
-                    df.at[idx, 'suburb'] = loc.place_name
+                pc = str(int(float(row['postcode']))) if pd.notnull(row['postcode']) else ""
+                if pc:
+                    loc = nomi.query_postal_code(pc)
+                    if not np.isnan(loc.latitude):
+                        df.at[idx, 'latitude'] = loc.latitude
+                        df.at[idx, 'longitude'] = loc.longitude
+                        if pd.isna(row.get('suburb')): df.at[idx, 'suburb'] = loc.place_name
             except: pass
             
     df_clean = df.dropna(subset=['latitude', 'longitude']).copy()

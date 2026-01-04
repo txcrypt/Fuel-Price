@@ -11,7 +11,7 @@ class NeuralForecaster:
     the learned shape of a Deep Learning model (The 'Shark Fin' Cycle).
     """
     
-    def __init__(self, tgp: float, current_price: float, days_since_hike: int, status: str):
+    def __init__(self, tgp: float, current_price: float, days_since_hike: int, status: str, cycle_length: int = 35, hike_duration: int = 5):
         self.tgp = tgp
         self.current_price = current_price
         self.days_since_hike = days_since_hike
@@ -20,8 +20,8 @@ class NeuralForecaster:
         # Cycle Physics Constants (Learned parameters)
         self.HIKE_PEAK_OFFSET = 24.0 # Cents above TGP
         self.BOTTOM_OFFSET = 2.0     # Cents above TGP
-        self.CYCLE_LENGTH = 35       # Average days
-        self.HIKE_DURATION = 5       # Days to reach peak
+        self.CYCLE_LENGTH = cycle_length
+        self.HIKE_DURATION = hike_duration
         self.DECAY_RATE = 0.85       # Smoothing factor
 
     def predict_next_14_days(self, start_date=None):

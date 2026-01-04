@@ -72,6 +72,10 @@ def fetch_snapshot():
                     header = not os.path.exists(history_file)
                     df[available_cols].to_csv(history_file, mode='a', header=header, index=False)
                     print(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
+                    
+                    # Refresh Cache
+                    try: market_physics.load_daily_data(force_refresh=True)
+                    except Exception as e: print(f"⚠️ Cache refresh failed: {e}")
             else:
                 print(f"⏳ History skip (Rate limit)")
             
@@ -173,6 +177,9 @@ async def get_market_status():
         
         current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
         if pd.isna(current_median): current_median = 0.0
+
+        current_avg = live_df['price_cpl'].mean() if not live_df.empty else 0.0
+        if pd.isna(current_avg): current_avg = 0.0
         
         # Extract last updated time from live data
         last_updated = "Unknown"
@@ -242,7 +249,8 @@ async def get_market_status():
                 tgp=current_tgp,
                 current_price=last_price,
                 days_since_hike=days_elapsed,
-                status=status_obj['status']
+                status=status_obj['status'],
+                cycle_length=int(avg_len)
             )
             forecast = forecaster.predict_next_14_days(start_date=last_hist_date)
 
@@ -278,6 +286,7 @@ async def get_market_status():
             "days_elapsed": days_elapsed,
             "last_updated": last_updated,
             "savings_insight": savings_insight,
+            "current_avg": current_avg,
             "ticker": {
                 "tgp": current_tgp, 
                 "oil": trend.get('current_oil', 0),

@@ -271,6 +271,10 @@ async function initLiveView() {
         }
 
         document.getElementById('hike-prediction').innerText = `Est. Next Hike: ${data.next_hike_est || "?"}`;
+        
+        if (data.current_avg) {
+             document.getElementById('avg-price-display').innerText = `Market Avg: ${data.current_avg.toFixed(1)}c`;
+        }
 
         // Cycle Chart (History + Forecast)
         if (data.history && data.history.dates) {
