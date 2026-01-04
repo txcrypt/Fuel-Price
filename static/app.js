@@ -205,15 +205,28 @@ function loadViewData(viewId) {
 // --- Tab 1: Live Market ---
 async function initLiveView() {
     try {
-        // Fetch Market Status and News in parallel
-        const [statusRes, newsRes] = await Promise.all([
+        // Fetch Market Status and News in parallel (Resilient)
+        const results = await Promise.allSettled([
             fetch(`${API_BASE}/market-status`),
             fetch(`${API_BASE}/sentiment`)
         ]);
 
-        if (!statusRes.ok) throw new Error("API Error");
-        const data = await statusRes.json();
-        const newsData = await newsRes.json();
+        const statusRes = results[0];
+        const newsRes = results[1];
+
+        // Critical: Market Data
+        if (statusRes.status === 'rejected' || !statusRes.value.ok) {
+            throw new Error("Market Data API Error");
+        }
+        const data = await statusRes.value.json();
+        
+        // Optional: News Data
+        let newsData = { domestic: [] };
+        if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
+            try { newsData = await newsRes.value.json(); } catch(e) { console.warn("News Parse Error"); }
+        } else {
+            console.warn("News API unavailable");
+        }
         
         if (!data || !data.ticker) {
             document.getElementById('status-text').innerText = "No Data";

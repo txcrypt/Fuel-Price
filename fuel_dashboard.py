@@ -37,8 +37,45 @@ def fetch_snapshot():
         engine = FuelEngine(token=token)
         df = engine.get_market_snapshot()
         if df is not None and not df.empty:
+            # 1. Save Live Snapshot (Current State)
             df.to_csv(SNAPSHOT_FILE, index=False)
-            print(f"✅ Snapshot saved: {len(df)} records at {datetime.now().strftime('%H:%M:%S')}")
+            
+            # 2. Append to Historical Collection (Rate Limited to ~1 hour)
+            history_file = "brisbane_fuel_live_collection.csv"
+            should_append = False
+            
+            if not os.path.exists(history_file):
+                should_append = True
+            else:
+                try:
+                    # Efficiently read just the last few bytes/lines to check timestamp
+                    # Using pandas for simplicity in this context, assuming file isn't massive yet.
+                    # For strict optimization, seek(-100, 2) is better, but pandas tail is safer for CSV parsing.
+                    last_rows = pd.read_csv(history_file).tail(1)
+                    if not last_rows.empty and 'scraped_at' in last_rows.columns:
+                        last_ts = pd.to_datetime(last_rows['scraped_at'].iloc[0])
+                        if (datetime.now() - last_ts).total_seconds() > 3600:
+                            should_append = True
+                    else:
+                        should_append = True
+                except:
+                    should_append = True # Fallback if read fails
+
+            if should_append:
+                # Enforce schema consistency with historical file
+                cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'latitude', 'longitude', 'scraped_at']
+                
+                # Ensure columns exist in df
+                available_cols = [c for c in cols_to_save if c in df.columns]
+                
+                if available_cols:
+                    header = not os.path.exists(history_file)
+                    df[available_cols].to_csv(history_file, mode='a', header=header, index=False)
+                    print(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
+            else:
+                print(f"⏳ History skip (Rate limit)")
+            
+            print(f"✅ Snapshot saved: {len(df)} records.")
             return True
     except Exception as e:
         print(f"❌ Snapshot failed: {e}")
