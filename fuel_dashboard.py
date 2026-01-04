@@ -84,9 +84,13 @@ def fetch_snapshot():
 async def background_refresher():
     """Background task to refresh data every 30 minutes"""
     while True:
-        await asyncio.sleep(1800) # 30 minutes
-        print("🔄 Periodic Refresh Triggered...")
-        await run_in_threadpool(fetch_snapshot)
+        try:
+            await asyncio.sleep(1800) # 30 minutes
+            print("🔄 Periodic Refresh Triggered...")
+            await run_in_threadpool(fetch_snapshot)
+        except Exception as e:
+            print(f"⚠️ Background refresh error: {e}")
+            await asyncio.sleep(60) # Retry after 1 minute if crash occurs
 
 @app.on_event("startup")
 async def startup_event():
@@ -123,152 +127,183 @@ def get_cached_metadata():
     return pd.read_csv(config.METADATA_FILE, dtype={'site_id': str, 'postcode': str}) if os.path.exists(config.METADATA_FILE) else pd.DataFrame()
 
 def load_live_data_latest():
-    if not os.path.exists(SNAPSHOT_FILE): return pd.DataFrame()
-    try:
-        df = pd.read_csv(SNAPSHOT_FILE)
-        if df.empty: return pd.DataFrame()
-        # Ensure site_id is string
-        if 'site_id' in df.columns: 
-            df['site_id'] = df['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
-        return df
-    except: return pd.DataFrame()
+    # Priority 1: Live Snapshot (Most recent attempt)
+    if os.path.exists(SNAPSHOT_FILE):
+        try:
+            df = pd.read_csv(SNAPSHOT_FILE)
+            if not df.empty:
+                # Type enforcement
+                if 'site_id' in df.columns: 
+                    df['site_id'] = df['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
+                return df
+        except Exception as e:
+            print(f"⚠️ Live snapshot load error: {e}")
+
+    # Priority 2: Historical Fallback (Last known good state)
+    history_file = "brisbane_fuel_live_collection.csv"
+    if os.path.exists(history_file):
+        try:
+            print("⚠️ Using Historical Fallback for Live Data")
+            # Read all, find latest scraped_at
+            # Reading full file might be slow, but it's a fallback.
+            df_hist = pd.read_csv(history_file)
+            if not df_hist.empty and 'scraped_at' in df_hist.columns:
+                last_scrape = df_hist['scraped_at'].max()
+                latest_slice = df_hist[df_hist['scraped_at'] == last_scrape].copy()
+                
+                if 'site_id' in latest_slice.columns:
+                    latest_slice['site_id'] = latest_slice['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
+                
+                return latest_slice
+        except Exception as e:
+            print(f"⚠️ Historical fallback error: {e}")
+
+    return pd.DataFrame()
 
 @app.get("/api/market-status")
 async def get_market_status():
-    # 1. Load Data
-    daily_df = await run_in_threadpool(market_physics.load_daily_data)
-    live_df = await run_in_threadpool(load_live_data_latest)
-    trend = await run_in_threadpool(tgp_forecast.analyze_trend)
-    
-    current_tgp = trend.get('current_tgp', 165.0)
-    current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
-    
-    # Extract last updated time from live data
-    last_updated = "Unknown"
-    if not live_df.empty and 'scraped_at' in live_df.columns:
-        last_updated = str(live_df['scraped_at'].iloc[0])
-    
-    # 2. Analyze Cycles
-    avg_len, avg_relent, last_hike = await run_in_threadpool(market_physics.analyze_cycles, daily_df)
-    now = pd.Timestamp.now()
-    days_elapsed = (now - last_hike).days
-    
-    # 3. Market Physics Logic
-    volatility = 0.0 
-    
-    status_obj = market_physics.predict_status(
-        current_median, 
-        current_tgp, 
-        days_elapsed, 
-        trend.get('delta_7d', 0), 
-        volatility
-    )
-    
-    # Refined Next Hike Estimation
-    projected_date = last_hike + timedelta(days=avg_len)
-    next_hike_str = projected_date.strftime("%Y-%m-%d")
-    
-    # Logic Overrides
-    prob = status_obj.get('hike_probability', 0)
-    status = status_obj.get('status', 'STABLE')
-    
-    if status == "HIKE_STARTED":
-        next_hike_str = "HAPPENING NOW"
-    elif prob >= 70.0:
-        next_hike_str = "Within 24h"
-    elif prob >= 50.0:
-        # If projected date is far away, bring it closer
-        if projected_date > (now + timedelta(days=3)):
-             next_hike_str = "Within 3 Days"
-    elif projected_date < now:
-        # Overdue case
-        next_hike_str = "Overdue (Imminent)"
-
-    # 4. Construct Graph Data
-    # History (Past 60 days)
-    history = {"dates": [], "prices": []}
-    if daily_df is not None and not daily_df.empty:
-        # Sort
-        h_df = daily_df.sort_values('day')
-        
-        # FIX: Inject Today's Live Data if missing from historical CSV
-        # This ensures the graph connects the static history to the live reality
-        last_history_date = h_df['day'].max().date()
-        today_date = pd.Timestamp.now().date()
-        
-        if last_history_date < today_date and current_median > 0:
-            # Create a dataframe for today
-            today_row = pd.DataFrame([{'day': pd.Timestamp(today_date), 'price_cpl': current_median}])
-            h_df = pd.concat([h_df, today_row], ignore_index=True)
-
-        # Slice last 60
-        h_df = h_df.tail(60)
-        
-        history = {
-            "dates": h_df['day'].dt.strftime('%Y-%m-%d').tolist(),
-            "prices": h_df['price_cpl'].tolist()
-        }
-        
-    # Forecast (Next 14 days)
-    # Uses NeuralForecaster (TabM concept) for realistic cycle shapes
-    forecast = {"dates": [], "prices": []}
-    if history['dates']:
-        last_price = history['prices'][-1]
-        last_hist_date = pd.to_datetime(history['dates'][-1])
-        
-        forecaster = NeuralForecaster(
-            tgp=current_tgp,
-            current_price=last_price,
-            days_since_hike=days_elapsed,
-            status=status_obj['status']
-        )
-        
-        # Align forecast to start from the day AFTER the last history point
-        forecast = forecaster.predict_next_14_days(start_date=last_hist_date)
-
-    # 5. Calculate Savings Insight (Standard 50L Tank)
-    # Replaces the interactive calculator with a passive insight
-    savings_insight = "Market is stable."
     try:
-        calc = SavingsCalculator(
-            current_avg_price=current_median,
-            best_local_price=live_df['price_cpl'].min() if not live_df.empty else current_median,
-            cycle_phase="Restoration" if status in ["HIKE_STARTED", "HIKE_IMMINENT"] else "Relenting",
-            predicted_bottom=current_tgp + 2.0,
-            tank_size=50
-        )
-        opp = calc.calculate_opportunity()
+        # 1. Load Data
+        daily_df = await run_in_threadpool(market_physics.load_daily_data)
+        live_df = await run_in_threadpool(load_live_data_latest)
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
         
-        if status in ["HIKE_STARTED", "HIKE_IMMINENT", "WARNING"]:
-            savings_insight = f"⚡ Fill 50L now to save ~${opp:.2f} vs coming peak."
-        elif status == "DROPPING":
-            savings_insight = f"📉 Wait to save ~${opp:.2f} on 50L."
-        elif status == "BOTTOM":
-             savings_insight = "✅ Prices at bottom. Great time to fill."
-        else:
-            savings_insight = f"ℹ️ Market stable. Potential variance ~${opp:.2f}."
-    except Exception as e:
-        print(f"Savings calc error: {e}")
+        current_tgp = trend.get('current_tgp', 165.0)
+        if not isinstance(current_tgp, (int, float)): current_tgp = 165.0
+        
+        current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
+        if pd.isna(current_median): current_median = 0.0
+        
+        # Extract last updated time from live data
+        last_updated = "Unknown"
+        if not live_df.empty and 'scraped_at' in live_df.columns:
+            last_updated = str(live_df['scraped_at'].iloc[0])
+        
+        # 2. Analyze Cycles
+        avg_len, avg_relent, last_hike = await run_in_threadpool(market_physics.analyze_cycles, daily_df)
+        now = pd.Timestamp.now()
+        days_elapsed = (now - last_hike).days
+        
+        # 3. Market Physics Logic
+        volatility = 0.0 
+        
+        status_obj = market_physics.predict_status(
+            current_median, 
+            current_tgp, 
+            days_elapsed, 
+            trend.get('delta_7d', 0), 
+            volatility
+        )
+        
+        # Refined Next Hike Estimation
+        projected_date = last_hike + timedelta(days=avg_len)
+        next_hike_str = projected_date.strftime("%Y-%m-%d")
+        
+        # Logic Overrides
+        prob = status_obj.get('hike_probability', 0)
+        status = status_obj.get('status', 'STABLE')
+        
+        if status == "HIKE_STARTED":
+            next_hike_str = "HAPPENING NOW"
+        elif prob >= 70.0:
+            next_hike_str = "Within 24h"
+        elif prob >= 50.0:
+            if projected_date > (now + timedelta(days=3)):
+                 next_hike_str = "Within 3 Days"
+        elif projected_date < now:
+            next_hike_str = "Overdue (Imminent)"
 
-    return clean_nan({
-        "status": status_obj['status'],
-        "advice": status_obj['advice'],
-        "advice_type": "success" if status_obj['advice'] == "Buy" else ("error" if "FILL" in status_obj['advice'] else "info"),
-        "hike_probability": status_obj['hike_probability'],
-        "next_hike_est": next_hike_str,
-        "days_elapsed": days_elapsed,
-        "last_updated": last_updated,
-        "savings_insight": savings_insight,
-        "ticker": {
-            "tgp": current_tgp, 
-            "oil": trend.get('current_oil', 0),
-            "mogas": trend.get('current_mogas', 0),
-            "import_parity_lag": trend.get('import_parity_lag', 'Neutral'),
-            "excise": 0.496 # Fixed approx
-        },
-        "history": history,
-        "forecast": forecast
-    })
+        # 4. Construct Graph Data
+        history = {"dates": [], "prices": []}
+        if daily_df is not None and not daily_df.empty:
+            h_df = daily_df.sort_values('day')
+            
+            # FIX: Inject Today's Live Data
+            last_history_date = h_df['day'].max().date()
+            today_date = pd.Timestamp.now().date()
+            
+            if last_history_date < today_date and current_median > 0:
+                today_row = pd.DataFrame([{'day': pd.Timestamp(today_date), 'price_cpl': current_median}])
+                h_df = pd.concat([h_df, today_row], ignore_index=True)
+
+            h_df = h_df.tail(60)
+            history = {
+                "dates": h_df['day'].dt.strftime('%Y-%m-%d').tolist(),
+                "prices": h_df['price_cpl'].tolist()
+            }
+            
+        # Forecast
+        forecast = {"dates": [], "prices": []}
+        if history['dates']:
+            last_price = history['prices'][-1]
+            last_hist_date = pd.to_datetime(history['dates'][-1])
+            
+            forecaster = NeuralForecaster(
+                tgp=current_tgp,
+                current_price=last_price,
+                days_since_hike=days_elapsed,
+                status=status_obj['status']
+            )
+            forecast = forecaster.predict_next_14_days(start_date=last_hist_date)
+
+        # 5. Calculate Savings Insight
+        savings_insight = "Market is stable."
+        try:
+            calc = SavingsCalculator(
+                current_avg_price=current_median,
+                best_local_price=live_df['price_cpl'].min() if not live_df.empty else current_median,
+                cycle_phase="Restoration" if status in ["HIKE_STARTED", "HIKE_IMMINENT"] else "Relenting",
+                predicted_bottom=current_tgp + 2.0,
+                tank_size=50
+            )
+            opp = calc.calculate_opportunity()
+            
+            if status in ["HIKE_STARTED", "HIKE_IMMINENT", "WARNING"]:
+                savings_insight = f"⚡ Fill 50L now to save ~${opp:.2f} vs coming peak."
+            elif status == "DROPPING":
+                savings_insight = f"📉 Wait to save ~${opp:.2f} on 50L."
+            elif status == "BOTTOM":
+                 savings_insight = "✅ Prices at bottom. Great time to fill."
+            else:
+                savings_insight = f"ℹ️ Market stable. Potential variance ~${opp:.2f}."
+        except Exception as e:
+            print(f"Savings calc error: {e}")
+
+        return clean_nan({
+            "status": status_obj['status'],
+            "advice": status_obj['advice'],
+            "advice_type": "success" if status_obj['advice'] == "Buy" else ("error" if "FILL" in status_obj['advice'] else "info"),
+            "hike_probability": status_obj['hike_probability'],
+            "next_hike_est": next_hike_str,
+            "days_elapsed": days_elapsed,
+            "last_updated": last_updated,
+            "savings_insight": savings_insight,
+            "ticker": {
+                "tgp": current_tgp, 
+                "oil": trend.get('current_oil', 0),
+                "mogas": trend.get('current_mogas', 0),
+                "import_parity_lag": trend.get('import_parity_lag', 'Neutral'),
+                "excise": 0.496
+            },
+            "history": history,
+            "forecast": forecast
+        })
+    except Exception as e:
+        print(f"CRITICAL MARKET STATUS ERROR: {e}")
+        # Return Safe Fallback
+        return {
+            "status": "OFFLINE",
+            "advice": "Check Connection",
+            "advice_type": "error",
+            "hike_probability": 0,
+            "next_hike_est": "--",
+            "days_elapsed": 0,
+            "last_updated": "Never",
+            "savings_insight": "System is offline.",
+            "ticker": {"tgp": 0, "oil": 0, "mogas": 0},
+            "history": {"dates": [], "prices": []},
+            "forecast": {"dates": [], "prices": []}
+        }
 
 class RouteRequest(BaseModel): start: str; end: str
 
