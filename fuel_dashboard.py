@@ -399,7 +399,8 @@ async def find_cheapest_nearby(loc: LocationRequest):
                     "price": float(row['price_cpl']),
                     "distance": dist,
                     "brand": str(row.get('brand', 'Unknown')),
-                    "suburb": str(row.get('suburb', ''))
+                    "suburb": str(row.get('suburb', '')),
+                    "state": str(row.get('state', ''))
                 })
         except: continue
         

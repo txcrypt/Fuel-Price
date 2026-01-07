@@ -111,6 +111,21 @@ function initFindNearMe() {
                     if (!data || data.length === 0) {
                         container.innerHTML = '<p style="text-align:center; color:#ef4444;">No stations found within 15km.</p>';
                     } else {
+                        // 1. Context Switch (State)
+                        if (data[0].state && data[0].state !== currentState) {
+                            console.log(`Switching state to ${data[0].state}`);
+                            currentState = data[0].state;
+                            const stateSel = document.getElementById('state-selector');
+                            if (stateSel) stateSel.value = currentState;
+                            
+                            // Re-init view logic for new state
+                            const activeNav = document.querySelector('.nav-item.active');
+                            if (activeNav) loadViewData(activeNav.getAttribute('data-view'));
+                            
+                            // Explicit Map Pan to User
+                            if (map) map.setView([latitude, longitude], 13);
+                        }
+
                         let html = `<div style="text-align:center; color:#94a3b8; font-size:0.8rem; margin-bottom:10px;">
                             Updating live based on your location (±${Math.round(accuracy)}m)
                         </div>`;
