@@ -2,8 +2,6 @@ fastapi
 uvicorn
 pandas
 numpy
-plotly
-folium
 pgeocode
 requests
 beautifulsoup4
@@ -15,3 +13,4 @@ esda
 statsmodels
 scipy
 openpyxl
+shapely

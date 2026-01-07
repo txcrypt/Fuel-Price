@@ -102,24 +102,15 @@ class FuelEngine:
             target_sites = sites.copy()
             target_sites['region'] = self.state
         
-                # Merge
+        # Merge
+        merged = pd.merge(prices, target_sites, on='site_id', how='inner')
         
-                merged = pd.merge(prices, target_sites, on='site_id', how='inner')
+        # Add State
+        merged['state'] = self.state
         
-                
+        # Add Timestamp
+        merged['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-                # Add State
-        
-                merged['state'] = self.state
-        
-                
-        
-                # Add Timestamp
-        
-                merged['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-                
-        
-                return merged
+        return merged
         
         
