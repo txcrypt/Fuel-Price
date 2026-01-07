@@ -1,5 +1,16 @@
 // --- Configuration & State ---
 const API_BASE = '/api';
+let currentState = 'QLD';
+const STATE_CENTERS = {
+    "QLD": [-27.470, 153.020],
+    "NSW": [-33.868, 151.209],
+    "VIC": [-37.813, 144.963],
+    "SA":  [-34.928, 138.600],
+    "WA":  [-31.950, 115.860],
+    "ACT": [-35.280, 149.130],
+    "TAS": [-42.882, 147.327],
+    "NT":  [-12.463, 130.844]
+};
 let map, plannerMap;
 let markers = [];
 let stationData = []; // Store raw data for filtering
@@ -149,6 +160,26 @@ function initFindNearMe() {
 
 // --- Navigation ---
 function initNavigation() {
+    // State Selector
+    const stateSel = document.getElementById('state-selector');
+    if (stateSel) {
+        stateSel.value = currentState;
+        stateSel.addEventListener('change', (e) => {
+            currentState = e.target.value;
+            
+            // Re-center maps
+            if (map) map.setView(STATE_CENTERS[currentState], currentState === 'QLD' ? 11 : 9);
+            if (plannerMap) plannerMap.setView(STATE_CENTERS[currentState], 9);
+
+            // Refresh current view
+            const activeNav = document.querySelector('.nav-item.active');
+            if (activeNav) {
+                const viewId = activeNav.getAttribute('data-view');
+                loadViewData(viewId);
+            }
+        });
+    }
+
     // Desktop Tabs
     const navItems = document.querySelectorAll('.nav-item');
     // Mobile Bottom Tabs
@@ -207,7 +238,7 @@ async function initLiveView() {
     try {
         // Fetch Market Status and News in parallel (Resilient)
         const results = await Promise.allSettled([
-            fetch(`${API_BASE}/market-status`),
+            fetch(`${API_BASE}/market-status?state=${currentState}`),
             fetch(`${API_BASE}/sentiment`)
         ]);
 
@@ -353,7 +384,7 @@ function initMap() {
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
     
-    map = L.map('map').setView([-27.47, 153.02], 11);
+    map = L.map('map').setView(STATE_CENTERS[currentState], currentState === 'QLD' ? 11 : 9);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO'
     }).addTo(map);
@@ -361,7 +392,7 @@ function initMap() {
 
 async function loadStations() {
     try {
-        const res = await fetch(`${API_BASE}/stations`);
+        const res = await fetch(`${API_BASE}/stations?state=${currentState}`);
         const stations = await res.json();
         
         if (!map) return;
@@ -529,7 +560,7 @@ async function loadSentiment() {
 // --- Tab 3: Ratings ---
 async function loadRatings() {
     try {
-        const res = await fetch(`${API_BASE}/stations`);
+        const res = await fetch(`${API_BASE}/stations?state=${currentState}`);
         let stations = await res.json();
         if (!Array.isArray(stations)) stations = [];
         
@@ -591,7 +622,7 @@ function loadPlanner() {
     if (!plannerMap) {
         const pmEl = document.getElementById('planner-map');
         if (pmEl) {
-            plannerMap = L.map('planner-map').setView([-27.47, 153.02], 10);
+            plannerMap = L.map('planner-map').setView(STATE_CENTERS[currentState], 9);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; CARTO'
             }).addTo(plannerMap);
@@ -693,7 +724,7 @@ function loadPlanner() {
 // --- Tab 5: Analytics ---
 async function loadAnalytics() {
     try {
-        const res = await fetch(`${API_BASE}/analytics`);
+        const res = await fetch(`${API_BASE}/analytics?state=${currentState}`);
         const data = await res.json();
         
         // 1. Suburb Table

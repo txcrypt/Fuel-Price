@@ -6,25 +6,32 @@ import geopandas as gpd
 from libpysal.weights import DistanceBand
 from esda.moran import Moran, Moran_Local
 from shapely.geometry import Point
-import tgp_forecast # Added import
+import tgp_forecast
+import config # Added import
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MASTER_FILE = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
-METADATA_FILE = os.path.join(BASE_DIR, "station_metadata.csv") # Fixed path reference
+METADATA_FILE = os.path.join(BASE_DIR, "station_metadata.csv")
 OUTPUT_FILE = os.path.join(BASE_DIR, "station_ratings.csv")
 
-def load_and_prep_data():
+def load_and_prep_data(state="QLD"):
     """
-    Loads data. Prefers the live collection file.
+    Loads data for a specific state.
     """
     if not os.path.exists(MASTER_FILE):
         print(f"❌ Error: Data file not found at {MASTER_FILE}")
         return None
         
-    print("📂 Loading station data...")
+    print(f"📂 Loading station data for {state}...")
     df = pd.read_csv(MASTER_FILE)
     
+    # Filter by state
+    if 'state' in df.columns:
+        df = df[df['state'] == state].copy()
+    elif state != "QLD":
+        return None
+        
     # Standardize columns
     if 'reported_at' in df.columns:
         df['date'] = pd.to_datetime(df['reported_at'], format='mixed', errors='coerce').dt.normalize()
@@ -163,50 +170,62 @@ def analyze_spatial_clustering(stations_df):
         return gdf
 
 def main():
-    # 1. Load Data
-    raw_df = load_and_prep_data()
-    if raw_df is None or raw_df.empty: return
+    all_ratings = []
     
-    # 2. Prep Metadata
-    clean_df = load_metadata(raw_df)
-    
-    # 3. Spatial Analysis
-    spatial_df = analyze_spatial_clustering(clean_df)
-    
-    # 4. New Fairness Logic (Margin Based)
-    # Fetch TGP
-    trend = tgp_forecast.analyze_trend()
-    current_tgp = trend.get('current_tgp', 165.0)
-    print(f"⚖️  Calculating Fairness based on TGP: {current_tgp}c")
-    
-    # Fairness Score = Price - TGP
-    # If < 5c, it's Fair.
-    spatial_df['fairness_score'] = spatial_df['price_cpl'] - current_tgp
-    
-    def get_rating(row):
-        margin = row['fairness_score']
-        cluster = row['spatial_cluster']
+    for state_code in config.STATES.keys():
+        print(f"\n⚖️  Processing {state_code}...")
+        # 1. Load Data
+        raw_df = load_and_prep_data(state=state_code)
+        if raw_df is None or raw_df.empty: 
+            print(f"   No data for {state_code}")
+            continue
         
-        # Strict Rule: Fair if Price < TGP + 5c
-        if margin <= 5.0:
-            if "Cold Spot" in cluster: return "🌟 SUPER VALUE"
-            return "✅ Fair Price"
-        elif margin <= 15.0:
-            return "⚪ Market Price"
-        else:
-            if "Hot Spot" in cluster: return "❌ PRICE GOUGE"
-            return "⚠️ Expensive"
+        # 2. Prep Metadata
+        clean_df = load_metadata(raw_df)
+        
+        # 3. Spatial Analysis
+        spatial_df = analyze_spatial_clustering(clean_df)
+        
+        # 4. New Fairness Logic (Margin Based)
+        # Fetch TGP for capital city
+        capital = config.STATES.get(state_code, config.STATES["QLD"])["capital"]
+        trend = tgp_forecast.analyze_trend(city=capital)
+        current_tgp = trend.get('current_tgp', 165.0)
+        print(f"   Calculating Fairness based on {capital} TGP: {current_tgp}c")
+        
+        # Fairness Score = Price - TGP
+        spatial_df['fairness_score'] = spatial_df['price_cpl'] - current_tgp
+        
+        def get_rating(row):
+            margin = row['fairness_score']
+            cluster = row['spatial_cluster']
             
-    spatial_df['rating'] = spatial_df.apply(get_rating, axis=1)
+            if margin <= 5.0:
+                if "Cold Spot" in cluster: return "🌟 SUPER VALUE"
+                return "✅ Fair Price"
+            elif margin <= 15.0:
+                return "⚪ Market Price"
+            else:
+                if "Hot Spot" in cluster: return "❌ PRICE GOUGE"
+                return "⚠️ Expensive"
+                
+        spatial_df['rating'] = spatial_df.apply(get_rating, axis=1)
+        spatial_df['state'] = state_code
+        all_ratings.append(spatial_df)
     
-    # 5. Save
-    final_cols = ['site_id', 'name', 'suburb', 'price_cpl', 'fairness_score', 'rating', 'spatial_cluster', 'latitude', 'longitude', 'moran_p']
+    if not all_ratings:
+        print("❌ No ratings generated for any state.")
+        return
+
+    # 5. Save Consolidated
+    full_df = pd.concat(all_ratings, ignore_index=True)
+    final_cols = ['site_id', 'name', 'suburb', 'price_cpl', 'fairness_score', 'rating', 'spatial_cluster', 'latitude', 'longitude', 'moran_p', 'state']
     
-    spatial_df['name'] = spatial_df['name'].fillna(spatial_df['site_id'])
-    spatial_df['suburb'] = spatial_df['suburb'].fillna("Unknown")
+    full_df['name'] = full_df['name'].fillna(full_df['site_id'])
+    full_df['suburb'] = full_df['suburb'].fillna("Unknown")
     
-    spatial_df[final_cols].to_csv(OUTPUT_FILE, index=False)
-    print(f"✅ Ratings Updated: {OUTPUT_FILE}")
+    full_df[final_cols].to_csv(OUTPUT_FILE, index=False)
+    print(f"\n✅ All Ratings Updated: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()

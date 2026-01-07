@@ -31,56 +31,68 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 SNAPSHOT_FILE = "live_snapshot.csv"
 
 def fetch_snapshot():
-    print("📸 Fetching Live Snapshot...")
+    print("📸 Fetching Live Snapshot for all states...")
     try:
         token = os.getenv("FUEL_API_TOKEN")
-        engine = FuelEngine(token=token)
-        df = engine.get_market_snapshot()
-        if df is not None and not df.empty:
-            # 1. Save Live Snapshot (Current State)
-            df.to_csv(SNAPSHOT_FILE, index=False)
+        all_dfs = []
+        
+        for state_code in config.STATES.keys():
+            print(f"   Fetching {state_code}...")
+            engine = FuelEngine(token=token, state=state_code)
+            df = engine.get_market_snapshot()
+            if df is not None and not df.empty:
+                all_dfs.append(df)
+        
+        if not all_dfs:
+            print("❌ No data fetched for any state.")
+            return False
             
-            # 2. Append to Historical Collection (Rate Limited to ~1 hour)
-            history_file = "brisbane_fuel_live_collection.csv"
-            should_append = False
-            
-            if not os.path.exists(history_file):
-                should_append = True
-            else:
-                try:
-                    # Efficiently read just the last few bytes/lines to check timestamp
-                    # Using pandas for simplicity in this context, assuming file isn't massive yet.
-                    # For strict optimization, seek(-100, 2) is better, but pandas tail is safer for CSV parsing.
-                    last_rows = pd.read_csv(history_file).tail(1)
-                    if not last_rows.empty and 'scraped_at' in last_rows.columns:
-                        last_ts = pd.to_datetime(last_rows['scraped_at'].iloc[0])
-                        if (datetime.now() - last_ts).total_seconds() > 3600:
-                            should_append = True
-                    else:
+        df = pd.concat(all_dfs, ignore_index=True)
+        
+        # 1. Save Live Snapshot (Current State)
+        df.to_csv(SNAPSHOT_FILE, index=False)
+        
+        # 2. Append to Historical Collection (Rate Limited to ~1 hour)
+        history_file = "brisbane_fuel_live_collection.csv" # Kept name for compatibility or could rename later
+        should_append = False
+        
+        if not os.path.exists(history_file):
+            should_append = True
+        else:
+            try:
+                # Check last scrape for ANY state to see if it's been an hour
+                last_rows = pd.read_csv(history_file).tail(1)
+                if not last_rows.empty and 'scraped_at' in last_rows.columns:
+                    last_ts = pd.to_datetime(last_rows['scraped_at'].iloc[0])
+                    if (datetime.now() - last_ts).total_seconds() > 3600:
                         should_append = True
-                except:
-                    should_append = True # Fallback if read fails
+                else:
+                    should_append = True
+            except:
+                should_append = True
 
-            if should_append:
-                # Enforce schema consistency with historical file
-                cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'latitude', 'longitude', 'scraped_at']
-                
-                # Ensure columns exist in df
-                available_cols = [c for c in cols_to_save if c in df.columns]
-                
-                if available_cols:
-                    header = not os.path.exists(history_file)
-                    df[available_cols].to_csv(history_file, mode='a', header=header, index=False)
-                    print(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
-                    
-                    # Refresh Cache
-                    try: market_physics.load_daily_data(force_refresh=True)
-                    except Exception as e: print(f"⚠️ Cache refresh failed: {e}")
-            else:
-                print(f"⏳ History skip (Rate limit)")
+        if should_append:
+            # Enforce schema consistency with historical file
+            cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'state', 'latitude', 'longitude', 'scraped_at']
             
-            print(f"✅ Snapshot saved: {len(df)} records.")
-            return True
+            # Ensure columns exist in df
+            available_cols = [c for c in cols_to_save if c in df.columns]
+            
+            if available_cols:
+                header = not os.path.exists(history_file)
+                df[available_cols].to_csv(history_file, mode='a', header=header, index=False)
+                print(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
+                
+                # Refresh Cache for all states
+                try:
+                    for state_code in config.STATES.keys():
+                        market_physics.load_daily_data(force_refresh=True, state=state_code)
+                except Exception as e: print(f"⚠️ Cache refresh failed: {e}")
+        else:
+            print(f"⏳ History skip (Rate limit)")
+        
+        print(f"✅ Snapshot saved: {len(df)} records across {len(all_dfs)} states.")
+        return True
     except Exception as e:
         print(f"❌ Snapshot failed: {e}")
     return False
@@ -130,12 +142,18 @@ def get_cached_metadata():
     if not os.path.exists(config.METADATA_FILE): station_metadata.generate_metadata()
     return pd.read_csv(config.METADATA_FILE, dtype={'site_id': str, 'postcode': str}) if os.path.exists(config.METADATA_FILE) else pd.DataFrame()
 
-def load_live_data_latest():
+def load_live_data_latest(state="QLD"):
     # Priority 1: Live Snapshot (Most recent attempt)
     if os.path.exists(SNAPSHOT_FILE):
         try:
             df = pd.read_csv(SNAPSHOT_FILE)
             if not df.empty:
+                # Filter by state if provided
+                if state and 'state' in df.columns:
+                    df = df[df['state'] == state].copy()
+                elif state and state != "QLD":
+                    return pd.DataFrame()
+                
                 # Type enforcement
                 if 'site_id' in df.columns: 
                     df['site_id'] = df['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
@@ -147,30 +165,37 @@ def load_live_data_latest():
     history_file = "brisbane_fuel_live_collection.csv"
     if os.path.exists(history_file):
         try:
-            print("⚠️ Using Historical Fallback for Live Data")
-            # Read all, find latest scraped_at
-            # Reading full file might be slow, but it's a fallback.
+            print(f"⚠️ Using Historical Fallback for Live Data (State: {state})")
             df_hist = pd.read_csv(history_file)
-            if not df_hist.empty and 'scraped_at' in df_hist.columns:
-                last_scrape = df_hist['scraped_at'].max()
-                latest_slice = df_hist[df_hist['scraped_at'] == last_scrape].copy()
-                
-                if 'site_id' in latest_slice.columns:
-                    latest_slice['site_id'] = latest_slice['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
-                
-                return latest_slice
+            if not df_hist.empty:
+                if state and 'state' in df_hist.columns:
+                    df_hist = df_hist[df_hist['state'] == state].copy()
+                elif state and state != "QLD":
+                    return pd.DataFrame()
+
+                if not df_hist.empty and 'scraped_at' in df_hist.columns:
+                    last_scrape = df_hist['scraped_at'].max()
+                    latest_slice = df_hist[df_hist['scraped_at'] == last_scrape].copy()
+                    
+                    if 'site_id' in latest_slice.columns:
+                        latest_slice['site_id'] = latest_slice['site_id'].apply(lambda x: str(int(float(x))) if pd.notnull(x) and str(x).replace('.','',1).isdigit() else str(x))
+                    
+                    return latest_slice
         except Exception as e:
             print(f"⚠️ Historical fallback error: {e}")
 
     return pd.DataFrame()
 
 @app.get("/api/market-status")
-async def get_market_status():
+async def get_market_status(state: str = "QLD"):
     try:
+        state = state.upper()
         # 1. Load Data
-        daily_df = await run_in_threadpool(market_physics.load_daily_data)
-        live_df = await run_in_threadpool(load_live_data_latest)
-        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+        daily_df = await run_in_threadpool(market_physics.load_daily_data, state=state)
+        live_df = await run_in_threadpool(load_live_data_latest, state=state)
+        
+        capital_city = config.STATES.get(state, config.STATES["QLD"])["capital"]
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital_city)
         
         current_tgp = trend.get('current_tgp', 165.0)
         if not isinstance(current_tgp, (int, float)): current_tgp = 165.0
@@ -342,7 +367,7 @@ class LocationRequest(BaseModel):
 
 @app.post("/api/find_cheapest_nearby")
 async def find_cheapest_nearby(loc: LocationRequest):
-    live_df = await run_in_threadpool(load_live_data_latest)
+    live_df = await run_in_threadpool(load_live_data_latest, state=None)
     if live_df.empty: return []
     
     # Merge Metadata for nice names
@@ -395,12 +420,17 @@ async def get_sentiment():
         return {"global": [], "domestic": []}
 
 @app.get("/api/stations")
-async def get_stations():
+async def get_stations(state: str = "QLD"):
     """Returns the full station list with ratings for the map and tables."""
     try:
+        state = state.upper()
         ratings_file = "station_ratings.csv"
         if os.path.exists(ratings_file):
             df = pd.read_csv(ratings_file)
+            # Filter by state
+            if 'state' in df.columns:
+                df = df[df['state'] == state].copy()
+            
             # Standardize columns for frontend
             df = df.rename(columns={
                 "price_cpl": "price",
@@ -417,7 +447,7 @@ async def get_stations():
             return clean_nan(df.to_dict(orient='records'))
         else:
             # Fallback to live snapshot if ratings not ready
-            live_df = await run_in_threadpool(load_live_data_latest)
+            live_df = await run_in_threadpool(load_live_data_latest, state=state)
             if not live_df.empty:
                 # Merge metadata for coords
                 meta = get_cached_metadata()
@@ -444,9 +474,10 @@ async def get_stations():
         return []
 
 @app.get("/api/analytics")
-async def get_analytics():
+async def get_analytics(state: str = "QLD"):
     try:
-        live_df = await run_in_threadpool(load_live_data_latest)
+        state = state.upper()
+        live_df = await run_in_threadpool(load_live_data_latest, state=state)
         suburb_stats = []
         
         if not live_df.empty:
@@ -462,9 +493,9 @@ async def get_analytics():
                 grp = grp.sort_values('price_cpl').head(10)
                 suburb_stats = grp.to_dict(orient='records')
 
-        # Forecast Data (Re-using market status logic essentially, but tailored for the chart)
-        # We need TGP history and Forecast
-        trend = await run_in_threadpool(tgp_forecast.analyze_trend)
+        # Forecast Data
+        capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
         current_tgp = trend.get('current_tgp', 165.0)
         
         # We need a proper forecast structure matching frontend expectations:

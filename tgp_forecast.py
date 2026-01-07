@@ -46,21 +46,21 @@ def fetch_market_data(days=90):
         }, index=dates)
         return df
 
-def fetch_live_tgp():
+def fetch_live_tgp(city="BRISBANE"):
     """
-    Scrapes the current Terminal Gate Price (Brisbane) from AIP (Primary) or Viva (Secondary).
+    Scrapes the current Terminal Gate Price for a given city from AIP (Primary) or Viva (Secondary).
     Returns float (cents per litre).
     """
+    city = city.upper()
     # 1. Try AIP
     try:
         r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
-            # AIP Table structure: Look for Brisbane row
-            # Usually in a table with 'Brisbane' and 'ULP'
+            # AIP Table structure: Look for city row
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if "BRISBANE" in text:
+                if city in text:
                     # Look for value in columns
                     cols = row.find_all('td')
                     # ULP is usually the first or second numeric column
@@ -68,12 +68,11 @@ def fetch_live_tgp():
                         val_text = col.get_text().strip()
                         try:
                             val = float(re.sub(r'[^\d.]', '', val_text))
-                            if 100 < val < 250: # Sanity check
-                                # print(f"✅ Scraped TGP (AIP): {val}c")
+                            if 100 < val < 300: # Sanity check
                                 return val
                         except: continue
     except Exception as e:
-        print(f"⚠️ AIP Fetch Failed: {e}")
+        print(f"⚠️ AIP Fetch Failed for {city}: {e}")
 
     # 2. Try Viva Energy (Fallback)
     try:
@@ -82,33 +81,27 @@ def fetch_live_tgp():
             soup = BeautifulSoup(r.text, 'html.parser')
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if "BRISBANE" in text:
+                if city in text:
                     cols = row.find_all('td')
                     for col in cols:
                         raw = col.get_text().strip()
-                        if not raw or "BRISBANE" in raw.upper(): continue
+                        if not raw or city in raw.upper(): continue
                         try:
                             price = float(re.sub(r'[^\d.]', '', raw))
-                            if 100 < price < 250:
-                                # print(f"✅ Scraped TGP (Viva): {price}c")
+                            if 100 < price < 300:
                                 return price
                         except: continue
     except Exception as e:
-        print(f"⚠️ Viva Fetch Failed: {e}")
+        print(f"⚠️ Viva Fetch Failed for {city}: {e}")
 
     return None
 
-def get_tgp_history(days=90):
+def get_tgp_history(days=90, city="BRISBANE"):
     """
     Returns a pandas Series of TGP history.
-    Strategy:
-    1. Get current LIVE TGP.
-    2. Get Market Data (Oil, FX).
-    3. Calculate 'Theoretical TGP' history based on Import Parity.
-    4. Bias/Shift the theoretical curve so the last point matches the LIVE TGP.
     """
     # 1. Live Anchor
-    live_tgp = fetch_live_tgp()
+    live_tgp = fetch_live_tgp(city)
     if live_tgp is None:
         live_tgp = 170.0 # Emergency Fallback
         
@@ -151,11 +144,11 @@ def get_tgp_history(days=90):
     tgp_series.name = 'tgp'
     return tgp_series
 
-def analyze_trend():
+def analyze_trend(city="BRISBANE"):
     """
     Returns the trend analysis for the Dashboard.
     """
-    history = get_tgp_history(days=30)
+    history = get_tgp_history(days=30, city=city)
     current_tgp = history.iloc[-1]
     
     # Trend (Last 7 days)

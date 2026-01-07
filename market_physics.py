@@ -125,18 +125,17 @@ def predict_status(current_median, tgp, duration, tgp_trend_val, volatility):
         'volatility': round(volatility, 2)
     }
 
-def load_daily_data(force_refresh=False):
+def load_daily_data(force_refresh=False, state="QLD"):
     """
-    Loads daily median prices. Uses a JSON cache to avoid parsing the huge CSV every time.
+    Loads daily median prices for a specific state.
     """
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     HISTORY_FILE = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
-    CACHE_FILE = os.path.join(BASE_DIR, "daily_stats.json")
+    CACHE_FILE = os.path.join(BASE_DIR, f"daily_stats_{state}.json")
     
     # 1. Try Cache
     if not force_refresh and os.path.exists(CACHE_FILE):
         try:
-            # Check if cache is fresh enough (e.g. modified < 1 hour ago)
             mtime = os.path.getmtime(CACHE_FILE)
             if (pd.Timestamp.now().timestamp() - mtime) < 3600:
                 with open(CACHE_FILE, 'r') as f:
@@ -145,7 +144,7 @@ def load_daily_data(force_refresh=False):
                 df['day'] = pd.to_datetime(df['day'])
                 return df
         except Exception as e:
-            print(f"⚠️ Cache load failed: {e}")
+            print(f"⚠️ Cache load failed for {state}: {e}")
 
     # 2. Build from CSV
     if not os.path.exists(HISTORY_FILE): 
@@ -153,9 +152,16 @@ def load_daily_data(force_refresh=False):
     
     try:
         # Optimized load: Only needed columns
-        df = pd.read_csv(HISTORY_FILE, usecols=['price_cpl', 'reported_at', 'scraped_at'])
+        df = pd.read_csv(HISTORY_FILE, usecols=['price_cpl', 'reported_at', 'scraped_at', 'state'])
         
-        # Prefer scraped_at for "Market State on Day X", fallback to reported_at
+        # Filter by state
+        if 'state' in df.columns:
+            df = df[df['state'] == state].copy()
+        elif state != "QLD":
+            # If state column is missing, we can't filter other states
+            return pd.DataFrame(columns=['day', 'price_cpl'])
+        
+        # Prefer scraped_at
         col = 'scraped_at' if 'scraped_at' in df.columns else 'reported_at'
         
         df['date'] = pd.to_datetime(df[col], errors='coerce')

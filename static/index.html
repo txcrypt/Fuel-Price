@@ -80,6 +80,21 @@
         }
         .nav-item:hover { background: rgba(255,255,255,0.05); }
         .nav-item.active { background: var(--accent-blue); color: white; }
+        
+        .state-select {
+            background: #1e293b;
+            color: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            margin-left: auto;
+        }
+        .state-select:hover { border-color: var(--accent-blue); }
+        .state-select option { background: #0f172a; }
 
         /* Bottom Navigation (Mobile) */
         .bottom-nav {
@@ -230,11 +245,25 @@
 
     <div class="container">
         <nav id="main-nav">
-            <div class="nav-item active" data-view="live">📊 Live Market</div>
-            <div class="nav-item" data-view="sentiment">🌍 Sentiment</div>
-            <div class="nav-item" data-view="ratings">⚖️ Ratings</div>
-            <div class="nav-item" data-view="planner">🛣️ Planner</div>
-            <div class="nav-item" data-view="analytics">📈 Analytics</div>
+            <div class="nav-links">
+                <div class="nav-item active" data-view="live">Live Market</div>
+                <div class="nav-item" data-view="sentiment">Sentiment</div>
+                <div class="nav-item" data-view="ratings">Ratings</div>
+                <div class="nav-item" data-view="planner">Route Planner</div>
+                <div class="nav-item" data-view="analytics">Analytics</div>
+                <div class="nav-item" data-view="drive">Drive Mode</div>
+            </div>
+            
+            <select id="state-selector" class="state-select">
+                <option value="QLD">QLD</option>
+                <option value="NSW">NSW</option>
+                <option value="VIC">VIC</option>
+                <option value="SA">SA</option>
+                <option value="WA">WA</option>
+                <option value="ACT">ACT</option>
+                <option value="TAS">TAS</option>
+                <option value="NT">NT</option>
+            </select>
         </nav>
 
         <!-- TAB 1: LIVE MARKET -->
