@@ -1,3 +1,6 @@
+xgboost
+scikit-learn
+joblib
 fastapi
 uvicorn
 pandas
