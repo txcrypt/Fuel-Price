@@ -164,6 +164,11 @@ def generate_metadata():
         return "⛽ Independent"
 
     stations['display_brand'] = stations['name'].apply(get_brand_icon)
+
+    # Ensure 'brand' column exists (Backwards Compatibility)
+    if 'brand' not in stations.columns:
+        # Strip icon (first word) from display_brand to get raw brand name
+        stations['brand'] = stations['display_brand'].apply(lambda x: x.split(' ', 1)[1] if ' ' in x else x)
     
     # Save
     stations.to_csv(METADATA_FILE, index=False)
