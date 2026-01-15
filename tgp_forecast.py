@@ -25,7 +25,7 @@ def fetch_market_data(days=90):
         # Brent Crude Oil (BZ=F)
         oil = yf.Ticker("BZ=F").history(period=f"{days+10}d")['Close'].rename("oil_price")
         
-        # AUD to USD (AUD=X)
+        # AUD to USD (AUD=X)    
         fx = yf.Ticker("AUD=X").history(period=f"{days+10}d")['Close'].rename("aud_fx")
         
         if oil.empty or fx.empty:
@@ -46,21 +46,21 @@ def fetch_market_data(days=90):
         }, index=dates)
         return df
 
-def fetch_live_tgp(city="BRISBANE"):
+def fetch_live_tgp():
     """
-    Scrapes the current Terminal Gate Price for a given city from AIP (Primary) or Viva (Secondary).
+    Scrapes the current Terminal Gate Price (Brisbane) from AIP (Primary) or Viva (Secondary).
     Returns float (cents per litre).
     """
-    city = city.upper()
     # 1. Try AIP
     try:
         r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
-            # AIP Table structure: Look for city row
+            # AIP Table structure: Look for Brisbane row
+            # Usually in a table with 'Brisbane' and 'ULP'
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if city in text:
+                if "BRISBANE" in text:
                     # Look for value in columns
                     cols = row.find_all('td')
                     # ULP is usually the first or second numeric column
@@ -68,11 +68,12 @@ def fetch_live_tgp(city="BRISBANE"):
                         val_text = col.get_text().strip()
                         try:
                             val = float(re.sub(r'[^\d.]', '', val_text))
-                            if 100 < val < 300: # Sanity check
+                            if 100 < val < 250: # Sanity check
+                                # print(f"✅ Scraped TGP (AIP): {val}c")
                                 return val
                         except: continue
     except Exception as e:
-        print(f"⚠️ AIP Fetch Failed for {city}: {e}")
+        print(f"⚠️ AIP Fetch Failed: {e}")
 
     # 2. Try Viva Energy (Fallback)
     try:
@@ -81,27 +82,33 @@ def fetch_live_tgp(city="BRISBANE"):
             soup = BeautifulSoup(r.text, 'html.parser')
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if city in text:
+                if "BRISBANE" in text:
                     cols = row.find_all('td')
                     for col in cols:
                         raw = col.get_text().strip()
-                        if not raw or city in raw.upper(): continue
+                        if not raw or "BRISBANE" in raw.upper(): continue
                         try:
                             price = float(re.sub(r'[^\d.]', '', raw))
-                            if 100 < price < 300:
+                            if 100 < price < 250:
+                                # print(f"✅ Scraped TGP (Viva): {price}c")
                                 return price
                         except: continue
     except Exception as e:
-        print(f"⚠️ Viva Fetch Failed for {city}: {e}")
+        print(f"⚠️ Viva Fetch Failed: {e}")
 
     return None
 
-def get_tgp_history(days=90, city="BRISBANE"):
+def get_tgp_history(days=90):
     """
     Returns a pandas Series of TGP history.
+    Strategy:
+    1. Get current LIVE TGP.
+    2. Get Market Data (Oil, FX).
+    3. Calculate 'Theoretical TGP' history based on Import Parity.
+    4. Bias/Shift the theoretical curve so the last point matches the LIVE TGP.
     """
     # 1. Live Anchor
-    live_tgp = fetch_live_tgp(city)
+    live_tgp = fetch_live_tgp()
     if live_tgp is None:
         live_tgp = 170.0 # Emergency Fallback
         
@@ -144,11 +151,11 @@ def get_tgp_history(days=90, city="BRISBANE"):
     tgp_series.name = 'tgp'
     return tgp_series
 
-def analyze_trend(city="BRISBANE"):
+def analyze_trend():
     """
     Returns the trend analysis for the Dashboard.
     """
-    history = get_tgp_history(days=30, city=city)
+    history = get_tgp_history(days=30)
     current_tgp = history.iloc[-1]
     
     # Trend (Last 7 days)
@@ -158,22 +165,6 @@ def analyze_trend(city="BRISBANE"):
     # Singapore Lag (Proxy using Oil 10 days ago vs today)
     # In a real system we'd use MOPS95 prices. We use Oil as proxy.
     market = fetch_market_data(days=20)
-    current_oil = 0.0
-    current_mogas = 0.0
-    
-    if not market.empty:
-        current_oil = market['oil_price'].iloc[-1]
-        # Rough proxy: Mogas ~ Oil + Crack Spread. Converted to AUD/barrel then cents/litre? 
-        # Actually the frontend expects a dollar/cents value. 
-        # Let's return the theoretical Mogas AUD value we calculated earlier or just a simple proxy.
-        # Re-using the logic from get_tgp_history for consistency:
-        # mogas_aud = (oil + 15) / fx
-        # But here we just want a "ticker" value. Let's send the raw Oil price and maybe a calculated Mogas (USD) or just the AUD equivalent.
-        # Frontend displays: "MOGAS 95: $..." so likely expects a dollar figure (AUD or USD). 
-        # Let's provide the AUD/bbl value as a proxy for the commodity cost.
-        if 'aud_fx' in market.columns and market['aud_fx'].iloc[-1] > 0:
-            current_mogas = (current_oil + 15.0) / market['aud_fx'].iloc[-1]
-    
     if len(market) > 10:
         oil_10_ago = market['oil_price'].iloc[-11]
         oil_now = market['oil_price'].iloc[-1]
@@ -184,8 +175,6 @@ def analyze_trend(city="BRISBANE"):
 
     return {
         'current_tgp': round(current_tgp, 2),
-        'current_oil': round(current_oil, 2),
-        'current_mogas': round(current_mogas, 2),
         'trend_direction': trend_direction,
         'delta_7d': round(delta_7d, 2),
         'import_parity_lag': lag_msg,

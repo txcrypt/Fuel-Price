@@ -5,10 +5,8 @@ from datetime import datetime
 import config
 
 class FuelEngine:
-    def __init__(self, token=None, state="QLD"):
+    def __init__(self, token=None):
         self.token = token if token else config.FUEL_API_TOKEN
-        self.state = state.upper()
-        self.region_id = config.STATES.get(self.state, config.STATES["QLD"])["id"]
         self.base_url = "https://fppdirectapi-prod.fuelpricesqld.com.au"
         self.headers = {
             "Authorization": f"FPDAPI SubscriberToken={self.token}",
@@ -21,7 +19,7 @@ class FuelEngine:
         """Get static site data (Location, Name, Brand)"""
         try:
             endpoint = f"{self.base_url}/Subscriber/GetFullSiteDetails"
-            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.region_id}
+            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": 1}
             
             r = requests.get(endpoint, headers=self.headers, params=params, timeout=30)
             r.raise_for_status()
@@ -49,7 +47,7 @@ class FuelEngine:
         """Get live prices for Unleaded 91 (ID 2)"""
         try:
             endpoint = f"{self.base_url}/Price/GetSitesPrices"
-            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.region_id}
+            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": 1}
             
             r = requests.get(endpoint, headers=self.headers, params=params, timeout=30)
             r.raise_for_status()
@@ -84,33 +82,22 @@ class FuelEngine:
         if sites.empty or prices.empty:
             return None
             
-        # Geographic Segmentation
-        if self.state == "QLD":
-            # Segment Brisbane Only (Legacy Logic)
-            target_sites = sites[
-                (sites['latitude'] > self.BOUNDS['lat_min']) & 
-                (sites['latitude'] < self.BOUNDS['lat_max']) & 
-                (sites['longitude'] > self.BOUNDS['lng_min'])
-            ].copy()
-            
-            # Apply North/South Logic (Brisbane specific)
-            target_sites['region'] = np.where(
-                target_sites['latitude'] > self.RIVER_LAT, 'North', 'South'
-            )
-        else:
-            # For other states, keep all sites for now and mark region as State code
-            target_sites = sites.copy()
-            target_sites['region'] = self.state
+        # Segment Brisbane Only
+        brisbane_sites = sites[
+            (sites['latitude'] > self.BOUNDS['lat_min']) & 
+            (sites['latitude'] < self.BOUNDS['lat_max']) & 
+            (sites['longitude'] > self.BOUNDS['lng_min'])
+        ].copy()
+        
+        # Apply North/South Logic
+        brisbane_sites['region'] = np.where(
+            brisbane_sites['latitude'] > self.RIVER_LAT, 'North', 'South'
+        )
         
         # Merge
-        merged = pd.merge(prices, target_sites, on='site_id', how='inner')
-        
-        # Add State
-        merged['state'] = self.state
+        merged = pd.merge(prices, brisbane_sites, on='site_id', how='inner')
         
         # Add Timestamp
         merged['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         return merged
-        
-        
