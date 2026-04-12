@@ -109,6 +109,7 @@ async def startup_event():
     print("✅ System Ready.")
 
 def clean_nan(obj):
+    if isinstance(obj, np.floating): return float(obj)
     if isinstance(obj, float): return None if (np.isnan(obj) or np.isinf(obj)) else obj
     if isinstance(obj, (np.integer, int)): return int(obj)
     if isinstance(obj, list): return [clean_nan(v) for v in obj]
@@ -340,8 +341,23 @@ async def get_analytics(state: str = "QLD"):
                 "values": daily_df['price_cpl'].tolist()
             }
             
-        return clean_nan({"trend": {"history": history, "sarimax": forecast}, "suburb_ranking": []})
+        # Calculate suburb ranking
+        suburbs = []
+        live_df = await run_in_threadpool(load_live_data_latest, state=state)
+        meta = get_cached_metadata()
+        if not live_df.empty and not meta.empty:
+            merged = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
+            suburb_stats = merged.groupby('suburb')['price_cpl'].mean().reset_index()
+            suburb_stats = suburb_stats.sort_values('price_cpl').head(10)
+            suburbs = [{"suburb": str(row['suburb']), "price": round(float(row['price_cpl']), 1)} for _, row in suburb_stats.iterrows()]
+            
+        return clean_nan({"trend": {"history": history, "sarimax": forecast}, "suburb_ranking": suburbs})
     except: return {}
+
+@app.get("/api/sentiment")
+async def get_sentiment():
+    res = await run_in_threadpool(market_news.get_market_news)
+    return clean_nan(res)
 
 # Helper
 def haversine(lon1, lat1, lon2, lat2):

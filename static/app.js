@@ -213,6 +213,9 @@ async function initLiveView() {
         document.getElementById('status-text').innerText = data.status;
         document.getElementById('status-text').className = `text-3xl md:text-5xl font-black tracking-tight ${data.status.includes('HIKE') ? 'text-red-500' : 'text-emerald-400'}`;
         
+        const lastUpdatedEl = document.getElementById('last-updated');
+        if (lastUpdatedEl) lastUpdatedEl.innerText = `Updated: ${data.last_updated}`;
+        
         document.getElementById('advice-badge').innerText = data.advice;
         document.getElementById('advice-badge').className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${data.advice_type === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`;
         
@@ -350,8 +353,46 @@ async function loadRatings() {
 }
 
 async function loadAnalytics() {
-    // Re-use logic for chart but specific for Analytics ID
-    // Simple placeholder for chart init if needed
+    const res = await fetch(`${API_BASE}/analytics?state=${currentState}`);
+    const data = await res.json();
+    
+    // Draw chart
+    const ctx = document.getElementById('analyticsChart');
+    if(!ctx) return;
+    if(window.analyticsChartInstance) window.analyticsChartInstance.destroy();
+    
+    const hDates = data.trend?.history?.dates || [];
+    const hPrices = data.trend?.history?.values || [];
+    const fDates = data.trend?.sarimax?.forecast_dates || [];
+    const fPrices = data.trend?.sarimax?.forecast_mean || [];
+    
+    const combinedLabels = [...hDates, ...(new Array(fPrices.length).fill('Fcst'))];
+    const paddedFc = new Array(hPrices.length).fill(null);
+    if(hPrices.length > 0) paddedFc[paddedFc.length-1] = hPrices[hPrices.length-1];
+
+    window.analyticsChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: combinedLabels,
+            datasets: [
+                { label: 'History', data: hPrices, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                { label: 'Forecast', data: [...paddedFc, ...fPrices], borderColor: '#f59e0b', borderDash: [4,4], tension: 0.4, pointRadius: 0 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: {display:false} },
+            scales: { x: {display:false} }
+        }
+    });
+
+    // Suburbs table
+    if (data.suburb_ranking) {
+        document.getElementById('table-suburbs').innerHTML = `<table class="w-full text-sm text-left text-slate-400">
+            <thead class="text-xs uppercase bg-slate-700/50 text-slate-300"><tr><th class="px-4 py-2">Suburb</th><th class="px-4 py-2">Avg Price</th></tr></thead>
+            <tbody>${data.suburb_ranking.map(s => `<tr class="border-b border-slate-700/50"><td class="px-4 py-2 text-white">${s.suburb}</td><td class="px-4 py-2 text-emerald-400 font-bold">${s.price}c</td></tr>`).join('')}</tbody>
+        </table>`;
+    }
 }
 
 async function loadSentiment() {
