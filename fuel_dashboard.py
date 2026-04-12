@@ -126,6 +126,7 @@ def load_live_data_latest(state="QLD"):
         try:
             df = pd.read_csv(SNAPSHOT_FILE)
             if not df.empty:
+                df['site_id'] = df['site_id'].astype(str)
                 if state and 'state' in df.columns: df = df[df['state'] == state].copy()
                 elif state and state != "QLD": return pd.DataFrame() # Fallback
                 return df
@@ -136,6 +137,7 @@ def load_live_data_latest(state="QLD"):
         try:
             df = pd.read_csv(HISTORY_FILE)
             if not df.empty:
+                df['site_id'] = df['site_id'].astype(str)
                 if state and 'state' in df.columns: df = df[df['state'] == state]
                 last_scrape = df['scraped_at'].max()
                 return df[df['scraped_at'] == last_scrape].copy()

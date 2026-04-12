@@ -6,8 +6,8 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401124,-27.490753,153.040153,Ampol Foodary Woolloongabba,4102,"Woolloongabba, Princess Alexandra Hospital, Buranda, Dutton Park",🔴 Ampol,Ampol
 61401126,-27.467628,153.007504,BP Milton,4064,"Rosalie, Baroona, Paddington, Milton Bc, Milton",🟢 BP,BP
 61401128,-27.452187,153.062044,Shell Reddy Express Balmoral,4171,"Hawthorne, Balmoral, Galloways Hill, Bulimba",🟡 Shell,Shell
+61401131,-27.472295835233435,153.0595027288361,Quill Petroleum Hawthorne,4171,"Hawthorne, Balmoral, Galloways Hill, Bulimba",⛽ Independent,Independent
 61401132,-27.488386,153.047595,BP Stanley Street East,4169,"East Brisbane, Stanley Bridge, Kangaroo Point",🟢 BP,BP
-61401134,-27.491978,153.064833,Ampol Foodary Camp Hill,4152,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",🔴 Ampol,Ampol
 61401136,-27.483909,153.063748,Caltex Norman Park,4170,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",🔴 Ampol,Ampol
 61401137,-27.479358,153.071094,Freedom Fuels Seven Hills,4170,"Seven Hills, Norman Park, Morningside, Colmslie, Cannon Hill",⛽ Independent,Independent
 61401138,-27.492781,153.082664,Shell Reddy Express Camp Hill,4152,"Carina, Camp Hill, Whites Hill, Carina Heights, Carindale, Carina North",🟡 Shell,Shell
@@ -32,6 +32,7 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401188,-27.519285,153.015135,7-Eleven Yeronga,4104,"Yeronga, Yeronga West",🟠 7-Eleven,7-Eleven
 61401189,-27.524123,153.023568,7-Eleven Moorvale,4105,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",🟠 7-Eleven,7-Eleven
 61401195,-27.539627,153.022022,EG Ampol Moorooka,4105,"Tennyson, Clifton Hill, Moorvale, Moorooka, Yeerongpilly",🔴 Ampol,Ampol
+61401197,-27.538641,153.005432,U-Go Rocklea,4106,"Rocklea Dc, Rocklea, Brisbane Market",⛽ Independent,Independent
 61401199,-27.502373,153.045544,BP Stones Corner,4120,"Greenslopes, Loreto Hill, Stones Corner",🟢 BP,BP
 61401200,-27.504612,153.040209,7-Eleven Greenslopes,4120,"Greenslopes, Loreto Hill, Stones Corner",🟠 7-Eleven,7-Eleven
 61401206,-27.696645,153.038101,U-Go Park Ridge,4125,"Munruben, Park Ridge South, Park Ridge",⛽ Independent,Independent
@@ -51,8 +52,7 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401250,-27.319376,153.006967,7-Eleven Bald Hills,4036,Bald Hills,🟠 7-Eleven,7-Eleven
 61401252,-27.319382,153.040903,U-Go Bracken Ridge,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",⛽ Independent,Independent
 61401254,-27.325029,153.059461,Pacific Petroleum Deagon,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",⛽ Independent,Independent
-61401255,-27.321786,153.067499,Metro Petroleum Sandgate,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",⛽ Independent,Independent
-61401257,-27.321088,153.067931,7-Eleven Sandgate,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",🟠 7-Eleven,7-Eleven
+61401255,-27.321506,153.067479,Metro Petroleum Sandgate,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",⛽ Independent,Independent
 61401258,-27.330999,153.041854,BP Bracken Ridge,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",🟢 BP,BP
 61401261,-27.334055,153.059565,EG Ampol Deagon,4017,"Nashville, Shorncliffe, Brighton Eventide, Sandgate, Sandgate Dc, Brighton, Brighton Nathan Street, Deagon, Bracken Ridge",🔴 Ampol,Ampol
 61401263,-27.366786,153.037181,Caltex Zillmere,4034,"Carseldine, Aspley, Geebung, Zillmere, Boondall",🔴 Ampol,Ampol
@@ -66,7 +66,6 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401282,-27.379293,153.046309,BP Geebung,4034,"Carseldine, Aspley, Geebung, Zillmere, Boondall",🟢 BP,BP
 61401288,-27.391946,153.058897,Caltex Nundah,4012,"Nundah, Wavell Heights, Wavell Heights North, Toombul",🔴 Ampol,Ampol
 61401291,-27.398473,153.059252,Ampol Foodary Nundah,4012,"Nundah, Wavell Heights, Wavell Heights North, Toombul",🔴 Ampol,Ampol
-61401292,-27.380227,153.022597,Ampol Foodary West Chermside,4032,"Chermside South, Craigslea, Chermside Bc, Chermside Centre, Chermside, Chermside West",🔴 Ampol,Ampol
 61401296,-27.386791,153.087063,Freedom Fuels Nudgee,4014,"Virginia Bc, Virginia, Banyo, Virginia Dc, Nudgee Beach, Nudgee",⛽ Independent,Independent
 61401298,-27.393208,153.072252,BP Northgate,4013,"Northgate Mc, Northgate",🟢 BP,BP
 61401301,-27.396824,152.960709,Ampol Foodary Arana Hills,4054,"Grovely, Keperra, Arana Hills",🔴 Ampol,Ampol
@@ -171,7 +170,6 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401555,-27.627909,153.117731,Caltex Woodridge,4114,"Logan Central, Woodridge East, Trinder Park, Logan City Dc, Logan City Bc, Woodridge, Kingston",🔴 Ampol,Ampol
 61401560,-27.410487,153.047567,Caltex Kalinga,4030,"Wooloowin, Lutwyche, Eildon Hill, Windsor, Kalinga",🔴 Ampol,Ampol
 61401561,-27.229066920171583,153.08538009325412,Shell Reddy Express Kippa-Ring,4021,Kippa-Ring,🟡 Shell,Shell
-61401568,-27.595754,153.018264,Freedom Fuels Acacia Ridge,4110,"Acacia Ridge, Acacia Ridge Bc, Acacia Ridge Dc, Heathwood Df, Willawong, Larapinta, Heathwood, Pallara",⛽ Independent,Independent
 61401569,-27.680743,153.092073,Shell Reddy Express Marsden,4132,"Marsden, Marsden Postal Depot, Crestmead Dc, Crestmead",🟡 Shell,Shell
 61401588,-27.584259,153.281142,7-Eleven Victoria Point,4165,"Mount Cotton, Redland Bay, Victoria Point West, Point Talburpin, Point Halloran, Victoria Point",🟠 7-Eleven,7-Eleven
 61401590,-27.435847,153.014906,Caltex Wilston,4051,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",🔴 Ampol,Ampol
@@ -192,7 +190,6 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401658,-27.080478,153.173647,Indus Fuel Bribie island,4507,"Woorim, Welsby, White Patch, Bribie Island North, Bribie Island Dc, Banksia Beach, Bribie Island, Bellara, Bongaree",⛽ Independent,Independent
 61401667,-27.63233835956184,152.77083162577765,Raceview Fuels,4305,"Coalfalls, Ipswich, West Ipswich, Eastern Heights, North Ipswich, Woodend, Newtown, North Tivoli, Leichhardt, Basin Pocket, Bremer, Raceview, Yamanto, Raymonds Hill, Brassall Heights, Churchill, Tivoli, One Mile, Limestone Ridges, Brassall, Flinders View, East Ipswich, Moores Pocket, Wulkuraka, Sadliers Crossing",⛽ Independent,Independent
 61401670,-27.600518,152.870193,Ampol Redbank,4301,"Collingwood Park, Redbank, Redbank Plains, Greenwood Village",🔴 Ampol,Ampol
-61401676,-27.491043,153.152854,7-Eleven Gumdale,4154,"Ransome, Gumdale, Wakerley",🟠 7-Eleven,7-Eleven
 61401680,-27.426073,153.013055,BP Grange,4051,"Alderley, Newmarket, Wilston, The Grange, Gaythorne, Enoggera, Grange",🟢 BP,BP
 61401682,-27.579766,152.716439,Ampol Foodary Blacksoil,4306,"Dundas, Peak Crossing, Fairney View, Wanora, Haigslea, Goolman, Moore, South Ripley, Muirlea, Karana Downs, Wivenhoe Pocket, Karrabin, Vernor, Benarkin, Lake Manchester, Fernvale, Amberley, Mount Binga, Lark Hill, Chuwar, Banks Creek, Ripley, Mount Stanley, Thagoona, Blacksoil, Blackbutt, Mount Crosby, Nukku, Split Yard Creek, Mount Marrow, Holts Hill, Bellhaven, Willowbank, Pine Mountain, Purga, Ironbark, Glamorgan Vale, White Rock, Teelah, Blackbutt South, Loamside, Forest Glade, Kholo, Wivenhoe, England Creek, West Amberley, Monsildale, Blackwall, Borallon, Colinton, Benarkin North, Cherry Creek, Googa Creek, Barellan Point, Deebing Heights, Blackbutt North, Washpool, Taromeo, Linville, Harlin, Karalee, Avoca Vale, Walloon, Swanbank",🔴 Ampol,Ampol
 61401683,-27.156263,152.977055,Ampol Foodary Burpengary,4505,"Burpengary Dc, Burpengary, Burpengary East",🔴 Ampol,Ampol
@@ -247,9 +244,8 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61401782,-27.042111,152.975171,Ampol Foodary Caboolture Travel Centre,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",🔴 Ampol,Ampol
 61401856,-27.007343,152.944651,Elimbah Service Station and Takeaway,4516,Elimbah,⛽ Independent,Independent
 61401858,-27.079253,152.951795,United Caboolture,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",🔵 United,United
-61401861,-27.084568,152.958178,Jio Caboolture,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",⛽ Independent,Independent
+61401861,-27.084479044851346,152.95795141104506,ARKO Energy Caboolture,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",⛽ Independent,Independent
 61401862,-27.086965,152.980739,Ampol Foodary Caboolture,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",🔴 Ampol,Ampol
-61401863,-27.072802,153.025162,NightOwl Shell Caboolture,4510,"Moodlu, Bellmere, Caboolture, Meldale, Upper Caboolture, Caboolture South, Balingool, Donnybrook, Caboolture Bc, Rocksberg, Beachmere, Toorbul",🟡 Shell,Shell
 61401866,-27.098137,152.94905576686477,Shell Reddy Express Morayfield,4506,"Moorina, Morayfield",🟡 Shell,Shell
 61401868,-27.112363,152.950651,7-Eleven Morayfield,4506,"Moorina, Morayfield",🟠 7-Eleven,7-Eleven
 61401881,-27.595176,153.121695,Ampol Foodary Rochedale,4123,"Rochedale South, Priests Gully, Rochedale",🔴 Ampol,Ampol
@@ -444,6 +440,7 @@ site_id,latitude,longitude,name,postcode,suburb,display_brand,brand
 61477856,-27.368481,153.048696,Freedom Fuels Geebung,4034,"Carseldine, Aspley, Geebung, Zillmere, Boondall",⛽ Independent,Independent
 61477877,-27.651963,152.921313,7-Eleven Springfield,4300,"Camira, Springfield, Opossum Creek, Bellbird Park, Goodna Dc, Gailes, Springfield Central, Carole Park, Springfield Lakes, Spring Mountain, Goodna East, Goodna, Augustine Heights, Brookwater",🟠 7-Eleven,7-Eleven
 61477882,-27.119833,152.955668,Ampol Morayfield,4506,"Moorina, Morayfield",🔴 Ampol,Ampol
+61477883,-27.211363,153.046688,7-Eleven Rothwell,4022,Rothwell,🟠 7-Eleven,7-Eleven
 61477885,-27.308062,152.989949,7-Eleven Strathpine Northbound,4500,"Bray Park, Strathpine, Clear Mountain, Warner, Brendale Dc, Joyner, Brendale Bc, Strathpine City, Strathpine Centre, Cashmere, Brendale",🟠 7-Eleven,7-Eleven
 61477886,-27.254183,152.982414,Freedom Fuels Kallangur,4503,"Kurwongbah, Kallangur, Griffin, Whiteside, Dakabin, Murrumba Downs, Dohles Rocks",⛽ Independent,Independent
 61477890,-27.585578,153.103765,7-Eleven Eight Mile Plains,4113,"Fruitgrove, Runcorn, Eight Mile Plains",🟠 7-Eleven,7-Eleven

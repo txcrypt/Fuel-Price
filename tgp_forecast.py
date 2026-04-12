@@ -46,11 +46,12 @@ def fetch_market_data(days=90):
         }, index=dates)
         return df
 
-def fetch_live_tgp():
+def fetch_live_tgp(city="BRISBANE"):
     """
     Scrapes the current Terminal Gate Price (Brisbane) from AIP (Primary) or Viva (Secondary).
     Returns float (cents per litre).
     """
+    city_upper = city.upper()
     # 1. Try AIP
     try:
         r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
@@ -60,7 +61,7 @@ def fetch_live_tgp():
             # Usually in a table with 'Brisbane' and 'ULP'
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if "BRISBANE" in text:
+                if city_upper in text:
                     # Look for value in columns
                     cols = row.find_all('td')
                     # ULP is usually the first or second numeric column
@@ -82,11 +83,11 @@ def fetch_live_tgp():
             soup = BeautifulSoup(r.text, 'html.parser')
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
-                if "BRISBANE" in text:
+                if city_upper in text:
                     cols = row.find_all('td')
                     for col in cols:
                         raw = col.get_text().strip()
-                        if not raw or "BRISBANE" in raw.upper(): continue
+                        if not raw or city_upper in raw.upper(): continue
                         try:
                             price = float(re.sub(r'[^\d.]', '', raw))
                             if 100 < price < 250:
@@ -98,7 +99,7 @@ def fetch_live_tgp():
 
     return None
 
-def get_tgp_history(days=90):
+def get_tgp_history(days=90, city="BRISBANE"):
     """
     Returns a pandas Series of TGP history.
     Strategy:
@@ -108,7 +109,7 @@ def get_tgp_history(days=90):
     4. Bias/Shift the theoretical curve so the last point matches the LIVE TGP.
     """
     # 1. Live Anchor
-    live_tgp = fetch_live_tgp()
+    live_tgp = fetch_live_tgp(city)
     if live_tgp is None:
         live_tgp = 170.0 # Emergency Fallback
         
@@ -151,11 +152,11 @@ def get_tgp_history(days=90):
     tgp_series.name = 'tgp'
     return tgp_series
 
-def analyze_trend():
+def analyze_trend(city="BRISBANE"):
     """
     Returns the trend analysis for the Dashboard.
     """
-    history = get_tgp_history(days=30)
+    history = get_tgp_history(days=30, city=city)
     current_tgp = history.iloc[-1]
     
     # Trend (Last 7 days)

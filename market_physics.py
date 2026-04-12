@@ -31,7 +31,10 @@ def load_daily_data(force_refresh=False, state="QLD"):
     
     try:
         # Optimized load: Only needed columns
-        df = pd.read_csv(HISTORY_FILE, usecols=['price_cpl', 'reported_at', 'scraped_at', 'state'])
+        available_cols = pd.read_csv(HISTORY_FILE, nrows=0).columns.tolist()
+        desired_cols = ['price_cpl', 'reported_at', 'scraped_at', 'state']
+        use_cols = [c for c in desired_cols if c in available_cols]
+        df = pd.read_csv(HISTORY_FILE, usecols=use_cols)
         
         # Filter by state
         if 'state' in df.columns:
