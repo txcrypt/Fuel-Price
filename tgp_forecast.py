@@ -19,7 +19,9 @@ from bs4 import BeautifulSoup
 import re
 import warnings
 import logging
+from io import BytesIO
 from datetime import datetime, timedelta
+from urllib.parse import urljoin
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
@@ -182,6 +184,132 @@ def fetch_market_data(days=90):
 #  Live TGP Scraping
 # ========================================================================== #
 
+def _parse_tgp_value(raw) -> float | None:
+    """Parse and sanity-check a cents-per-litre TGP value."""
+    try:
+        price = float(re.sub(r'[^\d.]', '', str(raw)))
+    except (ValueError, TypeError):
+        return None
+
+    if 100 < price < 250:
+        return price
+    return None
+
+
+def _cache_live_tgp(city_upper: str, value: float, timestamp: datetime) -> float:
+    _live_tgp_cache[city_upper] = value
+    _live_tgp_cache_time[city_upper] = timestamp
+    return value
+
+
+def _extract_aip_tgp_from_table(soup: BeautifulSoup, city_upper: str) -> float | None:
+    """
+    Extract city TGP from a rendered AIP HTML table when Drupal exposes rows.
+    Handles both city-as-row and city-as-column table layouts.
+    """
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        if not rows:
+            continue
+
+        headers = [cell.get_text(" ", strip=True).upper() for cell in rows[0].find_all(["th", "td"])]
+        city_index = next((idx for idx, header in enumerate(headers) if city_upper == header), None)
+
+        if city_index is not None:
+            for row in reversed(rows[1:]):
+                cells = row.find_all(["th", "td"])
+                if city_index < len(cells):
+                    value = _parse_tgp_value(cells[city_index].get_text(" ", strip=True))
+                    if value is not None:
+                        return value
+
+        for row in rows:
+            cells = row.find_all(["th", "td"])
+            if not cells:
+                continue
+            cell_text = [cell.get_text(" ", strip=True) for cell in cells]
+            if city_upper not in " ".join(cell_text).upper():
+                continue
+            for text in cell_text:
+                if city_upper in text.upper():
+                    continue
+                value = _parse_tgp_value(text)
+                if value is not None:
+                    return value
+
+    return None
+
+
+def _find_aip_daily_workbook_url(soup: BeautifulSoup, base_url: str) -> str | None:
+    """Find the current non-annual AIP TGP workbook link on an AIP page."""
+    candidates = []
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        text = link.get_text(" ", strip=True)
+        target = f"{href} {text}".lower()
+        if ".xlsx" not in target:
+            continue
+        if "annual" in target:
+            continue
+        if "aip_tgp_data" in target or "tgp" in target:
+            candidates.append(urljoin(base_url, href))
+
+    return candidates[0] if candidates else None
+
+
+def _find_aip_historical_page_url(soup: BeautifulSoup, base_url: str) -> str | None:
+    """Find AIP's historical TGP page, which currently hosts the daily workbook."""
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        text = link.get_text(" ", strip=True)
+        target = f"{href} {text}".lower()
+        if "historical" in target and "tgp" in target:
+            return urljoin(base_url, href)
+    return None
+
+
+def _fetch_aip_workbook_url(soup: BeautifulSoup, headers: dict[str, str]) -> str | None:
+    workbook_url = _find_aip_daily_workbook_url(soup, AIP_URL)
+    if workbook_url:
+        return workbook_url
+
+    historical_url = _find_aip_historical_page_url(soup, AIP_URL)
+    if not historical_url:
+        return None
+
+    try:
+        response = requests.get(historical_url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            logger.warning("AIP historical TGP page returned HTTP %d", response.status_code)
+            return None
+        historical_soup = BeautifulSoup(response.text, "html.parser")
+        return _find_aip_daily_workbook_url(historical_soup, historical_url)
+    except Exception as e:
+        logger.warning("AIP historical TGP page fetch failed: %s", e)
+        return None
+
+
+def _extract_aip_tgp_from_workbook(workbook_bytes: bytes, city_upper: str) -> float | None:
+    """Read the latest city value from AIP's official daily TGP workbook."""
+    try:
+        df = pd.read_excel(BytesIO(workbook_bytes), sheet_name="Petrol TGP")
+    except Exception as e:
+        logger.warning("AIP TGP workbook parse failed: %s", e)
+        return None
+
+    city_column = next((col for col in df.columns if str(col).strip().upper() == city_upper), None)
+    if city_column is None:
+        logger.warning("AIP TGP workbook has no column for %s", city_upper)
+        return None
+
+    values = pd.to_numeric(df[city_column], errors="coerce").dropna()
+    if values.empty:
+        logger.warning("AIP TGP workbook has no numeric values for %s", city_upper)
+        return None
+
+    return _parse_tgp_value(values.iloc[-1])
+
+
 def fetch_live_tgp(city="BRISBANE"):
     """
     Scrapes the current Terminal Gate Price from AIP (Primary) or Viva (Secondary).
@@ -195,30 +323,34 @@ def fetch_live_tgp(city="BRISBANE"):
             return _live_tgp_cache[city_upper]
 
     # 1. Try AIP
+    headers = {"User-Agent": USER_AGENT}
     try:
-        r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
+        r = requests.get(AIP_URL, headers=headers, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
-            for row in soup.find_all('tr'):
-                text = row.get_text().upper()
-                if city_upper in text:
-                    cols = row.find_all('td')
-                    for col in cols:
-                        val_text = col.get_text().strip()
-                        try:
-                            val = float(re.sub(r'[^\d.]', '', val_text))
-                            if 100 < val < 250:  # Sanity check
-                                _live_tgp_cache[city_upper] = val
-                                _live_tgp_cache_time[city_upper] = now
-                                return val
-                        except (ValueError, TypeError):
-                            continue
+            value = _extract_aip_tgp_from_table(soup, city_upper)
+            if value is not None:
+                return _cache_live_tgp(city_upper, value, now)
+
+            workbook_url = _fetch_aip_workbook_url(soup, headers)
+            if workbook_url:
+                workbook_response = requests.get(workbook_url, headers=headers, timeout=15)
+                if workbook_response.status_code == 200:
+                    value = _extract_aip_tgp_from_workbook(workbook_response.content, city_upper)
+                    if value is not None:
+                        return _cache_live_tgp(city_upper, value, now)
+                else:
+                    logger.warning("AIP TGP workbook returned HTTP %d", workbook_response.status_code)
+            else:
+                logger.warning("AIP TGP workbook link not found")
+        else:
+            logger.warning("AIP TGP page returned HTTP %d", r.status_code)
     except Exception as e:
         logger.warning("AIP TGP fetch failed: %s", e)
 
     # 2. Try Viva Energy (Fallback)
     try:
-        r = requests.get(VIVA_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
+        r = requests.get(VIVA_URL, headers=headers, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
             for row in soup.find_all('tr'):
@@ -229,14 +361,9 @@ def fetch_live_tgp(city="BRISBANE"):
                         raw = col.get_text().strip()
                         if not raw or city_upper in raw.upper():
                             continue
-                        try:
-                            price = float(re.sub(r'[^\d.]', '', raw))
-                            if 100 < price < 250:
-                                _live_tgp_cache[city_upper] = price
-                                _live_tgp_cache_time[city_upper] = now
-                                return price
-                        except (ValueError, TypeError):
-                            continue
+                        price = _parse_tgp_value(raw)
+                        if price is not None:
+                            return _cache_live_tgp(city_upper, price, now)
     except Exception as e:
         logger.warning("Viva TGP fetch failed: %s", e)
 
