@@ -76,8 +76,78 @@ class FuelEngine:
             print(f"❌ Price Fetch Error: {e}")
             return pd.DataFrame()
 
+    def get_wa_market_snapshot(self):
+        """Fetches and parses Western Australia fuel price data from FuelWatch RSS feed."""
+        import xml.etree.ElementTree as ET
+        import hashlib
+        
+        url = "https://www.fuelwatch.wa.gov.au/fuelwatch/fuelWatchRSS?Product=1"
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            r = requests.get(url, headers=headers, timeout=20)
+            if r.status_code != 200:
+                return None
+            
+            root = ET.fromstring(r.content)
+            items = root.findall('.//item')
+            
+            records = []
+            for idx, item in enumerate(items):
+                price_text = item.find('price').text if item.find('price') is not None else "0"
+                try:
+                    price = float(price_text)
+                except:
+                    price = 0.0
+                if price <= 0: continue
+                
+                name = item.find('trading-name').text if item.find('trading-name') is not None else "Station"
+                brand = item.find('brand').text if item.find('brand') is not None else "Independent"
+                suburb = item.find('location').text if item.find('location') is not None else "Unknown"
+                address = item.find('address').text if item.find('address') is not None else ""
+                
+                lat_text = item.find('latitude').text if item.find('latitude') is not None else "0"
+                lng_text = item.find('longitude').text if item.find('longitude') is not None else "0"
+                try:
+                    lat = float(lat_text)
+                    lng = float(lng_text)
+                except:
+                    lat, lng = 0.0, 0.0
+                
+                date_str = item.find('date').text if item.find('date') is not None else ""
+                
+                # Create a stable site_id from name and address
+                site_id = "wa_" + hashlib.md5(f"{name}_{address}".encode('utf-8')).hexdigest()[:8]
+                
+                # Split North/South using Perth Swan River center (-31.95)
+                region = 'North' if lat > -31.95 else 'South'
+                
+                records.append({
+                    'site_id': site_id,
+                    'price_cpl': price,
+                    'reported_at': f"{date_str}T00:00:00" if date_str else datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
+                    'latitude': lat,
+                    'longitude': lng,
+                    'name': name,
+                    'brand_id': 0,
+                    'brand': brand,
+                    'postcode': "",
+                    'google_place_id': "",
+                    'region': region,
+                    'scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'state': 'WA',
+                    'suburb': suburb.title()
+                })
+                
+            return pd.DataFrame(records)
+        except Exception as e:
+            print(f"❌ WA Fetch Error: {e}")
+            return None
+
     def get_market_snapshot(self):
         """Orchestrates the full pull and merge"""
+        if self.state == "WA":
+            return self.get_wa_market_snapshot()
+            
         sites = self.fetch_sites()
         prices = self.fetch_prices()
         

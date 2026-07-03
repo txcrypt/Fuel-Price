@@ -26,14 +26,22 @@ def load_local_data():
             print(f"Warning: Error loading local data: {e}")
     return pd.DataFrame()
 
+_geocode_cache = {}
+
 def get_coords_from_address(address):
+    global _geocode_cache
+    if address in _geocode_cache:
+        return _geocode_cache[address]
+
     params = {'q': f"{address}, Australia", 'format': 'json', 'limit': 1}
     headers = {'User-Agent': config.USER_AGENT}
     try:
         r = requests.get(config.NOMINATIM_BASE_URL, params=params, headers=headers, timeout=5)
         if r.status_code == 200 and r.json():
             data = r.json()[0]
-            return float(data['lat']), float(data['lon']), data['display_name']
+            res = (float(data['lat']), float(data['lon']), data['display_name'])
+            _geocode_cache[address] = res
+            return res
     except Exception:
         pass
     return None, None, None

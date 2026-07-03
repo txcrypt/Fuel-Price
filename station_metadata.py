@@ -1,3 +1,8 @@
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except:
+    pass
 import pandas as pd
 import os
 import numpy as np

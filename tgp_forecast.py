@@ -13,11 +13,24 @@ AIP_URL = "https://www.aip.com.au/pricing/terminal-gate-prices"
 VIVA_URL = "https://www.vivaenergy.com.au/quick-links/terminal-gate-pricing"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
+# --- Cache ---
+_market_data_cache = {}
+_market_data_cache_time = {}
+
+_live_tgp_cache = {}
+_live_tgp_cache_time = {}
+
 def fetch_market_data(days=90):
     """
     Fetches market indicators: Brent Crude (Oil) and AUD/USD Exchange Rate.
     Returns a merged DataFrame.
     """
+    global _market_data_cache, _market_data_cache_time
+    now = datetime.now()
+    if days in _market_data_cache and days in _market_data_cache_time:
+        if (now - _market_data_cache_time[days]).total_seconds() < 21600: # 6 hour cache
+            return _market_data_cache[days].copy()
+
     import yfinance as yf
     
     # print("📉 Fetching Market Indicators (Oil & FX)...")
@@ -36,7 +49,10 @@ def fetch_market_data(days=90):
         df.index = pd.to_datetime(df.index).tz_localize(None)
         
         # Trim to requested days
-        return df.tail(days)
+        res = df.tail(days)
+        _market_data_cache[days] = res
+        _market_data_cache_time[days] = now
+        return res.copy()
     except Exception as e:
         print(f"❌ Error fetching market data: {e}. Using synthetic fallback.")
         dates = pd.date_range(end=datetime.now(), periods=days)
@@ -44,21 +60,28 @@ def fetch_market_data(days=90):
             'oil_price': [75.0] * days,
             'aud_fx': [0.65] * days
         }, index=dates)
-        return df
+        _market_data_cache[days] = df
+        _market_data_cache_time[days] = now
+        return df.copy()
 
 def fetch_live_tgp(city="BRISBANE"):
     """
     Scrapes the current Terminal Gate Price (Brisbane) from AIP (Primary) or Viva (Secondary).
     Returns float (cents per litre).
     """
+    global _live_tgp_cache, _live_tgp_cache_time
     city_upper = city.upper()
+    now = datetime.now()
+    if city_upper in _live_tgp_cache and city_upper in _live_tgp_cache_time:
+        if (now - _live_tgp_cache_time[city_upper]).total_seconds() < 21600: # 6 hour cache
+            return _live_tgp_cache[city_upper]
+
     # 1. Try AIP
     try:
         r = requests.get(AIP_URL, headers={"User-Agent": USER_AGENT}, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
             # AIP Table structure: Look for Brisbane row
-            # Usually in a table with 'Brisbane' and 'ULP'
             for row in soup.find_all('tr'):
                 text = row.get_text().upper()
                 if city_upper in text:
@@ -70,7 +93,8 @@ def fetch_live_tgp(city="BRISBANE"):
                         try:
                             val = float(re.sub(r'[^\d.]', '', val_text))
                             if 100 < val < 250: # Sanity check
-                                # print(f"✅ Scraped TGP (AIP): {val}c")
+                                _live_tgp_cache[city_upper] = val
+                                _live_tgp_cache_time[city_upper] = now
                                 return val
                         except: continue
     except Exception as e:
@@ -91,7 +115,8 @@ def fetch_live_tgp(city="BRISBANE"):
                         try:
                             price = float(re.sub(r'[^\d.]', '', raw))
                             if 100 < price < 250:
-                                # print(f"✅ Scraped TGP (Viva): {price}c")
+                                _live_tgp_cache[city_upper] = price
+                                _live_tgp_cache_time[city_upper] = now
                                 return price
                         except: continue
     except Exception as e:

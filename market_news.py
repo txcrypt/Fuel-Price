@@ -53,10 +53,20 @@ def analyze_articles(items):
         analyzed.append(item)
     return analyzed
 
+# --- Cache ---
+_market_news_cache = None
+_market_news_cache_time = None
+
 def get_market_news():
     """
     Fetches Global and Domestic news separately.
     """
+    global _market_news_cache, _market_news_cache_time
+    now = datetime.now()
+    if _market_news_cache is not None and _market_news_cache_time is not None:
+        if (now - _market_news_cache_time).total_seconds() < 3600: # 1 hour cache
+            return _market_news_cache.copy()
+
     # 1. Global
     global_raw = fetch_rss("Global+Oil+Price+Energy+Market")
     global_news = analyze_articles(global_raw)
@@ -65,7 +75,13 @@ def get_market_news():
     domestic_raw = fetch_rss("Australia+Petrol+Price+Fuel+Market")
     domestic_news = analyze_articles(domestic_raw)
     
-    return {
+    res = {
         "global": global_news,
         "domestic": domestic_news
     }
+    
+    if global_news or domestic_news:
+        _market_news_cache = res
+        _market_news_cache_time = now
+        
+    return res

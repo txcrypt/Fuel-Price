@@ -1,4 +1,8 @@
 import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except:
+    pass
 import os
 import json
 import time
@@ -41,12 +45,13 @@ SNAPSHOT_FILE = "live_snapshot.csv"
 HISTORY_FILE = "brisbane_fuel_live_collection.csv"
 
 def fetch_snapshot():
-    print("📸 Fetching Live Snapshot for all states...")
+    print("📸 Fetching Live Snapshot for active states...")
     try:
         token = os.getenv("FUEL_API_TOKEN")
         all_dfs = []
         
-        for state_code in config.STATES.keys():
+        active_states = getattr(config, "ACTIVE_STATES", ["QLD"])
+        for state_code in active_states:
             # print(f"   Fetching {state_code}...")
             engine = FuelEngine(token=token, state=state_code)
             df = engine.get_market_snapshot()
@@ -103,8 +108,7 @@ async def background_refresher():
 async def startup_event():
     print("🚀 Startup: Bootstrapping Data...")
     await run_in_threadpool(fetch_snapshot)
-    try: station_metadata.generate_metadata()
-    except: pass
+    # Metadata is already pre-generated in the repository. It will only be built on-demand if missing.
     asyncio.create_task(background_refresher())
     print("✅ System Ready.")
 
@@ -158,6 +162,11 @@ async def get_market_status(state: str = "QLD"):
         current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
         current_avg = live_df['price_cpl'].mean() if not live_df.empty else 0.0
         
+        # Bootstrap daily_df from live data if history is missing (e.g. new state like WA)
+        if (daily_df is None or daily_df.empty) and not live_df.empty and current_median > 0:
+            today_date = pd.Timestamp.now().normalize()
+            daily_df = pd.DataFrame({'day': [today_date], 'price_cpl': [current_median]})
+        
         # TGP / Trend
         capital_city = config.STATES.get(state, config.STATES["QLD"])["capital"]
         trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital_city)
@@ -169,7 +178,7 @@ async def get_market_status(state: str = "QLD"):
         status_label = "STABLE"
         advice = "Hold"
         
-        if MODEL_LOADED and daily_df is not None and not daily_df.empty:
+        if daily_df is not None and not daily_df.empty:
             # Prepare data for AI (Rename 'day' -> 'date')
             ai_input_df = daily_df.rename(columns={'day': 'date'}).copy()
             
@@ -179,8 +188,8 @@ async def get_market_status(state: str = "QLD"):
                 new_row = pd.DataFrame({'date': [today_date], 'price_cpl': [current_median]})
                 ai_input_df = pd.concat([ai_input_df, new_row], ignore_index=True)
 
-            # Generate 14-day Forecast
-            future_df = ai_model.predict_horizon(ai_input_df, days=14)
+            # Generate 14-day Forecast (uses physical cycle model if ML is not loaded)
+            future_df = ai_model.predict_horizon(ai_input_df, days=14, tgp=current_tgp)
             
             if not future_df.empty:
                 # Extract Advice from Tomorrow's prediction
@@ -283,7 +292,7 @@ async def find_cheapest_nearby(loc: LocationRequest):
     meta = get_cached_metadata()
     if not meta.empty:
         live_df = live_df.merge(meta[['site_id', 'name', 'brand', 'suburb']], on='site_id', how='left', suffixes=('', '_m'))
-        for c in ['name', 'brand']: 
+        for c in ['name', 'brand', 'suburb']: 
             if f'{c}_m' in live_df.columns: live_df[c] = live_df[c].fillna(live_df[f'{c}_m'])
             
     results = []
@@ -310,6 +319,8 @@ async def get_stations(state: str = "QLD"):
     meta = get_cached_metadata()
     if not meta.empty:
          live_df = live_df.merge(meta[['site_id', 'name', 'brand', 'suburb']], on='site_id', how='left', suffixes=('', '_m'))
+         for c in ['name', 'brand', 'suburb']:
+             if f'{c}_m' in live_df.columns: live_df[c] = live_df[c].fillna(live_df[f'{c}_m'])
          
     live_df = live_df.rename(columns={"price_cpl": "price", "latitude": "lat", "longitude": "lng"})
     live_df = live_df.dropna(subset=['lat', 'lng'])
@@ -323,11 +334,25 @@ async def get_analytics(state: str = "QLD"):
     # Uses AI for the trend line
     try:
         daily_df = await run_in_threadpool(market_physics.load_daily_data, state=state)
+        
+        # Bootstrap daily_df from live data if history is missing (e.g. new state like WA)
+        if (daily_df is None or daily_df.empty):
+            live_df = await run_in_threadpool(load_live_data_latest, state=state)
+            if not live_df.empty:
+                current_median = live_df['price_cpl'].median()
+                if current_median > 0:
+                    today_date = pd.Timestamp.now().normalize()
+                    daily_df = pd.DataFrame({'day': [today_date], 'price_cpl': [current_median]})
+                    
         forecast = {"forecast_dates": [], "forecast_mean": []}
         
-        if MODEL_LOADED and daily_df is not None:
+        if daily_df is not None and not daily_df.empty:
+             capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
+             trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
+             current_tgp = trend.get('current_tgp', 165.0)
+             
              ai_input = daily_df.rename(columns={'day': 'date'})
-             future_df = ai_model.predict_horizon(ai_input, days=14)
+             future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
              forecast = {
                  "forecast_dates": future_df['date'].astype(str).tolist(),
                  "forecast_mean": future_df['predicted_price'].tolist()
@@ -346,6 +371,8 @@ async def get_analytics(state: str = "QLD"):
         live_df = await run_in_threadpool(load_live_data_latest, state=state)
         meta = get_cached_metadata()
         if not live_df.empty and not meta.empty:
+            if 'suburb' in live_df.columns:
+                live_df = live_df.drop(columns=['suburb'])
             merged = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
             suburb_stats = merged.groupby('suburb')['price_cpl'].mean().reset_index()
             suburb_stats = suburb_stats.sort_values('price_cpl').head(10)

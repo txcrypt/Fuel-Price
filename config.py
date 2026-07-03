@@ -15,6 +15,8 @@ STATES = {
     "NT":  {"id": 8, "name": "Northern Territory", "center": [-12.463, 130.844], "capital": "DARWIN"}
 }
 
+ACTIVE_STATES = ["QLD", "WA"]
+
 DEFAULT_STATE = "QLD"
 DEFAULT_CENTER_LAT = STATES[DEFAULT_STATE]["center"][0]
 DEFAULT_CENTER_LON = STATES[DEFAULT_STATE]["center"][1]

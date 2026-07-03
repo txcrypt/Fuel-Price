@@ -172,7 +172,8 @@ function initNavigation() {
 
 function loadSubView(toolName) {
     // Hide tool grid, show sub-view container
-    document.querySelectorAll('.tool-card').forEach(el => el.parentElement.classList.add('hidden')); // Hide grid
+    const grid = document.getElementById('tools-grid');
+    if (grid) grid.classList.add('hidden');
     document.getElementById('sub-view-container').classList.remove('hidden');
     
     // Hide all subs, show requested
@@ -188,7 +189,8 @@ function loadSubView(toolName) {
 
 function closeSubView() {
     document.getElementById('sub-view-container').classList.add('hidden');
-    document.querySelectorAll('.tool-card').forEach(el => el.parentElement.classList.remove('hidden')); // Show grid
+    const grid = document.getElementById('tools-grid');
+    if (grid) grid.classList.remove('hidden');
 }
 
 // --- Live View Logic ---
@@ -196,36 +198,40 @@ async function initLiveView() {
     try {
         const res = await fetch(`${API_BASE}/market-status?state=${currentState}`);
         const data = await res.json();
-        if(!data.ticker) return;
         
         // Update Ticker
-        const t = data.ticker;
+        const t = data.ticker || {};
+        const oilVal = (typeof t.oil === 'number') ? t.oil.toFixed(2) : '--.--';
+        const mogasVal = (typeof t.mogas === 'number') ? t.mogas.toFixed(2) : '--.--';
+        const tgpVal = (typeof t.tgp === 'number') ? t.tgp.toFixed(1) : '--.-';
+        
         const tickerHTML = `
-            <span>🛢️ BRENT: $${t.oil.toFixed(2)}</span>
+            <span>🛢️ BRENT: $${oilVal}</span>
             <span class="text-slate-600">|</span>
-            <span>⛽ MOGAS: $${t.mogas.toFixed(2)}</span>
+            <span>⛽ MOGAS: $${mogasVal}</span>
             <span class="text-slate-600">|</span>
-            <span>TREND: <span class="${data.status === 'HIKE_STARTED' ? 'text-red-400' : 'text-emerald-400'}">${data.status}</span></span>
+            <span>TREND: <span class="${data.status === 'HIKE_STARTED' ? 'text-red-400' : 'text-emerald-400'}">${data.status || '--'}</span></span>
         `;
         document.getElementById('global-ticker').innerHTML = tickerHTML;
 
         // Hero Stats
-        document.getElementById('status-text').innerText = data.status;
-        document.getElementById('status-text').className = `text-3xl md:text-5xl font-black tracking-tight ${data.status.includes('HIKE') ? 'text-red-500' : 'text-emerald-400'}`;
+        document.getElementById('status-text').innerText = data.status || 'STABLE';
+        document.getElementById('status-text').className = `text-3xl md:text-5xl font-black tracking-tight ${(data.status || '').includes('HIKE') ? 'text-red-500' : 'text-emerald-400'}`;
         
         const lastUpdatedEl = document.getElementById('last-updated');
-        if (lastUpdatedEl) lastUpdatedEl.innerText = `Updated: ${data.last_updated}`;
+        if (lastUpdatedEl) lastUpdatedEl.innerText = `Updated: ${data.last_updated || '--:--'}`;
         
-        document.getElementById('advice-badge').innerText = data.advice;
+        document.getElementById('advice-badge').innerText = data.advice || 'Hold';
         document.getElementById('advice-badge').className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${data.advice_type === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`;
         
-        document.getElementById('tgp-val').innerHTML = `${t.tgp.toFixed(1)}<span class="text-xl text-slate-500">c</span>`;
-        document.getElementById('savings-insight').innerText = data.savings_insight;
-        document.getElementById('hike-prediction').innerText = `Next Hike: ${data.next_hike_est}`;
+        document.getElementById('tgp-val').innerHTML = `${tgpVal}<span class="text-xl text-slate-500">c</span>`;
+        document.getElementById('savings-insight').innerText = data.savings_insight || '--';
+        document.getElementById('hike-prediction').innerText = `Next Hike: ${data.next_hike_est || '--'}`;
         if(data.current_avg) document.getElementById('avg-price-display').innerText = `Avg: ${data.current_avg.toFixed(1)}c`;
+        else document.getElementById('avg-price-display').innerText = `Avg: --.-c`;
 
         // Cycle Chart
-        renderChart('cycleChart', data.history.dates, data.history.prices, data.forecast?.prices);
+        renderChart('cycleChart', (data.history && data.history.dates) || [], (data.history && data.history.prices) || [], data.forecast?.prices);
         
         // Map
         initMap();
@@ -330,12 +336,60 @@ async function runPlanner() {
         if(data.stations) {
             let html = `<div class="mt-4 space-y-2">`;
             data.stations.forEach(s => {
-                html += `<div class="flex justify-between p-3 bg-slate-800 rounded-lg"><span class="text-sm text-slate-300">${s.name}</span><span class="text-emerald-400 font-bold">${s.price_cpl}c</span></div>`;
+                html += `<div class="flex justify-between p-3 bg-slate-800 rounded-lg"><span class="text-sm text-slate-300">${s.name}</span><span class="text-emerald-400 font-bold">${s.price_cpl || s.price}c</span></div>`;
             });
             html += `</div>`;
             resDiv.innerHTML = html;
         }
-    } catch(e) { resDiv.innerHTML = "Error calculating route."; }
+
+        // Plot route and markers on plannerMap
+        if(plannerMap) {
+            if(plannerLayer) {
+                plannerMap.removeLayer(plannerLayer);
+            }
+            plannerLayer = L.featureGroup().addTo(plannerMap);
+
+            if(data.route_path && data.route_path.length > 0) {
+                const routeLine = L.polyline(data.route_path, {color: '#3b82f6', weight: 5, opacity: 0.8});
+                routeLine.addTo(plannerLayer);
+                
+                // Start/End markers
+                if(data.start) {
+                    L.marker([data.start.lat, data.start.lon]).addTo(plannerLayer)
+                        .bindPopup(`<b>Start:</b> ${data.start.name}`);
+                }
+                if(data.end) {
+                    L.marker([data.end.lat, data.end.lon]).addTo(plannerLayer)
+                        .bindPopup(`<b>Destination:</b> ${data.end.name}`);
+                }
+                
+                // Station markers
+                if(data.stations && data.stations.length > 0) {
+                    data.stations.forEach(s => {
+                        const lat = s.latitude || s.lat;
+                        const lng = s.longitude || s.lng;
+                        if(lat && lng) {
+                            const m = L.circleMarker([lat, lng], {
+                                radius: 7, fillColor: '#10b981', color: '#fff', weight: 1.5, fillOpacity: 0.9
+                            }).addTo(plannerLayer);
+                            m.bindPopup(`
+                                <div class="font-sans text-slate-900">
+                                    <div class="font-bold">${s.brand || 'Station'}</div>
+                                    <div class="text-xs text-slate-500">${s.name}</div>
+                                    <div class="text-sm font-black text-emerald-600">${s.price_cpl || s.price}c</div>
+                                </div>
+                            `);
+                        }
+                    });
+                }
+                
+                plannerMap.fitBounds(plannerLayer.getBounds(), {padding: [50, 50]});
+            }
+        }
+    } catch(e) { 
+        resDiv.innerHTML = "Error calculating route."; 
+        console.error(e);
+    }
     btn.innerText = "Find Fuel Stops";
 }
 
@@ -399,10 +453,11 @@ async function loadSentiment() {
     const res = await fetch(`${API_BASE}/sentiment`);
     const data = await res.json();
     const render = (list, id) => {
+        list = list || [];
         document.getElementById(id).innerHTML = list.map(n => `
             <a href="${n.link}" target="_blank" class="block p-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition">
                 <div class="text-sm font-bold text-white mb-1">${n.title}</div>
-                <div class="flex justify-between text-xs text-slate-500"><span>${n.publisher}</span><span class="${n.sentiment.includes('High')?'text-red-400':'text-emerald-400'}">${n.sentiment}</span></div>
+                <div class="flex justify-between text-xs text-slate-500"><span>${n.publisher}</span><span class="${n.sentiment && n.sentiment.includes('High')?'text-red-400':'text-emerald-400'}">${n.sentiment || ''}</span></div>
             </a>
         `).join('');
     };
