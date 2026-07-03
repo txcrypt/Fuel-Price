@@ -19,7 +19,16 @@
                         primary: { DEFAULT: '#3b82f6', 500: '#3b82f6', 600: '#2563eb' },
                         accent: { DEFAULT: '#10b981', 500: '#10b981' }
                     },
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: {
+                        'marquee': 'marquee 25s linear infinite',
+                    },
+                    keyframes: {
+                        marquee: {
+                            '0%': { transform: 'translateX(0%)' },
+                            '100%': { transform: 'translateX(-50%)' },
+                        }
+                    }
                 }
             }
         }
@@ -27,6 +36,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="manifest" href="/static/manifest.json">
     
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -48,277 +58,546 @@
         /* Scrollbar Hiding */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Ticker Animation */
-        .ticker-anim { animation: ticker 60s linear infinite; }
-        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        
-        .mask-image-gradient { 
-            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); 
-            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); 
-        }
 
-        /* Map Overrides */
-        .leaflet-container { font-family: 'Inter', sans-serif; z-index: 1; }
-        .leaflet-popup-content-wrapper { background: #1e293b; color: white; border-radius: 12px; }
-        .leaflet-popup-tip { background: #1e293b; }
+        /* Animations */
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .pulse-skeleton {
+            background: linear-gradient(90deg, rgba(51,65,85,0.5) 25%, rgba(71,85,105,0.5) 50%, rgba(51,65,85,0.5) 75%);
+            background-size: 200% 100%;
+            animation: pulse-skeleton 1.5s infinite linear;
+        }
+        @keyframes pulse-skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Circular Progress */
+        .circular-progress {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        /* Toast */
+        #toast-container {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        /* Ticker Container */
+        .ticker-container {
+            overflow: hidden;
+            white-space: nowrap;
+            width: 100%;
+            max-width: 300px;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-50 min-h-screen pb-24 md:pb-0 selection:bg-primary-500 selection:text-white">
+<body class="bg-slate-900 text-slate-200 min-h-screen selection:bg-primary-500/30 overflow-x-hidden">
 
-    <nav class="fixed top-0 inset-x-0 z-50 glass-nav border-b border-slate-800 h-16 flex items-center justify-between px-4 lg:px-8">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+    <!-- TOP NAVIGATION (Desktop + Global Header) -->
+    <nav class="fixed top-0 left-0 right-0 h-16 glass-nav z-[1000] flex justify-between items-center px-4 lg:px-8">
+        <div class="flex items-center gap-4 w-1/3">
+            <div class="font-black text-xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                FUEL<span class="text-white">AI</span>
             </div>
-            <span class="font-bold text-lg tracking-tight hidden md:block">Fuel<span class="text-primary-500">AI</span></span>
-        </div>
-
-        <div class="hidden md:flex flex-1 mx-8 overflow-hidden h-full items-center max-w-2xl mask-image-gradient">
-            <div id="global-ticker" class="whitespace-nowrap text-sm text-slate-400 font-mono flex gap-8">
+            <!-- Ticker -->
+            <div class="hidden lg:block ticker-container text-xs font-mono text-slate-400 opacity-80 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700/50">
+                <div class="inline-block animate-marquee" id="nav-ticker">
+                    <span class="ticker-content mr-4">LOADING TICKER DATA...</span>
+                    <span class="ticker-content">LOADING TICKER DATA...</span>
                 </div>
+            </div>
         </div>
 
-        <div class="flex items-center gap-3">
-            <select id="state-selector" class="bg-slate-800 border border-slate-700 text-sm rounded-full px-4 py-2 focus:ring-2 focus:ring-primary-500 outline-none hover:border-slate-600 transition-colors cursor-pointer font-medium">
+        <!-- Desktop Nav Pills -->
+        <div class="hidden md:flex bg-slate-800/50 rounded-full p-1 border border-slate-700/50">
+            <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium transition-all text-white bg-slate-700 shadow-sm" data-target="live">Live</button>
+            <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all" data-target="drive">Drive</button>
+            <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all" data-target="intel">Intelligence</button>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 w-1/3">
+            <select id="state-selector" class="bg-slate-800 border border-slate-700 text-sm rounded-full px-4 py-1.5 focus:ring-2 focus:ring-primary-500 outline-none hover:border-slate-600 transition-colors cursor-pointer font-medium text-white appearance-none">
                 <option value="QLD">QLD</option>
-                <option value="NSW">NSW</option>
-                <option value="VIC">VIC</option>
-                <option value="SA">SA</option>
                 <option value="WA">WA</option>
-                <option value="ACT">ACT</option>
-                <option value="TAS">TAS</option>
-                <option value="NT">NT</option>
+                <option value="NSW" disabled>NSW (Coming Soon)</option>
+                <option value="VIC" disabled>VIC (Coming Soon)</option>
+                <option value="SA" disabled>SA (Coming Soon)</option>
+                <option value="ACT" disabled>ACT (Coming Soon)</option>
+                <option value="TAS" disabled>TAS (Coming Soon)</option>
+                <option value="NT" disabled>NT (Coming Soon)</option>
             </select>
-            
-            <div class="hidden md:flex bg-slate-800/50 rounded-full p-1 border border-slate-700/50">
-                <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium transition-all text-white bg-slate-700 shadow-sm" data-target="live">Live</button>
-                <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all" data-target="drive">Drive</button>
-                <button class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all" data-target="tools">Hub</button>
-            </div>
         </div>
     </nav>
 
-    <main class="pt-20 px-4 lg:px-8 max-w-7xl mx-auto min-h-screen">
+    <!-- MAIN CONTENT AREA -->
+    <main class="pt-20 pb-24 px-4 lg:px-8 max-w-[1600px] mx-auto min-h-screen">
         
+        <!-- ================================================================= -->
+        <!-- VIEW: LIVE (Dashboard)                                            -->
+        <!-- ================================================================= -->
         <div id="view-live" class="view-section space-y-6 animate-fade-in">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-                <div class="md:col-span-8 glass-panel rounded-3xl p-6 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <svg class="w-32 h-32 text-primary-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+            <!-- Top Grid: Hero & TGP -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Hero Status Card -->
+                <div class="lg:col-span-8 glass-panel rounded-3xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                        <svg class="w-48 h-48 text-primary-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
                     </div>
                     
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-3 mb-2">
-                            <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Market Status</span>
-                            <span id="last-updated" class="text-[10px] text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-full">Syncing...</span>
-                        </div>
-                        <div class="flex items-baseline gap-4 mt-1">
-                            <h1 id="status-text" class="text-3xl md:text-5xl font-black text-white tracking-tight">--</h1>
-                            <span id="advice-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-300 uppercase tracking-wide">Standby</span>
+                    <div class="relative z-10 flex flex-col justify-between h-full">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Market Status</span>
+                                <span id="last-updated" class="text-[10px] text-slate-500 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">Syncing...</span>
+                            </div>
+                            <div class="flex items-center flex-wrap gap-4 mt-1">
+                                <h1 id="status-text" class="text-4xl md:text-5xl font-black text-white tracking-tight pulse-skeleton min-w-[200px] h-[48px] rounded-lg"></h1>
+                                <span id="advice-badge" class="px-4 py-1.5 rounded-full text-sm font-bold bg-slate-700 text-slate-300 uppercase tracking-wide opacity-0 transition-opacity duration-300 border border-white/10">--</span>
+                            </div>
+                            
+                            <p id="savings-insight" class="mt-4 text-lg md:text-xl font-medium text-emerald-400 max-w-xl leading-relaxed pulse-skeleton min-w-[300px] h-[28px] rounded-md"></p>
                         </div>
                         
-                        <p id="savings-insight" class="mt-4 text-lg font-medium text-emerald-400 max-w-lg leading-relaxed">
-                            --
-                        </p>
-                        
-                        <div class="mt-6 flex flex-wrap gap-4">
-                            <button id="btn-find-near" class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-primary-500/20 flex items-center gap-2 transition-all active:scale-95">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                Find Cheapest
-                            </button>
-                            <div class="flex flex-col justify-center">
-                                <span id="hike-prediction" class="text-xs text-slate-400 font-medium">Est. Next Hike: --</span>
-                                <span id="avg-price-display" class="text-xs text-slate-500">Avg: --.-c</span>
+                        <div class="mt-8 flex flex-wrap items-end gap-6">
+                            <div class="flex flex-col">
+                                <span class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Current Avg</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span id="avg-price-display" class="text-4xl font-bold text-white pulse-skeleton min-w-[100px] h-[40px] rounded-lg"></span>
+                                    <span class="text-slate-400 font-medium text-lg">cpl</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col">
+                                <span class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Next Hike Prob</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-32 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                                        <div id="hike-gauge-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                    </div>
+                                    <span id="hike-gauge-text" class="text-sm font-bold text-white w-10">--%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-grow flex justify-end">
+                                <button id="btn-find-near" class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary-500/20 flex items-center gap-2 transition-all active:scale-95 group">
+                                    <svg class="w-5 h-5 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    Find Cheapest Near Me
+                                </button>
                             </div>
                         </div>
-                        
-                        <div id="near-me-results" class="mt-4 hidden space-y-2"></div>
+                        <div id="near-me-results" class="mt-6 hidden flex-col gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar"></div>
                     </div>
                 </div>
 
-                <div class="md:col-span-4 glass-panel rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden">
-                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10"></div>
-                    <div>
-                        <div class="text-xs font-bold text-slate-400 uppercase mb-2">Wholesale Price (TGP)</div>
-                        <div id="tgp-val" class="text-4xl font-bold text-white tracking-tight">--.-<span class="text-xl text-slate-500">c</span></div>
+                <!-- TGP & Quick Chart -->
+                <div class="lg:col-span-4 glass-panel rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 opacity-50"></div>
+                    <div class="relative z-10 flex justify-between items-start">
+                        <div>
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Wholesale (TGP)</div>
+                            <div class="flex items-baseline gap-1">
+                                <div id="tgp-val" class="text-4xl font-bold text-white tracking-tight pulse-skeleton min-w-[80px] h-[40px] rounded-lg"></div>
+                                <span class="text-slate-400 font-medium">cpl</span>
+                            </div>
+                        </div>
+                        <div id="tgp-trend-indicator" class="bg-slate-800/80 p-2 rounded-lg border border-slate-700 flex flex-col items-center">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold">Trend</span>
+                            <span id="tgp-trend-icon" class="text-xl">--</span>
+                        </div>
                     </div>
-                    <div class="mt-6 h-32 w-full">
-                        <canvas id="cycleChart"></canvas>
+                    <div class="mt-6 h-[180px] w-full relative z-10">
+                        <canvas id="miniCycleChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <div class="glass-panel rounded-3xl p-1 overflow-hidden">
-                <div class="relative h-[400px] md:h-[500px] rounded-[20px] overflow-hidden z-0">
+            <!-- Map Section -->
+            <div class="glass-panel rounded-3xl p-1 overflow-hidden relative">
+                <div class="h-[500px] rounded-[20px] overflow-hidden z-0 bg-slate-900">
                     <div id="map" class="h-full w-full z-0"></div>
-                    <div class="absolute top-4 left-4 right-4 md:left-auto md:w-80 z-[400]">
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            </div>
-                            <input type="text" id="map-search" class="block w-full pl-10 pr-3 py-3 border border-slate-700/50 rounded-xl leading-5 bg-slate-900/90 backdrop-blur-md text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-xl" placeholder="Search suburb or station...">
+                </div>
+                
+                <!-- Map Overlay UI -->
+                <div class="absolute top-6 left-6 right-6 md:right-auto md:w-96 z-[400] pointer-events-none">
+                    <div class="relative pointer-events-auto">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <input type="text" id="map-search" class="block w-full pl-12 pr-4 py-3.5 border border-slate-600/50 rounded-2xl leading-5 bg-slate-900/80 backdrop-blur-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-2xl transition-all" placeholder="Search suburb or station brand...">
+                    </div>
+                    
+                    <div class="mt-3 flex gap-2 pointer-events-auto">
+                        <div class="bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-2 text-xs text-slate-300">
+                            <div class="w-3 h-3 rounded-full bg-[#10b981] border border-white/20"></div> Cheap
+                        </div>
+                        <div class="bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-2 text-xs text-slate-300">
+                            <div class="w-3 h-3 rounded-full bg-[#f59e0b] border border-white/20"></div> Fair
+                        </div>
+                        <div class="bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-2 text-xs text-slate-300">
+                            <div class="w-3 h-3 rounded-full bg-[#ef4444] border border-white/20"></div> Expensive
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="view-drive" class="view-section hidden h-[calc(100vh-6rem)] flex flex-col">
-            <div class="flex justify-between items-center mb-6 px-2">
+        <!-- ================================================================= -->
+        <!-- VIEW: DRIVE                                                       -->
+        <!-- ================================================================= -->
+        <div id="view-drive" class="view-section hidden h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
+            <div class="flex justify-between items-center mb-6 px-4">
                 <div>
-                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Current Speed</div>
-                    <div id="drive-speed" class="text-3xl font-black text-white">0 <span class="text-sm font-medium text-slate-500">km/h</span></div>
+                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Current Speed</div>
+                    <div class="flex items-baseline gap-1">
+                        <div id="drive-speed" class="text-4xl font-black text-white">0</div>
+                        <span class="text-sm font-medium text-slate-500">km/h</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">GPS Signal</div>
-                    <div id="drive-acc" class="text-sm font-bold text-amber-500">Acquiring...</div>
+                    <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">GPS Status</div>
+                    <div id="drive-acc" class="text-sm font-bold text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 inline-block">Acquiring...</div>
                 </div>
             </div>
 
-            <div id="drive-main-card" class="flex-1 glass-panel rounded-3xl border-2 border-slate-700 flex flex-col items-center justify-center text-center p-6 transition-all duration-300 shadow-2xl relative overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/50"></div>
-                <div class="relative z-10">
-                    <div class="text-sm text-slate-400 mb-4 font-medium uppercase tracking-widest animate-pulse">Scanning nearby...</div>
-                    <div class="big-name text-2xl md:text-4xl font-bold text-white mb-2 leading-tight">--</div>
-                    <div class="big-meta text-slate-400 text-lg mb-6">--</div>
-                    <div class="big-price text-7xl md:text-9xl font-black text-emerald-400 tracking-tighter drop-shadow-2xl">--.-</div>
+            <div id="drive-main-card" class="flex-1 glass-panel rounded-3xl border border-slate-700/50 flex flex-col items-center justify-center text-center p-8 transition-all duration-300 shadow-2xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/80"></div>
+                
+                <!-- Pulse rings for scanning -->
+                <div id="drive-scanner" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50">
+                    <div class="w-32 h-32 border border-primary-500/30 rounded-full animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
+                    <div class="w-48 h-48 border border-primary-500/20 rounded-full animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] absolute" style="animation-delay: 0.5s"></div>
+                </div>
+
+                <div class="relative z-10 w-full">
+                    <div id="drive-status-text" class="text-sm text-slate-400 mb-6 font-bold uppercase tracking-widest animate-pulse">Scanning nearby...</div>
+                    <div class="big-name text-3xl md:text-5xl font-black text-white mb-3 leading-tight tracking-tight px-4 line-clamp-2">--</div>
+                    <div class="big-meta text-slate-400 text-lg md:text-xl font-medium mb-8">--</div>
+                    <div class="flex justify-center items-start">
+                        <div class="big-price text-8xl md:text-[150px] font-black text-emerald-400 tracking-tighter drop-shadow-2xl leading-none">--.-</div>
+                    </div>
                 </div>
             </div>
 
-            <a href="#" id="drive-nav-btn" class="mt-6 bg-primary-600 active:bg-primary-700 text-white rounded-2xl p-5 flex items-center justify-center gap-3 font-bold text-lg shadow-lg opacity-50 pointer-events-none transition-all">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-                Start Navigation
+            <a href="#" id="drive-nav-btn" target="_blank" class="mt-6 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl p-6 flex items-center justify-center gap-3 font-bold text-xl shadow-[0_0_30px_rgba(59,130,246,0.3)] opacity-50 pointer-events-none transition-all active:scale-95 border border-primary-400/30">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                Navigate Here
             </a>
         </div>
 
-        <div id="view-tools" class="view-section hidden pb-20">
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <svg class="w-6 h-6 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                Market Tools
-            </h2>
+        <!-- ================================================================= -->
+        <!-- VIEW: INTELLIGENCE                                                -->
+        <!-- ================================================================= -->
+        <div id="view-intel" class="view-section hidden animate-fade-in space-y-6">
             
-            <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-700/50 transition-all hover:scale-[1.02] active:scale-95 group" onclick="app.loadSubView('planner')">
-                    <div class="bg-indigo-500/20 p-3 rounded-xl text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white">Route Planner</h3>
-                        <p class="text-sm text-slate-400">Find cheapest stops along your trip</p>
-                    </div>
-                </div>
+            <!-- Intelligence Navigation -->
+            <div class="flex overflow-x-auto hide-scrollbar gap-2 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
+                <button class="intel-tab-btn active bg-primary-600 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors shadow-lg" data-target="context">Market Context</button>
+                <button class="intel-tab-btn bg-slate-800 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors border border-slate-700/50" data-target="forecast">Forecast & Analytics</button>
+                <button class="intel-tab-btn bg-slate-800 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors border border-slate-700/50" data-target="supply">Supply & Tankers</button>
+                <button class="intel-tab-btn bg-slate-800 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors border border-slate-700/50" data-target="news">News & Sentiment</button>
+                <button class="intel-tab-btn bg-slate-800 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors border border-slate-700/50" data-target="planner">Route Planner</button>
+                <button class="intel-tab-btn bg-slate-800 text-slate-400 hover:text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-colors border border-slate-700/50" data-target="ratings">Station Ratings</button>
+            </div>
 
-                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-700/50 transition-all hover:scale-[1.02] active:scale-95 group" onclick="app.loadSubView('analytics')">
-                    <div class="bg-pink-500/20 p-3 rounded-xl text-pink-400 group-hover:bg-pink-500 group-hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white">Analytics & Forecast</h3>
-                        <p class="text-sm text-slate-400">Long-term TGP trends & suburb rankings</p>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-700/50 transition-all hover:scale-[1.02] active:scale-95 group" onclick="app.loadSubView('ratings')">
-                    <div class="bg-amber-500/20 p-3 rounded-xl text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
-                    </div>
-                    <div>
-                        <div class="flex justify-between">
-                            <h3 class="font-bold text-white">Station Ratings</h3>
+            <!-- Sub-tab: Market Context -->
+            <div id="intel-sub-context" class="intel-subview block space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-3xl space-y-6">
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-xl font-bold text-white">Price Breakdown</h3>
+                            <span id="mc-health-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">Loading...</span>
                         </div>
-                        <p class="text-sm text-slate-400">Best & worst value stations</p>
+                        
+                        <!-- Horizontal Stacked Bar -->
+                        <div class="space-y-2 pt-2">
+                            <div class="flex justify-between text-xs font-medium text-slate-400 mb-1">
+                                <span>Crude Base</span>
+                                <span>Pump Price</span>
+                            </div>
+                            <div class="h-8 w-full bg-slate-800 rounded-full overflow-hidden flex" id="mc-breakdown-bar">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div id="mc-breakdown-legend" class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-xs">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-slate-700/50">
+                            <h4 class="text-sm font-bold text-slate-300 mb-4">Cycle Position</h4>
+                            <div class="relative h-16 w-full bg-slate-800/50 rounded-xl overflow-hidden border border-slate-700/50">
+                                <!-- Sawtooth SVG visualization -->
+                                <svg preserveAspectRatio="none" viewBox="0 0 100 40" class="w-full h-full opacity-30">
+                                    <path d="M0,35 L20,5 L20,35 L40,5 L40,35 L60,5 L60,35 L80,5 L80,35 L100,5" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="miter"/>
+                                </svg>
+                                <!-- Position Marker -->
+                                <div id="mc-cycle-marker" class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-emerald-400 rounded-full shadow-[0_0_10px_#34d399] border-2 border-slate-900 transition-all duration-1000" style="left: 0%"></div>
+                            </div>
+                            <div id="mc-cycle-text" class="text-center mt-2 text-sm text-slate-400 font-medium">--</div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-700/50 transition-all hover:scale-[1.02] active:scale-95 group" onclick="app.loadSubView('sentiment')">
-                    <div class="bg-cyan-500/20 p-3 rounded-xl text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white">News Sentiment</h3>
-                        <p class="text-sm text-slate-400">Global oil news & analysis</p>
+                    
+                    <div class="glass-panel p-6 rounded-3xl flex flex-col">
+                        <h3 class="text-xl font-bold text-white mb-6">Market Narrative</h3>
+                        <blockquote class="border-l-4 border-primary-500 pl-4 py-2 text-lg text-slate-300 italic mb-6 leading-relaxed flex-grow" id="mc-narrative">
+                            Loading intelligence narrative...
+                        </blockquote>
+                        
+                        <h4 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">Driving Factors</h4>
+                        <div id="mc-factors-list" class="space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="sub-view-container" class="hidden mt-6">
-                <button onclick="app.closeSubView()" class="mb-4 text-sm font-medium text-slate-400 hover:text-white flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                    Back to Hub
-                </button>
+            <!-- Sub-tab: Forecast & Analytics -->
+            <div id="intel-sub-forecast" class="intel-subview hidden space-y-6 animate-fade-in">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-white">Price History & Forecast</h3>
+                        <div class="flex items-center gap-4 text-xs font-medium">
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-emerald-500/20 border border-emerald-500 rounded"></div> Undercutting</div>
+                            <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-500/20 border border-red-500 rounded"></div> Restoration</div>
+                        </div>
+                    </div>
+                    <div class="h-[400px] w-full relative">
+                        <canvas id="mainAnalyticsChart"></canvas>
+                    </div>
+                </div>
                 
-                <div id="sub-planner" class="sub-view hidden">
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="lg:col-span-1 space-y-4">
-                                <h3 class="text-lg font-bold text-white">Plan Trip</h3>
-                                <input type="text" id="planner-start" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Start Location">
-                                <input type="text" id="planner-end" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Destination">
-                                <button id="planner-btn" class="w-full bg-primary-600 hover:bg-primary-500 py-3 rounded-xl font-bold text-white shadow-lg">Find Fuel Stops</button>
-                                <div id="planner-results"></div>
-                            </div>
-                            <div class="lg:col-span-2 h-[400px] rounded-2xl overflow-hidden relative z-0">
-                                <div id="planner-map" class="h-full w-full z-0"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="sub-analytics" class="sub-view hidden space-y-6">
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <h3 class="text-lg font-bold text-white mb-4">TGP Forecast</h3>
-                        <div class="h-64"><canvas id="analyticsChart"></canvas></div>
-                    </div>
-                    <div class="glass-panel p-6 rounded-3xl overflow-hidden">
-                        <h3 class="text-lg font-bold text-white mb-4">Cheapest Suburbs</h3>
-                        <div id="table-suburbs" class="overflow-x-auto"></div>
-                    </div>
-                </div>
-
-                <div id="sub-ratings" class="sub-view hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <h3 class="text-emerald-400 font-bold mb-4 flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Best Value Stations</h3>
-                        <div id="table-best" class="overflow-x-auto"></div>
-                    </div>
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <h3 class="text-red-400 font-bold mb-4 flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Most Expensive</h3>
-                        <div id="table-worst" class="overflow-x-auto"></div>
-                    </div>
-                </div>
-
-                <div id="sub-sentiment" class="sub-view hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <h3 class="font-bold text-white mb-4">Global Feed</h3>
-                        <div id="feed-global" class="space-y-4"></div>
-                    </div>
-                    <div class="glass-panel p-6 rounded-3xl">
-                        <h3 class="font-bold text-white mb-4">Domestic Feed</h3>
-                        <div id="feed-domestic" class="space-y-4"></div>
+                <div class="glass-panel p-6 rounded-3xl">
+                    <h3 class="text-xl font-bold text-white mb-6">Cheapest Suburbs</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-700/50 text-xs uppercase tracking-wider text-slate-400">
+                                    <th class="pb-3 pl-2 font-bold">Rank</th>
+                                    <th class="pb-3 font-bold">Suburb</th>
+                                    <th class="pb-3 text-right pr-2 font-bold">Avg Price</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-suburbs-body" class="text-sm">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+
+            <!-- Sub-tab: Supply & Tankers -->
+            <div id="intel-sub-supply" class="intel-subview hidden space-y-6 animate-fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="supply-gauges-container">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass-panel p-6 rounded-3xl lg:col-span-1 space-y-6">
+                        <h3 class="text-xl font-bold text-white">Supply Security</h3>
+                        <div id="supply-summary" class="text-slate-300 text-sm leading-relaxed">Loading...</div>
+                        
+                        <div class="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 mt-4">
+                            <h4 class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2">Import Dependency</h4>
+                            <div class="flex items-end gap-2">
+                                <span class="text-3xl font-black text-amber-400" id="supply-import-dep">--%</span>
+                                <span class="text-sm text-slate-500 mb-1">of total supply</span>
+                            </div>
+                        </div>
+                        
+                        <div id="supply-allocation" class="space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="glass-panel p-2 rounded-3xl lg:col-span-2 flex flex-col">
+                        <div class="p-4 flex justify-between items-center">
+                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Inbound Tankers
+                            </h3>
+                            <span class="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700" id="tanker-count-badge">-- Tracking</span>
+                        </div>
+                        
+                        <div class="h-[250px] w-full rounded-2xl overflow-hidden relative z-0 mb-4 bg-slate-900 border border-slate-800 mx-auto" style="width: calc(100% - 1rem);">
+                            <div id="tanker-map" class="h-full w-full z-0"></div>
+                        </div>
+                        
+                        <div class="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar max-h-[300px]" id="tanker-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-tab: News & Sentiment -->
+            <div id="intel-sub-news" class="intel-subview hidden space-y-6 animate-fade-in">
+                <!-- Sentiment Header -->
+                <div class="glass-panel p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-white mb-2">Global & Domestic Sentiment</h3>
+                        <p class="text-slate-400 text-sm" id="news-summary-text">Analysing latest articles to determine price pressure direction.</p>
+                    </div>
+                    
+                    <div class="w-full md:w-1/3">
+                        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2 flex justify-between">
+                            <span>Bearish (Price Down)</span>
+                            <span>Bullish (Price Up)</span>
+                        </div>
+                        <div class="h-3 w-full bg-slate-800 rounded-full relative overflow-hidden border border-slate-700">
+                            <div class="absolute inset-y-0 left-1/2 w-px bg-slate-500 z-10"></div>
+                            <!-- Gradient background -->
+                            <div class="absolute inset-0 bg-gradient-to-r from-emerald-500 via-slate-700 to-red-500 opacity-20"></div>
+                            <!-- Indicator needle -->
+                            <div id="sentiment-needle" class="absolute top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_white] -ml-1 transition-all duration-1000 z-20" style="left: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h4 class="font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10.45 1.15a.5.5 0 0 1 .5 0l8.5 5a.5.5 0 0 1 0 .86l-8.5 5a.5.5 0 0 1-.5 0l-8.5-5a.5.5 0 0 1 0-.86l8.5-5Z"/><path d="M10.45 6.15a.5.5 0 0 1 .5 0l8.5 5a.5.5 0 0 1 0 .86l-8.5 5a.5.5 0 0 1-.5 0l-8.5-5a.5.5 0 0 1 0-.86l8.5-5Z" transform="translate(0, 5)"/></svg>
+                            Global Energy Feed
+                        </h4>
+                        <div id="news-global-feed" class="space-y-4"></div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h4 class="font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                            Domestic Fuel News
+                        </h4>
+                        <div id="news-domestic-feed" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-tab: Route Planner -->
+            <div id="intel-sub-planner" class="intel-subview hidden space-y-6 animate-fade-in">
+                <div class="glass-panel p-6 rounded-3xl">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 flex flex-col h-full">
+                            <h3 class="text-xl font-bold text-white mb-6">Plan Route</h3>
+                            <div class="space-y-4 mb-6">
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <div class="w-3 h-3 rounded-full border-2 border-primary-500"></div>
+                                    </div>
+                                    <input type="text" id="planner-start" class="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-3.5 text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all placeholder-slate-500" placeholder="Start Location">
+                                </div>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                                    </div>
+                                    <input type="text" id="planner-end" class="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-3.5 text-white focus:ring-2 focus:ring-primary-500 outline-none transition-all placeholder-slate-500" placeholder="Destination">
+                                </div>
+                                <button id="planner-btn" class="w-full bg-primary-600 hover:bg-primary-500 py-3.5 rounded-xl font-bold text-white shadow-lg shadow-primary-500/20 transition-all active:scale-95 flex justify-center items-center gap-2">
+                                    Find Optimal Stops
+                                </button>
+                            </div>
+                            
+                            <div id="planner-results" class="flex-1 overflow-y-auto min-h-[200px] custom-scrollbar pr-2 space-y-3">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 h-[500px] rounded-2xl overflow-hidden relative z-0 border border-slate-700/50 bg-slate-900">
+                            <div id="planner-map" class="h-full w-full z-0"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-tab: Station Ratings -->
+            <div id="intel-sub-ratings" class="intel-subview hidden grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+                <div class="glass-panel p-6 rounded-3xl flex flex-col h-[600px]">
+                    <h3 class="text-emerald-400 font-bold mb-4 flex items-center gap-2 text-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
+                        Best Value Stations
+                    </h3>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                        <table class="w-full text-left border-collapse">
+                            <tbody id="ratings-best-body" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="glass-panel p-6 rounded-3xl flex flex-col h-[600px]">
+                    <h3 class="text-red-400 font-bold mb-4 flex items-center gap-2 text-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 
+                        Most Expensive
+                    </h3>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                        <table class="w-full text-left border-collapse">
+                            <tbody id="ratings-worst-body" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
         </div>
 
     </main>
 
-    <nav class="md:hidden fixed bottom-4 left-4 right-4 h-16 glass-nav rounded-2xl flex justify-around items-center px-2 z-[1000] shadow-2xl border border-slate-700/50">
-        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary-500" data-target="live">
-            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-            <span class="text-[10px] font-medium">Home</span>
+    <!-- BOTTOM NAVIGATION (Mobile) -->
+    <nav class="md:hidden fixed bottom-4 left-4 right-4 h-16 glass-nav rounded-2xl flex justify-around items-center px-2 z-[1000] shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-slate-700/50">
+        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-primary-500 transition-colors" data-target="live">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            <span class="text-[10px] font-bold tracking-wide">Home</span>
         </button>
-        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-white" data-target="drive">
-            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            <span class="text-[10px] font-medium">Drive</span>
+        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-slate-300 transition-colors" data-target="drive">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <span class="text-[10px] font-bold tracking-wide">Drive</span>
         </button>
-        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-white" data-target="tools">
-            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-            <span class="text-[10px] font-medium">Hub</span>
+        <button class="nav-btn-mobile flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-slate-300 transition-colors" data-target="intel">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <span class="text-[10px] font-bold tracking-wide">Intel</span>
         </button>
     </nav>
 
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            app.initNavigation();
+            app.initLiveView();
+            
+            // Setup planner button listener
+            const plannerBtn = document.getElementById('planner-btn');
+            if(plannerBtn) plannerBtn.addEventListener('click', app.runPlanner);
+            
+            // Register Service Worker
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/static/service-worker.js');
+                });
+            }
+        });
+    </script>
 </body>
 </html>

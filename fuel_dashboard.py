@@ -1,8 +1,15 @@
 import sys
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
+logger = logging.getLogger("fuel_dashboard")
+
 try:
     sys.stdout.reconfigure(encoding='utf-8')
-except:
+except Exception:
     pass
+
 import os
 import json
 import time
@@ -24,377 +31,752 @@ from fuel_engine import FuelEngine
 
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-import station_fairness, market_physics, tgp_forecast, station_metadata, route_optimizer, market_news
-from savings_calculator import SavingsCalculator
-from predictive_core import DeepCycleModel  # <--- NEW AI ENGINE
+import market_physics, tgp_forecast, route_optimizer, market_news
 
-app = FastAPI(title="Brisbane Fuel AI API", version="3.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# Import new modules (graceful fallback if not yet created)
+try:
+    from data_store import DataStore
+    db = DataStore()
+    logger.info("✅ DataStore (SQLite) loaded")
+except Exception as e:
+    db = None
+    logger.warning(f"⚠️ DataStore not available: {e}")
 
-# --- AI Model Loader ---
-# Load the model once at startup to keep the API fast
-ai_model = DeepCycleModel()
-MODEL_LOADED = ai_model.load("brisbane")
-if MODEL_LOADED:
-    print("🧠 DeepCycle AI Model Loaded Successfully")
-else:
-    print("⚠️ DeepCycle AI Model NOT FOUND. Running in fallback mode.")
+try:
+    from predictive_core import DeepCycleModel
+    ai_model = DeepCycleModel()
+    MODEL_LOADED = ai_model.load("brisbane")
+    logger.info(f"{'✅' if MODEL_LOADED else '⚠️'} DeepCycle AI Model {'Loaded' if MODEL_LOADED else 'in fallback mode'}")
+except Exception as e:
+    ai_model = None
+    MODEL_LOADED = False
+    logger.warning(f"⚠️ Predictive model not available: {e}")
 
-# --- Snapshot File ---
-SNAPSHOT_FILE = "live_snapshot.csv"
-HISTORY_FILE = "brisbane_fuel_live_collection.csv"
+try:
+    from market_context import MarketContextEngine
+    market_context = MarketContextEngine()
+    logger.info("✅ MarketContext engine loaded")
+except Exception as e:
+    market_context = None
+    logger.warning(f"⚠️ MarketContext not available: {e}")
+
+try:
+    from supply_data import SupplyDataEngine
+    supply_engine = SupplyDataEngine()
+    logger.info("✅ SupplyData engine loaded")
+except Exception as e:
+    supply_engine = None
+    logger.warning(f"⚠️ SupplyData not available: {e}")
+
+try:
+    from tanker_tracker import TankerTracker
+    tanker_tracker = TankerTracker()
+    logger.info("✅ TankerTracker loaded")
+except Exception as e:
+    tanker_tracker = None
+    logger.warning(f"⚠️ TankerTracker not available: {e}")
+
+try:
+    from cycle_detector import CycleDetector
+    cycle_detector = CycleDetector()
+    logger.info("✅ CycleDetector loaded")
+except Exception as e:
+    cycle_detector = None
+    logger.warning(f"⚠️ CycleDetector not available: {e}")
+
+try:
+    import station_metadata
+except Exception:
+    station_metadata = None
+
+# --- FastAPI App ---
+app = FastAPI(title="Australian Fuel Intelligence API", version="4.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# --- File Paths ---
+SNAPSHOT_FILE = os.path.join(config.BASE_DIR, "live_snapshot.csv")
+HISTORY_FILE = config.COLLECTION_FILE
+
+# ============================================================
+# DATA SYNC
+# ============================================================
 
 def fetch_snapshot():
-    print("📸 Fetching Live Snapshot for active states...")
+    """Fetch live data from all active state APIs and save."""
+    logger.info("📸 Fetching live snapshot...")
     try:
-        token = os.getenv("FUEL_API_TOKEN")
         all_dfs = []
-        
-        active_states = getattr(config, "ACTIVE_STATES", ["QLD"])
-        for state_code in active_states:
-            # print(f"   Fetching {state_code}...")
-            engine = FuelEngine(token=token, state=state_code)
-            df = engine.get_market_snapshot()
-            if df is not None and not df.empty:
-                all_dfs.append(df)
-        
+        for state_code in config.ACTIVE_STATES:
+            try:
+                engine = FuelEngine(state=state_code)
+                df = engine.get_market_snapshot()
+                if df is not None and not df.empty:
+                    all_dfs.append(df)
+            except Exception as e:
+                logger.error(f"Failed to fetch {state_code}: {e}")
+
         if not all_dfs:
             return False
-            
-        df = pd.concat(all_dfs, ignore_index=True)
-        
-        # 1. Save Live Snapshot
-        df.to_csv(SNAPSHOT_FILE, index=False)
-        
-        # 2. Append to History (Rate Limited ~1h)
-        should_append = False
-        if not os.path.exists(HISTORY_FILE):
-            should_append = True
-        else:
-            try:
-                last_rows = pd.read_csv(HISTORY_FILE).tail(1)
-                if not last_rows.empty and 'scraped_at' in last_rows.columns:
-                    last_ts = pd.to_datetime(last_rows['scraped_at'].iloc[0])
-                    if (datetime.now() - last_ts).total_seconds() > 3600:
-                        should_append = True
-                else:
-                    should_append = True
-            except: should_append = True
 
-        if should_append:
-            cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'state', 'latitude', 'longitude', 'scraped_at']
-            available_cols = [c for c in cols_to_save if c in df.columns]
-            if available_cols:
-                header = not os.path.exists(HISTORY_FILE)
-                df[available_cols].to_csv(HISTORY_FILE, mode='a', header=header, index=False)
-                print(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
-                
-                # Trigger a model retrain/refresh logic here if needed in future
-        
-        print(f"✅ Snapshot saved: {len(df)} records.")
+        df = pd.concat(all_dfs, ignore_index=True)
+
+        # Save to CSV (backward compat)
+        df.to_csv(SNAPSHOT_FILE, index=False)
+
+        # Save to SQLite if available
+        if db:
+            try:
+                inserted = db.save_snapshot(df)
+                logger.info(f"💾 SQLite: {inserted} new records inserted")
+                # Aggregate daily stats for each state
+                for state in df['state'].unique():
+                    state_prices = df[df['state'] == state]['price_cpl']
+                    db.save_daily_stats(
+                        datetime.now().strftime('%Y-%m-%d'),
+                        state,
+                        state_prices
+                    )
+            except Exception as e:
+                logger.error(f"SQLite save error: {e}")
+
+        # Append to history CSV (rate-limited to 1h)
+        _append_to_history(df)
+
+        logger.info(f"✅ Snapshot saved: {len(df)} records across {df['state'].nunique()} states")
         return True
     except Exception as e:
-        print(f"❌ Snapshot failed: {e}")
+        logger.error(f"❌ Snapshot failed: {e}")
     return False
 
+
+def _append_to_history(df):
+    """Append snapshot to history CSV, rate-limited to once per hour."""
+    should_append = False
+    if not os.path.exists(HISTORY_FILE):
+        should_append = True
+    else:
+        try:
+            last_rows = pd.read_csv(HISTORY_FILE, nrows=0)
+            # Read just the last line for timestamp check
+            import subprocess
+            should_append = True  # Default to append
+            try:
+                hist_df = pd.read_csv(HISTORY_FILE)
+                if not hist_df.empty and 'scraped_at' in hist_df.columns:
+                    last_ts = pd.to_datetime(hist_df['scraped_at'].iloc[-1])
+                    if (datetime.now() - last_ts).total_seconds() < 3600:
+                        should_append = False
+            except Exception:
+                should_append = True
+        except Exception:
+            should_append = True
+
+    if should_append:
+        cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'state', 'latitude', 'longitude', 'scraped_at']
+        available_cols = [c for c in cols_to_save if c in df.columns]
+        if available_cols:
+            header = not os.path.exists(HISTORY_FILE)
+            df[available_cols].to_csv(HISTORY_FILE, mode='a', header=header, index=False)
+            logger.info(f"📜 History appended at {datetime.now().strftime('%H:%M')}")
+
+
 async def background_refresher():
+    """Background task to refresh data every 30 minutes."""
     while True:
         try:
-            await asyncio.sleep(1800) # 30 mins
+            await asyncio.sleep(1800)
             await run_in_threadpool(fetch_snapshot)
-        except: await asyncio.sleep(60)
+            # Also store TGP and market data
+            try:
+                for state_code in config.ACTIVE_STATES:
+                    capital = config.STATES.get(state_code, {}).get("capital", "BRISBANE")
+                    trend = tgp_forecast.analyze_trend(city=capital)
+                    if db and trend.get('current_tgp'):
+                        db.save_tgp(datetime.now().strftime('%Y-%m-%d'), capital, trend['current_tgp'])
+                    if db and trend.get('current_oil'):
+                        db.save_market_data(
+                            datetime.now().strftime('%Y-%m-%d'),
+                            trend.get('current_oil', 0),
+                            trend.get('current_fx', 0.65),
+                            trend.get('current_mogas', 0)
+                        )
+            except Exception as e:
+                logger.error(f"Market data save error: {e}")
+        except Exception:
+            await asyncio.sleep(60)
+
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Startup: Bootstrapping Data...")
+    logger.info("🚀 Starting Australian Fuel Intelligence API...")
     await run_in_threadpool(fetch_snapshot)
-    # Metadata is already pre-generated in the repository. It will only be built on-demand if missing.
+
+    # Backfill SQLite from CSV if DB is fresh
+    if db:
+        try:
+            existing = db.get_daily_stats("QLD", days=1)
+            if existing is None or existing.empty:
+                if os.path.exists(HISTORY_FILE):
+                    logger.info("📥 Backfilling SQLite from CSV history...")
+                    db.backfill_from_csv(HISTORY_FILE)
+        except Exception as e:
+            logger.warning(f"Backfill skipped: {e}")
+
     asyncio.create_task(background_refresher())
-    print("✅ System Ready.")
+    logger.info("✅ System Ready.")
+
+
+# ============================================================
+# UTILITIES
+# ============================================================
 
 def clean_nan(obj):
-    if isinstance(obj, np.floating): return float(obj)
-    if isinstance(obj, float): return None if (np.isnan(obj) or np.isinf(obj)) else obj
-    if isinstance(obj, (np.integer, int)): return int(obj)
-    if isinstance(obj, list): return [clean_nan(v) for v in obj]
-    if isinstance(obj, dict): return {k: clean_nan(v) for k, v in obj.items()}
+    """Recursively clean NaN/Inf values from nested data structures."""
+    if isinstance(obj, np.floating):
+        return None if (np.isnan(obj) or np.isinf(obj)) else float(obj)
+    if isinstance(obj, float):
+        return None if (np.isnan(obj) or np.isinf(obj)) else obj
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, list):
+        return [clean_nan(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: clean_nan(v) for k, v in obj.items()}
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
     return obj
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    """Calculate distance in km between two lat/lng points."""
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    a = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
+    return 6371 * 2 * asin(sqrt(a))
+
 
 @lru_cache(maxsize=1)
 def get_cached_metadata():
-    if not os.path.exists(config.METADATA_FILE): station_metadata.generate_metadata()
-    return pd.read_csv(config.METADATA_FILE, dtype={'site_id': str, 'postcode': str}) if os.path.exists(config.METADATA_FILE) else pd.DataFrame()
+    """Load station metadata from CSV."""
+    try:
+        if os.path.exists(config.METADATA_FILE):
+            return pd.read_csv(config.METADATA_FILE, dtype={'site_id': str, 'postcode': str})
+    except Exception as e:
+        logger.error(f"Metadata load error: {e}")
+    return pd.DataFrame()
+
 
 def load_live_data_latest(state="QLD"):
-    # Logic to get latest data from Snapshot or History
+    """Load the most recent live snapshot data."""
     if os.path.exists(SNAPSHOT_FILE):
         try:
             df = pd.read_csv(SNAPSHOT_FILE)
             if not df.empty:
                 df['site_id'] = df['site_id'].astype(str)
-                if state and 'state' in df.columns: df = df[df['state'] == state].copy()
-                elif state and state != "QLD": return pd.DataFrame() # Fallback
+                if state and 'state' in df.columns:
+                    df = df[df['state'] == state].copy()
                 return df
-        except: pass
-    
-    # Fallback to history
+        except Exception:
+            pass
+
     if os.path.exists(HISTORY_FILE):
         try:
             df = pd.read_csv(HISTORY_FILE)
             if not df.empty:
                 df['site_id'] = df['site_id'].astype(str)
-                if state and 'state' in df.columns: df = df[df['state'] == state]
+                if state and 'state' in df.columns:
+                    df = df[df['state'] == state]
                 last_scrape = df['scraped_at'].max()
                 return df[df['scraped_at'] == last_scrape].copy()
-        except: pass
+        except Exception:
+            pass
     return pd.DataFrame()
+
+
+def _get_daily_data(state):
+    """Get daily price data, preferring SQLite, falling back to market_physics."""
+    if db:
+        try:
+            daily = db.get_daily_stats(state, days=180)
+            if daily is not None and not daily.empty:
+                return daily
+        except Exception:
+            pass
+    return market_physics.load_daily_data(state=state)
+
+
+def _enrich_live_df(live_df):
+    """Merge station metadata into live data."""
+    meta = get_cached_metadata()
+    if not meta.empty and not live_df.empty:
+        # Drop existing metadata columns to avoid conflicts
+        for col in ['name', 'brand', 'suburb']:
+            if col in live_df.columns and col in meta.columns:
+                live_df = live_df.drop(columns=[col])
+        merge_cols = [c for c in ['site_id', 'name', 'brand', 'suburb'] if c in meta.columns]
+        live_df = live_df.merge(meta[merge_cols], on='site_id', how='left')
+    return live_df
+
+
+# ============================================================
+# API ENDPOINTS
+# ============================================================
 
 @app.get("/api/market-status")
 async def get_market_status(state: str = "QLD"):
+    """Main dashboard endpoint — status, forecast, ticker, advice."""
     try:
         state = state.upper()
-        # 1. Load Data
-        # We need historical daily data for the AI model
-        daily_df = await run_in_threadpool(market_physics.load_daily_data, state=state)
-        live_df = await run_in_threadpool(load_live_data_latest, state=state)
-        
-        # Current Stats
-        current_median = live_df['price_cpl'].median() if not live_df.empty else 0.0
-        current_avg = live_df['price_cpl'].mean() if not live_df.empty else 0.0
-        
-        # Bootstrap daily_df from live data if history is missing (e.g. new state like WA)
-        if (daily_df is None or daily_df.empty) and not live_df.empty and current_median > 0:
-            today_date = pd.Timestamp.now().normalize()
-            daily_df = pd.DataFrame({'day': [today_date], 'price_cpl': [current_median]})
-        
-        # TGP / Trend
-        capital_city = config.STATES.get(state, config.STATES["QLD"])["capital"]
-        trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital_city)
-        current_tgp = trend.get('current_tgp', 165.0)
+        if state not in config.STATES:
+            return {"status": "ERROR", "advice": "Invalid state"}
 
-        # --- AI FORECASTING ---
-        forecast_data = {"dates": [], "prices": []}
+        # Load data
+        daily_df = await run_in_threadpool(_get_daily_data, state)
+        live_df = await run_in_threadpool(load_live_data_latest, state=state)
+
+        current_median = float(live_df['price_cpl'].median()) if not live_df.empty else 0.0
+        current_avg = float(live_df['price_cpl'].mean()) if not live_df.empty else 0.0
+        station_count = len(live_df) if not live_df.empty else 0
+
+        # Bootstrap daily_df from live data if history is missing
+        if (daily_df is None or daily_df.empty) and current_median > 0:
+            today = pd.Timestamp.now().normalize()
+            daily_df = pd.DataFrame({'day': [today], 'price_cpl': [current_median]})
+
+        # TGP / Market data
+        capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
+        current_tgp = trend.get('current_tgp', 165.0)
+        current_oil = trend.get('current_oil', 0)
+        current_fx = trend.get('current_fx', 0.65)
+        current_mogas = trend.get('current_mogas', 0)
+
+        # Store TGP/market data in SQLite
+        if db:
+            try:
+                today_str = datetime.now().strftime('%Y-%m-%d')
+                if current_tgp > 0:
+                    db.save_tgp(today_str, capital, current_tgp)
+                if current_oil > 0:
+                    db.save_market_data(today_str, current_oil, current_fx, current_mogas)
+            except Exception:
+                pass
+
+        # --- Cycle Detection ---
+        cycle_info = None
+        if cycle_detector and daily_df is not None and len(daily_df) > 5:
+            try:
+                cycle_info = cycle_detector.detect_current_regime(daily_df['price_cpl'])
+            except Exception as e:
+                logger.debug(f"Cycle detection error: {e}")
+
+        # --- AI Forecasting ---
+        forecast_data = {"dates": [], "prices": [], "low": [], "high": []}
         hike_prob = 0.0
         status_label = "STABLE"
         advice = "Hold"
-        
-        if daily_df is not None and not daily_df.empty:
-            # Prepare data for AI (Rename 'day' -> 'date')
-            ai_input_df = daily_df.rename(columns={'day': 'date'}).copy()
-            
-            # Inject today's live price if newer than history
-            today_date = pd.Timestamp.now().normalize()
-            if ai_input_df['date'].max() < today_date and current_median > 0:
-                new_row = pd.DataFrame({'date': [today_date], 'price_cpl': [current_median]})
-                ai_input_df = pd.concat([ai_input_df, new_row], ignore_index=True)
 
-            # Generate 14-day Forecast (uses physical cycle model if ML is not loaded)
-            future_df = ai_model.predict_horizon(ai_input_df, days=14, tgp=current_tgp)
-            
-            if not future_df.empty:
-                # Extract Advice from Tomorrow's prediction
+        if daily_df is not None and not daily_df.empty and ai_model:
+            ai_input = daily_df.rename(columns={'day': 'date'}).copy()
+
+            # Inject today's live price
+            today = pd.Timestamp.now().normalize()
+            if ai_input['date'].max() < today and current_median > 0:
+                ai_input = pd.concat([ai_input, pd.DataFrame({'date': [today], 'price_cpl': [current_median]})], ignore_index=True)
+
+            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+
+            if future_df is not None and not future_df.empty:
                 tomorrow = future_df.iloc[0]
-                hike_prob = float(tomorrow['hike_probability']) * 100 # Convert to %
-                
-                # Logic: Define Status based on AI Probability
+                hike_prob = float(tomorrow.get('hike_probability', 0)) * 100
+
+                # Determine status
                 if hike_prob > 70:
                     status_label = "HIKE_IMMINENT"
                     advice = "Buy Now"
                 elif hike_prob > 50:
                     status_label = "WARNING"
                     advice = "Fill Up"
-                elif current_median < (current_tgp + 10):
+                elif current_median > 0 and current_median < (current_tgp + 10):
                     status_label = "BOTTOM"
                     advice = "Buy"
                 else:
-                    # Check trend direction (Feather)
-                    delta_7d = future_df.iloc[6]['predicted_price'] - current_median
-                    if delta_7d < -2.0:
-                        status_label = "DROPPING"
-                        advice = "Wait"
-                    else:
+                    try:
+                        delta_7d = future_df.iloc[min(6, len(future_df) - 1)]['predicted_price'] - current_median
+                        if delta_7d < -2.0:
+                            status_label = "DROPPING"
+                            advice = "Wait"
+                        else:
+                            status_label = "STABLE"
+                            advice = "Check App"
+                    except Exception:
                         status_label = "STABLE"
-                        advice = "Check App"
+                        advice = "Hold"
 
-                # Format for Frontend
+                # Use cycle info to override if available
+                if cycle_info and cycle_info.get('phase') == 'RESTORATION' and cycle_info.get('confidence', 0) > 0.7:
+                    if status_label not in ['HIKE_IMMINENT', 'WARNING']:
+                        status_label = "RISING"
+                        advice = "Buy Now"
+
                 forecast_data = {
                     "dates": future_df['date'].astype(str).tolist(),
-                    "prices": future_df['predicted_price'].tolist()
+                    "prices": future_df['predicted_price'].tolist(),
+                    "low": future_df['predicted_low'].tolist() if 'predicted_low' in future_df.columns else [],
+                    "high": future_df['predicted_high'].tolist() if 'predicted_high' in future_df.columns else [],
                 }
 
-        # --- Savings Calc ---
+        # Savings insight
         savings_insight = "Market is stable."
         try:
-            # Using AI projected bottom/peak
-            future_prices = forecast_data['prices']
-            if future_prices:
-                min_future = min(future_prices)
-                max_future = max(future_prices)
-                
+            prices = forecast_data['prices']
+            if prices and current_median > 0:
+                min_f, max_f = min(prices), max(prices)
                 if advice in ["Buy Now", "Fill Up"]:
-                    save = (max_future - current_median) * 0.50 # 50L tank
-                    savings_insight = f"⚡ Fill up now! Prices rising to {max_future:.0f}c soon."
+                    savings_insight = f"⚡ Fill up now! Prices rising to {max_f:.0f}c soon."
                 elif advice == "Wait":
-                    save = (current_median - min_future) * 0.50
+                    save = (current_median - min_f) * 0.50
                     savings_insight = f"📉 Prices dropping. Wait to save ~${save:.2f}."
-        except: pass
+                elif advice == "Buy":
+                    savings_insight = f"💰 Near cycle bottom. Good time to fill up."
+        except Exception:
+            pass
 
-        # History Graph Data
-        history_graph = {"dates": [], "prices": []}
-        if daily_df is not None:
-            # Last 60 days
-            h_slice = daily_df.sort_values('day').tail(60)
-            history_graph = {
-                "dates": h_slice['day'].dt.strftime('%Y-%m-%d').tolist(),
-                "prices": h_slice['price_cpl'].tolist()
+        # History
+        history = {"dates": [], "prices": []}
+        if daily_df is not None and not daily_df.empty:
+            h = daily_df.sort_values('day').tail(90)
+            history = {
+                "dates": h['day'].dt.strftime('%Y-%m-%d').tolist(),
+                "prices": h['price_cpl'].tolist()
             }
 
         return clean_nan({
             "status": status_label,
             "advice": advice,
-            "advice_type": "success" if advice in ["Buy", "Buy Now", "Fill Up"] else "info",
+            "advice_type": "success" if advice in ["Buy", "Buy Now", "Fill Up"] else ("warning" if advice == "Wait" else "info"),
             "hike_probability": round(hike_prob, 1),
-            "next_hike_est": "AI Predicted", # Simplified
-            "days_elapsed": 0, # Legacy field
-            "last_updated": str(datetime.now().strftime("%H:%M")),
+            "current_avg": round(current_avg, 1),
+            "current_median": round(current_median, 1),
+            "station_count": station_count,
+            "last_updated": datetime.now().strftime("%H:%M"),
             "savings_insight": savings_insight,
-            "current_avg": current_avg,
-            "ticker": {
-                "tgp": current_tgp, 
-                "oil": trend.get('current_oil', 0),
-                "mogas": trend.get('current_mogas', 0),
-                "import_parity_lag": trend.get('import_parity_lag', 'Neutral')
+            "cycle": {
+                "phase": cycle_info.get('phase', 'UNKNOWN') if cycle_info else 'UNKNOWN',
+                "days_in_phase": cycle_info.get('days_in_phase', 0) if cycle_info else 0,
+                "days_remaining": cycle_info.get('estimated_days_remaining', 0) if cycle_info else 0,
+                "confidence": cycle_info.get('confidence', 0) if cycle_info else 0,
             },
-            "history": history_graph,
+            "ticker": {
+                "tgp": round(current_tgp, 1),
+                "oil": round(current_oil, 2) if current_oil else 0,
+                "mogas": round(current_mogas, 1) if current_mogas else 0,
+                "fx": round(current_fx, 4) if current_fx else 0,
+                "import_parity_lag": trend.get('import_parity_lag', 'NEUTRAL')
+            },
+            "history": history,
             "forecast": forecast_data
         })
 
     except Exception as e:
-        print(f"CRITICAL ERROR: {e}")
-        return {"status": "ERROR", "advice": "Retry", "ticker": {}}
+        logger.error(f"market-status error: {e}", exc_info=True)
+        return {"status": "ERROR", "advice": "Retry", "ticker": {}, "history": {"dates": [], "prices": []}, "forecast": {"dates": [], "prices": []}}
 
-# --- Other Endpoints (Unchanged logic, just wired up) ---
-class RouteRequest(BaseModel): start: str; end: str
-
-@app.post("/api/planner")
-async def plan_route(req: RouteRequest):
-    res = await run_in_threadpool(route_optimizer.optimize_route, req.start, req.end)
-    if res and 'stations' in res: res['stations'] = res['stations'].to_dict(orient='records')
-    return clean_nan(res if res else {"error": "Route not found"})
-
-class LocationRequest(BaseModel): latitude: float; longitude: float
-
-@app.post("/api/find_cheapest_nearby")
-async def find_cheapest_nearby(loc: LocationRequest):
-    live_df = await run_in_threadpool(load_live_data_latest, state=None)
-    if live_df.empty: return []
-    
-    meta = get_cached_metadata()
-    if not meta.empty:
-        live_df = live_df.merge(meta[['site_id', 'name', 'brand', 'suburb']], on='site_id', how='left', suffixes=('', '_m'))
-        for c in ['name', 'brand', 'suburb']: 
-            if f'{c}_m' in live_df.columns: live_df[c] = live_df[c].fillna(live_df[f'{c}_m'])
-            
-    results = []
-    for _, row in live_df.iterrows():
-        try:
-            dist = haversine(loc.longitude, loc.latitude, float(row['longitude']), float(row['latitude']))
-            if dist <= 15.0:
-                results.append({
-                    "name": str(row.get('name', 'Station')),
-                    "price": float(row['price_cpl']),
-                    "distance": dist,
-                    "brand": str(row.get('brand', 'Generic'))
-                })
-        except: continue
-    results.sort(key=lambda x: (x['price'], x['distance']))
-    return clean_nan(results[:10])
 
 @app.get("/api/stations")
 async def get_stations(state: str = "QLD"):
-    # Returns map data
-    live_df = await run_in_threadpool(load_live_data_latest, state=state)
-    if live_df.empty: return []
-    
-    meta = get_cached_metadata()
-    if not meta.empty:
-         live_df = live_df.merge(meta[['site_id', 'name', 'brand', 'suburb']], on='site_id', how='left', suffixes=('', '_m'))
-         for c in ['name', 'brand', 'suburb']:
-             if f'{c}_m' in live_df.columns: live_df[c] = live_df[c].fillna(live_df[f'{c}_m'])
-         
-    live_df = live_df.rename(columns={"price_cpl": "price", "latitude": "lat", "longitude": "lng"})
-    live_df = live_df.dropna(subset=['lat', 'lng'])
-    
-    med = live_df['price'].median()
-    live_df['is_cheap'] = live_df['price'] < med
-    return clean_nan(live_df.to_dict(orient='records'))
+    """Station map data with prices."""
+    try:
+        live_df = await run_in_threadpool(load_live_data_latest, state=state.upper())
+        if live_df.empty:
+            return []
+
+        live_df = _enrich_live_df(live_df)
+        live_df = live_df.rename(columns={"price_cpl": "price", "latitude": "lat", "longitude": "lng"})
+        live_df = live_df.dropna(subset=['lat', 'lng'])
+
+        med = live_df['price'].median()
+        live_df['is_cheap'] = (live_df['price'] < med).astype(int)
+        return clean_nan(live_df.to_dict(orient='records'))
+    except Exception as e:
+        logger.error(f"stations error: {e}")
+        return []
+
+
+class LocationRequest(BaseModel):
+    latitude: float
+    longitude: float
+
+
+@app.post("/api/find_cheapest_nearby")
+async def find_cheapest_nearby(loc: LocationRequest):
+    """Find cheapest stations within 15km of GPS position."""
+    try:
+        live_df = await run_in_threadpool(load_live_data_latest, state=None)
+        if live_df.empty:
+            return []
+
+        live_df = _enrich_live_df(live_df)
+
+        results = []
+        for _, row in live_df.iterrows():
+            try:
+                dist = haversine(loc.longitude, loc.latitude, float(row['longitude']), float(row['latitude']))
+                if dist <= 15.0:
+                    results.append({
+                        "name": str(row.get('name', 'Station')),
+                        "price": float(row['price_cpl']),
+                        "distance": round(dist, 1),
+                        "brand": str(row.get('brand', '')),
+                        "suburb": str(row.get('suburb', '')),
+                        "lat": float(row.get('latitude', 0)),
+                        "lng": float(row.get('longitude', 0)),
+                    })
+            except Exception:
+                continue
+
+        results.sort(key=lambda x: (x['price'], x['distance']))
+        return clean_nan(results[:10])
+    except Exception as e:
+        logger.error(f"find_cheapest error: {e}")
+        return []
+
+
+class RouteRequest(BaseModel):
+    start: str
+    end: str
+
+
+@app.post("/api/planner")
+async def plan_route(req: RouteRequest):
+    """Route planner — find cheapest stops along a trip."""
+    try:
+        res = await run_in_threadpool(route_optimizer.optimize_route, req.start, req.end)
+        if res and 'stations' in res:
+            res['stations'] = res['stations'].to_dict(orient='records')
+        return clean_nan(res if res else {"error": "Route not found"})
+    except Exception as e:
+        logger.error(f"planner error: {e}")
+        return {"error": str(e)}
+
 
 @app.get("/api/analytics")
 async def get_analytics(state: str = "QLD"):
-    # Uses AI for the trend line
+    """Historical analytics, forecast, and suburb rankings."""
     try:
-        daily_df = await run_in_threadpool(market_physics.load_daily_data, state=state)
-        
-        # Bootstrap daily_df from live data if history is missing (e.g. new state like WA)
+        state = state.upper()
+        daily_df = await run_in_threadpool(_get_daily_data, state)
+
         if (daily_df is None or daily_df.empty):
             live_df = await run_in_threadpool(load_live_data_latest, state=state)
             if not live_df.empty:
-                current_median = live_df['price_cpl'].median()
-                if current_median > 0:
-                    today_date = pd.Timestamp.now().normalize()
-                    daily_df = pd.DataFrame({'day': [today_date], 'price_cpl': [current_median]})
-                    
-        forecast = {"forecast_dates": [], "forecast_mean": []}
-        
-        if daily_df is not None and not daily_df.empty:
-             capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
-             trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
-             current_tgp = trend.get('current_tgp', 165.0)
-             
-             ai_input = daily_df.rename(columns={'day': 'date'})
-             future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
-             forecast = {
-                 "forecast_dates": future_df['date'].astype(str).tolist(),
-                 "forecast_mean": future_df['predicted_price'].tolist()
-             }
-             
-        # History
+                median = live_df['price_cpl'].median()
+                if median > 0:
+                    daily_df = pd.DataFrame({'day': [pd.Timestamp.now().normalize()], 'price_cpl': [median]})
+
+        forecast = {"forecast_dates": [], "forecast_mean": [], "forecast_low": [], "forecast_high": []}
+
+        if daily_df is not None and not daily_df.empty and ai_model:
+            capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
+            trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
+            current_tgp = trend.get('current_tgp', 165.0)
+
+            ai_input = daily_df.rename(columns={'day': 'date'})
+            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+            if future_df is not None and not future_df.empty:
+                forecast = {
+                    "forecast_dates": future_df['date'].astype(str).tolist(),
+                    "forecast_mean": future_df['predicted_price'].tolist(),
+                    "forecast_low": future_df['predicted_low'].tolist() if 'predicted_low' in future_df.columns else [],
+                    "forecast_high": future_df['predicted_high'].tolist() if 'predicted_high' in future_df.columns else [],
+                }
+
         history = {}
-        if daily_df is not None:
+        if daily_df is not None and not daily_df.empty:
             history = {
                 "dates": daily_df['day'].dt.strftime('%Y-%m-%d').tolist(),
                 "values": daily_df['price_cpl'].tolist()
             }
-            
-        # Calculate suburb ranking
+
+        # Suburb ranking
         suburbs = []
-        live_df = await run_in_threadpool(load_live_data_latest, state=state)
-        meta = get_cached_metadata()
-        if not live_df.empty and not meta.empty:
-            if 'suburb' in live_df.columns:
-                live_df = live_df.drop(columns=['suburb'])
-            merged = live_df.merge(meta[['site_id', 'suburb']], on='site_id', how='left')
-            suburb_stats = merged.groupby('suburb')['price_cpl'].mean().reset_index()
-            suburb_stats = suburb_stats.sort_values('price_cpl').head(10)
-            suburbs = [{"suburb": str(row['suburb']), "price": round(float(row['price_cpl']), 1)} for _, row in suburb_stats.iterrows()]
-            
+        try:
+            live_df = await run_in_threadpool(load_live_data_latest, state=state)
+            live_df = _enrich_live_df(live_df)
+            if not live_df.empty and 'suburb' in live_df.columns:
+                stats = live_df.groupby('suburb')['price_cpl'].agg(['mean', 'count']).reset_index()
+                stats = stats[stats['count'] >= 2].sort_values('mean').head(10)
+                suburbs = [{"suburb": str(r['suburb']), "price": round(float(r['mean']), 1)} for _, r in stats.iterrows()]
+        except Exception:
+            pass
+
         return clean_nan({"trend": {"history": history, "sarimax": forecast}, "suburb_ranking": suburbs})
-    except: return {}
+    except Exception as e:
+        logger.error(f"analytics error: {e}")
+        return {"trend": {"history": {}, "sarimax": {}}, "suburb_ranking": []}
+
 
 @app.get("/api/sentiment")
 async def get_sentiment():
-    res = await run_in_threadpool(market_news.get_market_news)
-    return clean_nan(res)
+    """News sentiment analysis."""
+    try:
+        res = await run_in_threadpool(market_news.get_market_news)
+        return clean_nan(res)
+    except Exception as e:
+        logger.error(f"sentiment error: {e}")
+        return {"global": [], "domestic": []}
 
-# Helper
-def haversine(lon1, lat1, lon2, lat2):
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    a = sin((lat2-lat1)/2)**2 + cos(lat1) * cos(lat2) * sin((lon2-lon1)/2)**2
-    return 6371 * 2 * asin(sqrt(a))
+
+@app.get("/api/market-context")
+async def get_market_context(state: str = "QLD"):
+    """Market intelligence — why is fuel priced this way?"""
+    try:
+        if not market_context:
+            return {"error": "Market context engine not available"}
+
+        state = state.upper()
+        live_df = await run_in_threadpool(load_live_data_latest, state=state)
+        current_avg = float(live_df['price_cpl'].mean()) if not live_df.empty else 165.0
+
+        capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
+        trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
+
+        tgp = trend.get('current_tgp', 165.0)
+        brent = trend.get('current_oil', 75.0)
+        fx = trend.get('current_fx', 0.65)
+
+        # Get cycle info
+        ci = None
+        if cycle_detector:
+            try:
+                daily_df = await run_in_threadpool(_get_daily_data, state)
+                if daily_df is not None and len(daily_df) > 5:
+                    ci = cycle_detector.detect_current_regime(daily_df['price_cpl'])
+            except Exception:
+                pass
+
+        # Get news for context
+        news = None
+        try:
+            news_data = await run_in_threadpool(market_news.get_market_news)
+            news_items = []
+            for feed_key in ['global', 'domestic']:
+                items = news_data.get(feed_key, [])
+                if isinstance(items, list):
+                    news_items.extend(items[:3])
+            news = news_items if news_items else None
+        except Exception:
+            pass
+
+        result = market_context.generate_context(
+            state=state,
+            current_avg=current_avg,
+            tgp=tgp,
+            brent_usd=brent,
+            aud_usd=fx,
+            cycle_info=ci,
+            news_items=news
+        )
+        return clean_nan(result)
+    except Exception as e:
+        logger.error(f"market-context error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/supply/summary")
+async def get_supply_summary():
+    """National petroleum supply summary."""
+    try:
+        if not supply_engine:
+            return {"error": "Supply data engine not available"}
+        result = supply_engine.get_supply_summary()
+        return clean_nan(result)
+    except Exception as e:
+        logger.error(f"supply summary error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/supply/stocks")
+async def get_supply_stocks():
+    """Detailed national petroleum stock levels."""
+    try:
+        if not supply_engine:
+            return {"error": "Supply data engine not available"}
+        stocks = supply_engine.get_national_stocks()
+        allocation = supply_engine.calculate_fuel_allocation()
+        imports = supply_engine.get_import_statistics()
+        return clean_nan({"stocks": stocks, "allocation": allocation, "imports": imports})
+    except Exception as e:
+        logger.error(f"supply stocks error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/supply/tankers")
+async def get_supply_tankers():
+    """Inbound oil tanker positions and ETAs."""
+    try:
+        if not tanker_tracker:
+            return {"tankers": [], "ports": {}}
+        tankers = tanker_tracker.get_inbound_tankers()
+        ports = tanker_tracker.get_port_activity()
+        return clean_nan({"tankers": tankers, "ports": ports})
+    except Exception as e:
+        logger.error(f"tankers error: {e}")
+        return {"tankers": [], "ports": {}}
+
+
+@app.get("/api/health")
+async def get_health():
+    """System health check."""
+    try:
+        snapshot_age = None
+        if os.path.exists(SNAPSHOT_FILE):
+            mtime = os.path.getmtime(SNAPSHOT_FILE)
+            snapshot_age = round((time.time() - mtime) / 60, 1)
+
+        return {
+            "status": "healthy",
+            "version": "4.0.0",
+            "timestamp": datetime.now().isoformat(),
+            "modules": {
+                "data_store": db is not None,
+                "ai_model": ai_model is not None,
+                "model_loaded": MODEL_LOADED,
+                "cycle_detector": cycle_detector is not None,
+                "market_context": market_context is not None,
+                "supply_engine": supply_engine is not None,
+                "tanker_tracker": tanker_tracker is not None,
+            },
+            "data": {
+                "active_states": config.ACTIVE_STATES,
+                "snapshot_age_minutes": snapshot_age,
+                "snapshot_file": os.path.exists(SNAPSHOT_FILE),
+                "history_file": os.path.exists(HISTORY_FILE),
+                "db_file": os.path.exists(config.DB_FILE) if hasattr(config, 'DB_FILE') else False,
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+# ============================================================
+# STATIC FILES & ROUTES
+# ============================================================
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 @app.get("/")
-async def read_root(): return FileResponse('static/index.html')
+async def read_root():
+    return FileResponse('static/index.html')
+
 
 if __name__ == "__main__":
     import uvicorn

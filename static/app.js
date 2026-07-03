@@ -1,466 +1,1006 @@
-// --- Configuration & State ---
-const API_BASE = '/api';
-let currentState = 'QLD';
-const STATE_CENTERS = {
-    "QLD": [-27.470, 153.020],
-    "NSW": [-33.868, 151.209],
-    "VIC": [-37.813, 144.963],
-    "SA":  [-34.928, 138.600],
-    "WA":  [-31.950, 115.860],
-    "ACT": [-35.280, 149.130],
-    "TAS": [-42.882, 147.327],
-    "NT":  [-12.463, 130.844]
-};
-let map, plannerMap;
-let markers = [];
-let stationData = [];
-let plannerLayer = null;
-let trendChart = null;
-let cycleChart = null;
-let driveWatchId = null;
-let wakeLock = null;
+/**
+ * Fuel AI - Main Application Logic
+ * Modern SPA architecture handling API integrations, UI state, and mapping.
+ */
 
-// Expose app functions globally for inline HTML clicks
-window.app = {
-    loadSubView: (view) => loadSubView(view),
-    closeSubView: () => closeSubView()
-};
+const app = (function() {
+    // --- State ---
+    const state = {
+        currentStateCode: 'QLD',
+        activeView: 'live',
+        activeIntelTab: 'context',
+        marketStatus: null,
+        stations: [],
+        analytics: null,
+        sentiment: null,
+        context: null,
+        supply: null,
+        tankers: null,
+        map: null,
+        markers: [],
+        plannerMap: null,
+        plannerLayer: null,
+        tankerMap: null,
+        miniChart: null,
+        mainChart: null,
+        driveWatchId: null,
+        driveTargetStation: null
+    };
 
-// --- Init ---
-document.addEventListener('DOMContentLoaded', () => {
-    initNavigation();
-    initLiveView(); 
-    initFindNearMe();
-    initMapSearch();
-    
-    // Planner Button Listener
-    const pBtn = document.getElementById('planner-btn');
-    if(pBtn) pBtn.addEventListener('click', runPlanner);
-});
+    // --- Configuration ---
+    const CONFIG = {
+        apiBase: '/api',
+        mapCenters: {
+            "QLD": [-27.470, 153.020],
+            "NSW": [-33.868, 151.209],
+            "VIC": [-37.813, 144.963],
+            "SA":  [-34.928, 138.600],
+            "WA":  [-31.950, 115.860],
+            "ACT": [-35.280, 149.130],
+            "TAS": [-42.882, 147.327],
+            "NT":  [-12.463, 130.844]
+        },
+        refreshInterval: 60000 // 1 minute
+    };
 
-function initMapSearch() {
-    const input = document.getElementById('map-search');
-    if (!input) return;
-    input.addEventListener('keyup', (e) => filterMap(e.target.value.toLowerCase()));
-}
+    // --- Utilities ---
+    const showToast = (message, type = 'info') => {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        
+        const toast = document.createElement('div');
+        toast.className = `toast border-l-4 ${type === 'error' ? 'border-red-500 text-red-100' : 'border-blue-500 text-white'}`;
+        toast.innerHTML = message;
+        
+        container.appendChild(toast);
+        
+        // Trigger reflow for animation
+        void toast.offsetWidth;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    };
 
-function filterMap(term) {
-    if (!map) return;
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
-    
-    stationData.forEach(s => {
-        const txt = (s.name + " " + s.suburb + " " + s.brand).toLowerCase();
-        if (term === "" || txt.includes(term)) {
-             if(s.lat && s.lng) {
-                const color = s.is_cheap ? '#10b981' : '#ef4444';
-                const m = L.circleMarker([s.lat, s.lng], {
-                    radius: 6, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.8
-                }).addTo(map);
-                m.bindPopup(`
-                    <div class="font-sans text-slate-900">
-                        <div class="font-bold">${s.brand}</div>
-                        <div class="text-xs text-slate-500">${s.name}</div>
-                        <div class="text-lg font-black ${s.is_cheap ? 'text-emerald-600' : 'text-red-600'}">${s.price}c</div>
-                    </div>
-                `);
-                markers.push(m);
+    const formatPrice = (price) => {
+        if (price === null || price === undefined || isNaN(price)) return '--.-';
+        return Number(price).toFixed(1);
+    };
+
+    // --- Core API Layer ---
+    const fetchApi = async (endpoint, options = {}) => {
+        try {
+            const res = await fetch(`${CONFIG.apiBase}${endpoint}`, options);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return await res.json();
+        } catch (error) {
+            console.error(`API Error on ${endpoint}:`, error);
+            showToast(`Error loading data from ${endpoint}`, 'error');
+            return null;
+        }
+    };
+
+    // --- Navigation & View Management ---
+    const initNavigation = () => {
+        // Main view navigation
+        document.querySelectorAll('.nav-btn, .nav-btn-mobile').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget.dataset.target;
+                switchView(target);
+                
+                // Update active states
+                document.querySelectorAll('.nav-btn').forEach(b => {
+                    if(b.dataset.target === target) {
+                        b.classList.add('bg-slate-700', 'text-white');
+                        b.classList.remove('text-slate-400');
+                    } else {
+                        b.classList.remove('bg-slate-700', 'text-white');
+                        b.classList.add('text-slate-400');
+                    }
+                });
+                
+                document.querySelectorAll('.nav-btn-mobile').forEach(b => {
+                    if(b.dataset.target === target) {
+                        b.classList.add('text-primary-500');
+                        b.classList.remove('text-slate-500');
+                    } else {
+                        b.classList.remove('text-primary-500');
+                        b.classList.add('text-slate-500');
+                    }
+                });
+            });
+        });
+
+        // Intelligence sub-tab navigation
+        document.querySelectorAll('.intel-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget.dataset.target;
+                switchIntelTab(target);
+            });
+        });
+
+        // State Selector
+        const stateSelect = document.getElementById('state-selector');
+        if (stateSelect) {
+            stateSelect.addEventListener('change', (e) => {
+                state.currentStateCode = e.target.value;
+                loadAllData();
+            });
+        }
+    };
+
+    const switchView = (viewId) => {
+        if (state.activeView === viewId) return;
+        
+        // Hide all
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+        
+        // Show target
+        const targetEl = document.getElementById(`view-${viewId}`);
+        if (targetEl) targetEl.classList.remove('hidden');
+        
+        state.activeView = viewId;
+        
+        // View-specific actions
+        if (viewId === 'live' && state.map) {
+            setTimeout(() => state.map.invalidateSize(), 100);
+        } else if (viewId === 'drive') {
+            initDriveMode();
+        } else if (viewId === 'intel') {
+            // Lazy load intelligence components
+            if (!state.context) loadMarketContext();
+            if (!state.analytics) loadAnalytics();
+        }
+        
+        // Clean up
+        if (viewId !== 'drive') {
+            stopDriveMode();
+        }
+    };
+
+    const switchIntelTab = (tabId) => {
+        // Update UI
+        document.querySelectorAll('.intel-tab-btn').forEach(btn => {
+            if(btn.dataset.target === tabId) {
+                btn.classList.add('bg-primary-600', 'text-white');
+                btn.classList.remove('bg-slate-800', 'text-slate-400');
+            } else {
+                btn.classList.remove('bg-primary-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-400');
+            }
+        });
+
+        // Hide all subviews
+        document.querySelectorAll('.intel-subview').forEach(el => {
+            el.classList.add('hidden');
+            el.classList.remove('block', 'grid');
+        });
+        
+        // Show target
+        const targetEl = document.getElementById(`intel-sub-${tabId}`);
+        if (targetEl) {
+            if(tabId === 'ratings') targetEl.classList.add('grid');
+            else targetEl.classList.add('block');
+            targetEl.classList.remove('hidden');
+        }
+
+        state.activeIntelTab = tabId;
+
+        // Lazy load data based on tab
+        if (tabId === 'supply' && !state.supply) {
+            loadSupplyData();
+            loadTankers();
+        } else if (tabId === 'news' && !state.sentiment) {
+            loadSentiment();
+        } else if (tabId === 'planner' && !state.plannerMap) {
+            initPlannerMap();
+        } else if (tabId === 'forecast' && state.mainChart) {
+            // Chart.js bug requires explicit resize when unhidden
+            setTimeout(() => state.mainChart.resize(), 50);
+        }
+    };
+
+    // --- Maps ---
+    const initMaps = () => {
+        // Main Map
+        if (document.getElementById('map') && !state.map) {
+            state.map = L.map('map', { zoomControl: false }).setView(CONFIG.mapCenters[state.currentStateCode], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap © CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(state.map);
+            L.control.zoom({ position: 'bottomright' }).addTo(state.map);
+            
+            // Map search
+            const searchInput = document.getElementById('map-search');
+            if (searchInput) {
+                searchInput.addEventListener('keyup', (e) => filterMap(e.target.value.toLowerCase()));
             }
         }
-    });
-}
+    };
 
-function initFindNearMe() {
-    const btn = document.getElementById('btn-find-near');
-    const container = document.getElementById('near-me-results');
-    let watchId = null;
-    if(!btn) return;
-    
-    btn.addEventListener('click', () => {
-        if (!navigator.geolocation) return alert("Geolocation not supported.");
+    const initPlannerMap = () => {
+        if (document.getElementById('planner-map') && !state.plannerMap) {
+            state.plannerMap = L.map('planner-map').setView(CONFIG.mapCenters[state.currentStateCode], 6);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap © CARTO'
+            }).addTo(state.plannerMap);
+        }
+    };
+
+    const initTankerMap = () => {
+        if (document.getElementById('tanker-map') && !state.tankerMap) {
+            state.tankerMap = L.map('tanker-map', { zoomControl: false, attributionControl: false }).setView([-25.0, 135.0], 4);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(state.tankerMap);
+        }
+    };
+
+    const filterMap = (term) => {
+        if (!state.map) return;
+        state.markers.forEach(m => state.map.removeLayer(m));
+        state.markers = [];
         
-        if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-            btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Find Cheapest`;
-            btn.classList.remove('bg-red-600', 'animate-pulse');
-            btn.classList.add('bg-primary-600');
-            container.classList.add('hidden');
+        state.stations.forEach(s => {
+            const txt = (`${s.name} ${s.suburb} ${s.brand}`).toLowerCase();
+            if (term === "" || txt.includes(term)) {
+                if (s.lat && s.lng) {
+                    const color = s.is_cheap === 1 ? '#10b981' : (s.price > state.marketStatus?.current_median ? '#ef4444' : '#f59e0b');
+                    const m = L.circleMarker([s.lat, s.lng], {
+                        radius: 5, fillColor: color, color: '#0f172a', weight: 1.5, fillOpacity: 0.9
+                    }).addTo(state.map);
+                    m.bindPopup(`
+                        <div class="p-2 min-w-[150px]">
+                            <div class="font-bold text-slate-800 text-lg mb-1">${formatPrice(s.price)}<span class="text-xs">c</span></div>
+                            <div class="font-semibold text-slate-700">${s.name}</div>
+                            <div class="text-xs text-slate-500">${s.brand} • ${s.suburb}</div>
+                        </div>
+                    `);
+                    state.markers.push(m);
+                }
+            }
+        });
+    };
+
+    // --- Charts ---
+    const renderMiniChart = (history, forecast) => {
+        const ctx = document.getElementById('miniCycleChart');
+        if (!ctx) return;
+        
+        if (state.miniChart) state.miniChart.destroy();
+        
+        // Combine history and forecast for simple rendering
+        const labels = [...(history?.dates || []), ...(forecast?.dates || [])];
+        const histData = [...(history?.prices || []), ...Array(forecast?.prices?.length || 0).fill(null)];
+        const foreData = [...Array(history?.prices?.length || 0).fill(null), ...(forecast?.prices || [])];
+        
+        // Connect the lines
+        if (history?.prices?.length > 0 && forecast?.prices?.length > 0) {
+            foreData[history.prices.length - 1] = history.prices[history.prices.length - 1];
+        }
+
+        state.miniChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'History',
+                        data: histData,
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Forecast',
+                        data: foreData,
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: Math.min(...(history?.prices || [150])) - 10 }
+                },
+                interaction: { intersect: false, mode: 'index' }
+            }
+        });
+    };
+
+    const renderMainChart = (history, forecast) => {
+        const ctx = document.getElementById('mainAnalyticsChart');
+        if (!ctx) return;
+        
+        if (state.mainChart) state.mainChart.destroy();
+        
+        const labels = [...(history?.dates || []), ...(forecast?.forecast_dates || [])];
+        const histData = [...(history?.values || []), ...Array(forecast?.forecast_mean?.length || 0).fill(null)];
+        const foreData = [...Array(history?.values?.length || 0).fill(null), ...(forecast?.forecast_mean || [])];
+        
+        // Confidence bands
+        const lowData = [...Array(history?.values?.length || 0).fill(null), ...(forecast?.forecast_low || [])];
+        const highData = [...Array(history?.values?.length || 0).fill(null), ...(forecast?.forecast_high || [])];
+
+        // Connect the lines
+        if (history?.values?.length > 0 && forecast?.forecast_mean?.length > 0) {
+            const lastHistIdx = history.values.length - 1;
+            const lastHistVal = history.values[lastHistIdx];
+            foreData[lastHistIdx] = lastHistVal;
+            lowData[lastHistIdx] = lastHistVal;
+            highData[lastHistIdx] = lastHistVal;
+        }
+
+        state.mainChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'History',
+                        data: histData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 0,
+                        fill: true
+                    },
+                    {
+                        label: 'Forecast P50',
+                        data: foreData,
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.2,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Forecast Low',
+                        data: lowData,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: '+1', // Fill to high band
+                        pointRadius: 0,
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Forecast High',
+                        data: highData,
+                        borderColor: 'transparent',
+                        pointRadius: 0,
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#94a3b8',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                if(context.dataset.label.includes('Low') || context.dataset.label.includes('High')) return null;
+                                return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} cpl`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b', maxTicksLimit: 10 }
+                    },
+                    y: { 
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { 
+                            color: '#64748b',
+                            callback: function(value) { return value + 'c'; }
+                        }
+                    }
+                },
+                interaction: { intersect: false, mode: 'index' }
+            }
+        });
+    };
+
+    // --- Data Loaders ---
+    
+    const loadMarketStatus = async () => {
+        const data = await fetchApi(`/market-status?state=${state.currentStateCode}`);
+        if (!data) return;
+        state.marketStatus = data;
+        
+        // Update Hero
+        const stText = document.getElementById('status-text');
+        if (stText) {
+            stText.textContent = data.status.replace('_', ' ');
+            stText.classList.remove('pulse-skeleton');
+            
+            // Color coding
+            stText.className = stText.className.replace(/text-\w+-400/g, '');
+            if(data.status === 'HIKE_IMMINENT') stText.classList.add('text-red-400');
+            else if(data.status === 'WARNING') stText.classList.add('text-amber-400');
+            else if(data.status === 'BOTTOM') stText.classList.add('text-emerald-400');
+            else if(data.status === 'DROPPING') stText.classList.add('text-blue-400');
+            else stText.classList.add('text-white');
+        }
+
+        const adBadge = document.getElementById('advice-badge');
+        if (adBadge) {
+            adBadge.textContent = data.advice;
+            adBadge.classList.remove('opacity-0');
+            adBadge.className = adBadge.className.replace(/bg-\w+-500\/20 text-\w+-400 border-\w+-500\/50/g, '');
+            
+            if(data.advice_type === 'success') adBadge.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/50');
+            else if(data.advice_type === 'warning') adBadge.classList.add('bg-amber-500/20', 'text-amber-400', 'border-amber-500/50');
+            else adBadge.classList.add('bg-blue-500/20', 'text-blue-400', 'border-blue-500/50');
+        }
+
+        const avgDisp = document.getElementById('avg-price-display');
+        if(avgDisp) {
+            avgDisp.textContent = formatPrice(data.current_avg);
+            avgDisp.classList.remove('pulse-skeleton');
+        }
+
+        const saveIn = document.getElementById('savings-insight');
+        if(saveIn) {
+            saveIn.textContent = data.savings_insight;
+            saveIn.classList.remove('pulse-skeleton');
+        }
+
+        const lu = document.getElementById('last-updated');
+        if(lu) lu.textContent = `Updated ${data.last_updated}`;
+
+        // Hike Gauge
+        const hikeBar = document.getElementById('hike-gauge-bar');
+        const hikeText = document.getElementById('hike-gauge-text');
+        if(hikeBar && hikeText) {
+            const prob = data.hike_probability || 0;
+            hikeBar.style.width = `${prob}%`;
+            hikeText.textContent = `${Math.round(prob)}%`;
+            
+            hikeBar.className = hikeBar.className.replace(/bg-\w+-500/g, '');
+            if(prob > 70) hikeBar.classList.add('bg-red-500');
+            else if(prob > 40) hikeBar.classList.add('bg-amber-500');
+            else hikeBar.classList.add('bg-emerald-500');
+        }
+
+        // TGP
+        const tgpVal = document.getElementById('tgp-val');
+        if (tgpVal && data.ticker && data.ticker.tgp) {
+            tgpVal.textContent = formatPrice(data.ticker.tgp);
+            tgpVal.classList.remove('pulse-skeleton');
+        }
+
+        // Update Ticker
+        const ticker = document.getElementById('nav-ticker');
+        if (ticker && data.ticker) {
+            const t = data.ticker;
+            const content = `OIL $${t.oil} | AUD/USD ${t.fx} | TGP ${t.tgp}c | MOGAS ${t.mogas}c | PARITY: ${t.import_parity_lag}`;
+            ticker.innerHTML = `<span class="ticker-content mr-8">${content}</span><span class="ticker-content mr-8">${content}</span><span class="ticker-content">${content}</span>`;
+        }
+        
+        // Render Mini Chart
+        renderMiniChart(data.history, data.forecast);
+    };
+
+    const loadStations = async () => {
+        const data = await fetchApi(`/stations?state=${state.currentStateCode}`);
+        if (!data) return;
+        state.stations = data;
+        
+        if (state.map) {
+            state.map.setView(CONFIG.mapCenters[state.currentStateCode], 10);
+            filterMap(""); // Draw all
+        }
+    };
+
+    const loadMarketContext = async () => {
+        const data = await fetchApi(`/market-context?state=${state.currentStateCode}`);
+        if (!data || data.error) return;
+        state.context = data;
+
+        // Populate Health Badge
+        const badge = document.getElementById('mc-health-badge');
+        if (badge) {
+            badge.textContent = data.market_health.status;
+            badge.className = badge.className.replace(/bg-\w+-500\/20 text-\w+-400/g, '');
+            if(data.market_health.status === 'HEALTHY') badge.classList.add('bg-emerald-500/20', 'text-emerald-400');
+            else if(data.market_health.status === 'VOLATILE') badge.classList.add('bg-red-500/20', 'text-red-400');
+            else badge.classList.add('bg-amber-500/20', 'text-amber-400');
+        }
+
+        // Populate Narrative
+        const narrative = document.getElementById('mc-narrative');
+        if (narrative) narrative.textContent = data.narrative;
+
+        // Populate Factors
+        const factorsList = document.getElementById('mc-factors-list');
+        if (factorsList && data.driving_factors) {
+            factorsList.innerHTML = data.driving_factors.map(f => `
+                <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700/50 flex items-start gap-3">
+                    <div class="mt-0.5 ${f.direction === 'up' ? 'text-red-400' : (f.direction === 'down' ? 'text-emerald-400' : 'text-slate-400')}">
+                        ${f.direction === 'up' ? '↑' : (f.direction === 'down' ? '↓' : '→')}
+                    </div>
+                    <div>
+                        <div class="font-bold text-white text-sm">${f.factor} <span class="text-xs font-normal text-slate-400 ml-2">Impact: ${f.impact_cpl} cpl</span></div>
+                        <div class="text-xs text-slate-400 mt-1">${f.explanation}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Populate Cycle Vis
+        const marker = document.getElementById('mc-cycle-marker');
+        const text = document.getElementById('mc-cycle-text');
+        if (marker && text && data.cycle_position) {
+            const pos = data.cycle_position.visual_position_percent;
+            marker.style.left = `${pos}%`;
+            text.innerHTML = `<span class="text-white font-bold">${data.cycle_position.phase}</span> - est. ${data.cycle_position.estimated_days_remaining} days remaining`;
+        }
+
+        // Populate Breakdown Bar
+        const bar = document.getElementById('mc-breakdown-bar');
+        const legend = document.getElementById('mc-breakdown-legend');
+        if (bar && legend && data.price_breakdown) {
+            const bd = data.price_breakdown;
+            const total = bd.total_estimated;
+            
+            const segments = [
+                { id: 'crude', val: bd.crude_oil_component, color: 'bg-slate-600', label: 'Crude' },
+                { id: 'refining', val: bd.refining_margin, color: 'bg-indigo-500', label: 'Refining' },
+                { id: 'shipping', val: bd.shipping, color: 'bg-blue-500', label: 'Shipping' },
+                { id: 'excise', val: bd.excise, color: 'bg-amber-500', label: 'Excise' },
+                { id: 'gst', val: bd.gst, color: 'bg-orange-500', label: 'GST' },
+                { id: 'retail', val: bd.retail_margin, color: bd.retail_margin < 0 ? 'bg-red-500' : 'bg-emerald-500', label: 'Retail Margin' }
+            ];
+            
+            let barHtml = '';
+            let legHtml = '';
+            
+            segments.forEach(seg => {
+                const pct = Math.max(0, (seg.val / total) * 100);
+                if (pct > 0) {
+                    barHtml += `<div class="h-full ${seg.color}" style="width: ${pct}%" title="${seg.label}: ${seg.val.toFixed(1)}c"></div>`;
+                }
+                legHtml += `<div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm ${seg.color}"></div><span class="text-slate-400">${seg.label}</span> <span class="text-white font-medium ml-auto">${seg.val.toFixed(1)}c</span></div>`;
+            });
+            
+            bar.innerHTML = barHtml;
+            legend.innerHTML = legHtml;
+        }
+    };
+
+    const loadAnalytics = async () => {
+        const data = await fetchApi(`/analytics?state=${state.currentStateCode}`);
+        if (!data || data.error) return;
+        state.analytics = data;
+
+        // Render Main Chart
+        if (data.trend) {
+            renderMainChart(data.trend.history, data.trend.sarimax);
+        }
+
+        // Suburbs
+        const tbody = document.getElementById('analytics-suburbs-body');
+        if (tbody && data.suburb_ranking) {
+            tbody.innerHTML = data.suburb_ranking.map((s, i) => `
+                <tr class="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                    <td class="py-3 pl-2 text-slate-500 font-bold">${i+1}</td>
+                    <td class="py-3 text-white font-medium">${s.suburb}</td>
+                    <td class="py-3 text-right pr-2 text-emerald-400 font-bold">${formatPrice(s.price)}c</td>
+                </tr>
+            `).join('');
+        }
+
+        // Also populate ratings while we have station data
+        populateRatings();
+    };
+
+    const populateRatings = () => {
+        if (!state.stations.length) return;
+        
+        const sorted = [...state.stations].sort((a, b) => a.price - b.price);
+        const best = sorted.slice(0, 20);
+        const worst = sorted.slice(-20).reverse();
+
+        const renderRows = (arr) => arr.map(s => `
+            <tr class="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                <td class="py-2.5 font-medium text-white">${s.name}</td>
+                <td class="py-2.5 text-slate-400 text-xs">${s.suburb}</td>
+                <td class="py-2.5 text-right font-bold text-white">${formatPrice(s.price)}c</td>
+            </tr>
+        `).join('');
+
+        const bestBody = document.getElementById('ratings-best-body');
+        if (bestBody) bestBody.innerHTML = renderRows(best);
+        
+        const worstBody = document.getElementById('ratings-worst-body');
+        if (worstBody) worstBody.innerHTML = renderRows(worst);
+    };
+
+    const loadSupplyData = async () => {
+        const data = await fetchApi('/supply/summary');
+        if (!data || data.error) return;
+        state.supply = data;
+
+        const sumEl = document.getElementById('supply-summary');
+        if(sumEl) sumEl.textContent = data.overall_assessment;
+
+        const impDep = document.getElementById('supply-import-dep');
+        if(impDep) impDep.textContent = `${Math.round(data.import_dependency * 100)}%`;
+
+        // Gauges
+        const container = document.getElementById('supply-gauges-container');
+        if (container && data.fuel_types) {
+            container.innerHTML = Object.values(data.fuel_types).map(f => {
+                const pct = Math.min(100, Math.max(0, (f.days_of_cover / 30) * 100)); // normalized to 30 days
+                const color = f.status === 'CRITICAL' ? '#ef4444' : (f.status === 'WARNING' ? '#f59e0b' : '#10b981');
+                const stroke = 283; // 2 * pi * 45
+                const offset = stroke - (pct / 100) * stroke;
+                
+                return `
+                <div class="glass-panel p-4 rounded-3xl flex flex-col items-center text-center">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">${f.display_name}</h4>
+                    <div class="relative w-24 h-24 mb-3">
+                        <svg class="w-full h-full circular-progress" viewBox="0 0 100 100">
+                            <circle class="text-slate-700 stroke-current" stroke-width="8" cx="50" cy="50" r="45" fill="transparent"></circle>
+                            <circle style="stroke: ${color}; stroke-dasharray: ${stroke}; stroke-dashoffset: ${offset}; transition: stroke-dashoffset 1s ease-in-out;" class="stroke-current" stroke-width="8" stroke-linecap="round" cx="50" cy="50" r="45" fill="transparent"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-2xl font-black text-white leading-none">${Math.round(f.days_of_cover)}</span>
+                            <span class="text-[10px] text-slate-400 font-bold">DAYS</span>
+                        </div>
+                    </div>
+                    <div class="text-xs font-medium text-slate-300">${f.current_stock_ml.toLocaleString()} ML</div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Allocation
+        const allocContainer = document.getElementById('supply-allocation');
+        if (allocContainer && data.allocations) {
+            allocContainer.innerHTML = Object.entries(data.allocations).map(([k, v]) => `
+                <div class="flex justify-between items-center p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                    <span class="text-sm font-medium text-slate-300">${v.label}</span>
+                    <span class="text-sm font-bold text-white">${v.formatted_value}</span>
+                </div>
+            `).join('');
+        }
+    };
+
+    const loadTankers = async () => {
+        const data = await fetchApi('/supply/tankers');
+        if (!data || data.error) return;
+        state.tankers = data;
+
+        const countBadge = document.getElementById('tanker-count-badge');
+        if(countBadge) countBadge.textContent = `${data.tankers?.length || 0} Tracking`;
+
+        initTankerMap();
+
+        const listContainer = document.getElementById('tanker-list');
+        if (listContainer && data.tankers) {
+            // Draw on map and build list
+            let listHtml = '';
+            
+            // Clear old markers if any (simplified)
+            
+            data.tankers.forEach(t => {
+                if(state.tankerMap && t.position) {
+                    L.circleMarker([t.position.lat, t.position.lng], {
+                        radius: 4, fillColor: '#06b6d4', color: '#fff', weight: 1, fillOpacity: 1
+                    }).addTo(state.tankerMap).bindPopup(`${t.name} -> ${t.destination_port}`);
+                }
+                
+                listHtml += `
+                    <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 mb-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-bold text-white">${t.name}</div>
+                                <div class="text-xs text-slate-400">${t.vessel_type} • ${t.flag_country}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-bold text-cyan-400">${t.eta_hours} hrs</div>
+                                <div class="text-[10px] text-slate-500 uppercase tracking-wider">ETA</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-xs font-medium border-t border-slate-700/50 pt-2 mt-2">
+                            <span class="text-slate-300">To: ${t.destination_port}</span>
+                            <span class="text-slate-400">Cargo: ~${t.cargo_estimate_ml} ML</span>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = listHtml;
+        }
+    };
+
+    const loadSentiment = async () => {
+        const data = await fetchApi('/sentiment');
+        if (!data) return;
+        state.sentiment = data;
+
+        // Needle Gauge
+        const needle = document.getElementById('sentiment-needle');
+        if (needle) {
+            // -1 (Bullish/Up) to 1 (Bearish/Down) mapped to 0% to 100%
+            // But wait, visually: Left is Bearish (Price Down / Green), Right is Bullish (Price Up / Red)
+            // So if sentiment is positive (bearish keywords), it should be on the left.
+            // Let's assume data.global.overall_sentiment is -1 to 1. 
+            // 0 is middle (50%). 1 is 100%. -1 is 0%.
+            const sent = data.global?.overall_sentiment || 0;
+            // Map -1 to 1 into 100% to 0% (because -1 is price up/right, 1 is price down/left)
+            const pos = 50 - (sent * 50); 
+            needle.style.left = `${Math.max(0, Math.min(100, pos))}%`;
+        }
+
+        const sumText = document.getElementById('news-summary-text');
+        if (sumText) sumText.textContent = data.global?.summary || "Analysis complete.";
+
+        const renderFeed = (articles, containerId) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (!articles || !articles.length) {
+                container.innerHTML = '<div class="text-sm text-slate-500 italic">No recent articles found.</div>';
+                return;
+            }
+
+            container.innerHTML = articles.map(a => {
+                let badgeColor = 'bg-slate-700 text-slate-300';
+                if(a.sentiment_tag.includes('Pressure')) badgeColor = 'bg-red-500/20 text-red-400 border border-red-500/30';
+                else if(a.sentiment_tag.includes('Relief')) badgeColor = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                
+                return `
+                    <div class="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 hover:border-slate-600 transition-colors">
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm ${badgeColor}">${a.sentiment_tag.replace(/[🔴🟢⚪]/g, '')}</span>
+                            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">${a.impact_vector}</span>
+                        </div>
+                        <a href="${a.link}" target="_blank" class="font-bold text-white text-sm hover:text-primary-400 transition-colors line-clamp-2 mb-2">${a.title}</a>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-3">${a.analysis}</p>
+                        <div class="text-[10px] text-slate-500 font-medium flex justify-between">
+                            <span>${a.publisher}</span>
+                            <span>${new Date(a.published).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        renderFeed(data.global?.articles, 'news-global-feed');
+        renderFeed(data.domestic?.articles, 'news-domestic-feed');
+    };
+
+    // --- Route Planner ---
+    const runPlanner = async () => {
+        const start = document.getElementById('planner-start')?.value;
+        const end = document.getElementById('planner-end')?.value;
+        const resDiv = document.getElementById('planner-results');
+        const btn = document.getElementById('planner-btn');
+        
+        if (!start || !end) {
+            showToast('Please enter both start and destination', 'error');
             return;
         }
-        
-        btn.innerHTML = `🛑 Stop Tracking`;
-        btn.classList.remove('bg-primary-600');
-        btn.classList.add('bg-red-600', 'animate-pulse');
-        container.classList.remove('hidden');
-        container.innerHTML = '<p class="text-center text-slate-400 text-sm py-2">Locating satellites...</p>';
-        
-        watchId = navigator.geolocation.watchPosition(async (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            try {
-                const res = await fetch(`${API_BASE}/find_cheapest_nearby`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ latitude, longitude })
-                });
-                const data = await res.json();
-                
-                if (!data || data.length === 0) {
-                    container.innerHTML = '<p class="text-center text-red-400 text-sm">No stations found nearby.</p>';
-                } else {
-                    let html = `<div class="text-center text-[10px] text-slate-500 mb-2">GPS Accuracy: ±${Math.round(accuracy)}m</div><div class="space-y-2">`;
-                    data.slice(0, 3).forEach(s => { // Only top 3
+
+        if(btn) {
+            btn.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+            btn.disabled = true;
+        }
+
+        try {
+            const res = await fetchApi('/planner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start, end })
+            });
+
+            if (res && res.error) {
+                showToast(res.error, 'error');
+                if(resDiv) resDiv.innerHTML = `<div class="p-4 text-center text-red-400 text-sm bg-red-500/10 rounded-xl">${res.error}</div>`;
+            } else if (res && res.stations) {
+                // Draw route on map
+                if (state.plannerMap) {
+                    if (state.plannerLayer) state.plannerMap.removeLayer(state.plannerLayer);
+                    
+                    const points = [
+                        [res.start_coords.lat, res.start_coords.lng],
+                        [res.end_coords.lat, res.end_coords.lng]
+                    ];
+                    
+                    const group = L.featureGroup();
+                    
+                    // Route line
+                    L.polyline(points, {color: '#3b82f6', weight: 4, opacity: 0.5, dashArray: '10, 10'}).addTo(group);
+                    
+                    // Start/End markers
+                    L.circleMarker(points[0], {radius: 6, fillColor: '#10b981', color: '#fff', weight: 2, fillOpacity: 1}).addTo(group);
+                    L.circleMarker(points[1], {radius: 6, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 1}).addTo(group);
+                    
+                    // Render List & Map Markers
+                    let html = '';
+                    res.stations.forEach((s, i) => {
                         html += `
-                            <div class="flex justify-between items-center p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                            <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center hover:bg-slate-700 transition-colors cursor-pointer" onclick="app.panPlanner(${s.latitude}, ${s.longitude})">
                                 <div>
                                     <div class="font-bold text-white text-sm">${s.name}</div>
-                                    <div class="text-xs text-slate-400">${s.distance.toFixed(1)}km • ${s.brand}</div>
+                                    <div class="text-xs text-slate-400 mt-1">Detour: ${s.detour_distance_km.toFixed(1)}km</div>
                                 </div>
-                                <div class="text-xl font-black text-emerald-400">${s.price.toFixed(1)}</div>
+                                <div class="text-right">
+                                    <div class="font-black text-emerald-400 text-xl">${s.price_cpl.toFixed(1)}<span class="text-xs text-emerald-500/70">c</span></div>
+                                    <div class="text-[10px] text-slate-500 uppercase">${s.brand}</div>
+                                </div>
                             </div>
                         `;
+                        
+                        L.circleMarker([s.latitude, s.longitude], {
+                            radius: 8, fillColor: '#f59e0b', color: '#0f172a', weight: 2, fillOpacity: 1
+                        }).addTo(group).bindPopup(`${s.name}: ${s.price_cpl.toFixed(1)}c`);
                     });
-                    html += '</div>';
-                    container.innerHTML = html;
+                    
+                    resDiv.innerHTML = html;
+                    state.plannerLayer = group.addTo(state.plannerMap);
+                    state.plannerMap.fitBounds(group.getBounds(), {padding: [50, 50]});
                 }
-            } catch(e) {}
-        }, null, { enableHighAccuracy: true });
-    });
-}
-
-// --- Navigation Logic ---
-function initNavigation() {
-    const stateSel = document.getElementById('state-selector');
-    if (stateSel) {
-        stateSel.value = currentState;
-        stateSel.addEventListener('change', (e) => {
-            currentState = e.target.value;
-            if (map) map.setView(STATE_CENTERS[currentState], currentState === 'QLD' ? 11 : 9);
-            initLiveView(); // Refresh data
-        });
-    }
-
-    const switchTab = (target) => {
-        // 1. UI Update
-        document.querySelectorAll('.nav-btn, .nav-btn-mobile').forEach(btn => {
-            const isTarget = btn.getAttribute('data-target') === target;
-            // Desktop styles
-            if(btn.classList.contains('nav-btn')) {
-                if(isTarget) { btn.classList.remove('text-slate-400','bg-transparent'); btn.classList.add('bg-slate-700','text-white','shadow-sm'); }
-                else { btn.classList.add('text-slate-400','bg-transparent'); btn.classList.remove('bg-slate-700','text-white','shadow-sm'); }
             }
-            // Mobile styles
-            if(btn.classList.contains('nav-btn-mobile')) {
-                if(isTarget) { btn.classList.add('text-primary-500'); btn.classList.remove('text-slate-400'); }
-                else { btn.classList.add('text-slate-400'); btn.classList.remove('text-primary-500'); }
+        } finally {
+            if(btn) {
+                btn.innerHTML = 'Find Optimal Stops';
+                btn.disabled = false;
             }
-        });
-
-        // 2. View Switching
-        document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
-        document.getElementById(`view-${target}`).classList.remove('hidden');
-        
-        // 3. Logic Hooks
-        if (target === 'live' && map) setTimeout(() => map.invalidateSize(), 100);
-        if (target === 'drive') initDriveMode(); else stopDriveMode();
+        }
     };
 
-    document.querySelectorAll('[data-target]').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-target')));
-    });
-}
-
-function loadSubView(toolName) {
-    // Hide tool grid, show sub-view container
-    const grid = document.getElementById('tools-grid');
-    if (grid) grid.classList.add('hidden');
-    document.getElementById('sub-view-container').classList.remove('hidden');
-    
-    // Hide all subs, show requested
-    document.querySelectorAll('.sub-view').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`sub-${toolName}`).classList.remove('hidden');
-    
-    // Trigger loads
-    if(toolName === 'planner') initPlannerMap();
-    if(toolName === 'ratings') loadRatings();
-    if(toolName === 'analytics') loadAnalytics();
-    if(toolName === 'sentiment') loadSentiment();
-}
-
-function closeSubView() {
-    document.getElementById('sub-view-container').classList.add('hidden');
-    const grid = document.getElementById('tools-grid');
-    if (grid) grid.classList.remove('hidden');
-}
-
-// --- Live View Logic ---
-async function initLiveView() {
-    try {
-        const res = await fetch(`${API_BASE}/market-status?state=${currentState}`);
-        const data = await res.json();
-        
-        // Update Ticker
-        const t = data.ticker || {};
-        const oilVal = (typeof t.oil === 'number') ? t.oil.toFixed(2) : '--.--';
-        const mogasVal = (typeof t.mogas === 'number') ? t.mogas.toFixed(2) : '--.--';
-        const tgpVal = (typeof t.tgp === 'number') ? t.tgp.toFixed(1) : '--.-';
-        
-        const tickerHTML = `
-            <span>🛢️ BRENT: $${oilVal}</span>
-            <span class="text-slate-600">|</span>
-            <span>⛽ MOGAS: $${mogasVal}</span>
-            <span class="text-slate-600">|</span>
-            <span>TREND: <span class="${data.status === 'HIKE_STARTED' ? 'text-red-400' : 'text-emerald-400'}">${data.status || '--'}</span></span>
-        `;
-        document.getElementById('global-ticker').innerHTML = tickerHTML;
-
-        // Hero Stats
-        document.getElementById('status-text').innerText = data.status || 'STABLE';
-        document.getElementById('status-text').className = `text-3xl md:text-5xl font-black tracking-tight ${(data.status || '').includes('HIKE') ? 'text-red-500' : 'text-emerald-400'}`;
-        
-        const lastUpdatedEl = document.getElementById('last-updated');
-        if (lastUpdatedEl) lastUpdatedEl.innerText = `Updated: ${data.last_updated || '--:--'}`;
-        
-        document.getElementById('advice-badge').innerText = data.advice || 'Hold';
-        document.getElementById('advice-badge').className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${data.advice_type === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`;
-        
-        document.getElementById('tgp-val').innerHTML = `${tgpVal}<span class="text-xl text-slate-500">c</span>`;
-        document.getElementById('savings-insight').innerText = data.savings_insight || '--';
-        document.getElementById('hike-prediction').innerText = `Next Hike: ${data.next_hike_est || '--'}`;
-        if(data.current_avg) document.getElementById('avg-price-display').innerText = `Avg: ${data.current_avg.toFixed(1)}c`;
-        else document.getElementById('avg-price-display').innerText = `Avg: --.-c`;
-
-        // Cycle Chart
-        renderChart('cycleChart', (data.history && data.history.dates) || [], (data.history && data.history.prices) || [], data.forecast?.prices);
-        
-        // Map
-        initMap();
-        loadStations();
-    } catch(e) { console.error(e); }
-}
-
-function renderChart(id, hDates, hPrices, fPrices) {
-    const ctx = document.getElementById(id);
-    if(!ctx) return;
-    if(cycleChart) cycleChart.destroy();
-    
-    // Pad forecast
-    const combinedLabels = [...hDates, ...(new Array(fPrices?.length || 0).fill('Fcst'))];
-    const paddedFc = new Array(hPrices.length).fill(null);
-    if(hPrices.length > 0) paddedFc[paddedFc.length-1] = hPrices[hPrices.length-1]; // Link
-    
-    cycleChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: combinedLabels,
-            datasets: [
-                { label: 'History', data: hPrices, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4, pointRadius: 0 },
-                { label: 'Forecast', data: [...paddedFc, ...(fPrices||[])], borderColor: '#f59e0b', borderDash: [4,4], tension: 0.4, pointRadius: 0 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: {display:false} },
-            scales: { x: {display:false}, y: {display:false} }
+    // --- Drive Mode ---
+    const initDriveMode = async () => {
+        if (!navigator.geolocation) {
+            showToast("Geolocation not supported by browser", "error");
+            return;
         }
-    });
-}
 
-function initMap() {
-    if(map) return;
-    map = L.map('map', {zoomControl: false}).setView(STATE_CENTERS[currentState], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '' }).addTo(map);
-}
-
-async function loadStations() {
-    const res = await fetch(`${API_BASE}/stations?state=${currentState}`);
-    stationData = await res.json();
-    filterMap(""); // Draw all
-}
-
-// --- Drive Mode ---
-function initDriveMode() {
-    if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(w => wakeLock = w).catch(() => {});
-    if (driveWatchId) navigator.geolocation.clearWatch(driveWatchId);
-    
-    const els = { speed: document.getElementById('drive-speed'), acc: document.getElementById('drive-acc'), name: document.querySelector('.big-name'), price: document.querySelector('.big-price'), meta: document.querySelector('.big-meta'), btn: document.getElementById('drive-nav-btn') };
-    
-    driveWatchId = navigator.geolocation.watchPosition(async (pos) => {
-        const { speed, accuracy, latitude, longitude } = pos.coords;
-        els.speed.innerHTML = `${Math.round((speed||0)*3.6)} <span class="text-sm font-medium text-slate-500">km/h</span>`;
-        els.acc.innerText = accuracy < 20 ? "GPS Strong" : "GPS Weak";
-        els.acc.className = `text-sm font-bold ${accuracy < 20 ? 'text-emerald-500' : 'text-amber-500'}`;
-        
         try {
-            const res = await fetch(`${API_BASE}/find_cheapest_nearby`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ latitude, longitude }) });
-            const data = await res.json();
-            if(data.length > 0) {
-                const s = data[0];
-                els.name.innerText = s.name;
-                els.price.innerText = s.price.toFixed(1);
-                els.meta.innerText = `${s.distance.toFixed(1)} km • ${s.brand}`;
-                els.btn.style.opacity = '1'; els.btn.style.pointerEvents = 'auto';
-                els.btn.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(s.name + " " + s.suburb)}`;
+            if ('wakeLock' in navigator) {
+                state.wakeLock = await navigator.wakeLock.request('screen');
             }
-        } catch(e){}
-    }, null, {enableHighAccuracy:true});
-}
+        } catch (err) {
+            console.log("Wake Lock error:", err);
+        }
 
-function stopDriveMode() {
-    if(driveWatchId) navigator.geolocation.clearWatch(driveWatchId);
-    if(wakeLock) wakeLock.release();
-}
+        const nameEl = document.querySelector('.big-name');
+        const priceEl = document.querySelector('.big-price');
+        const metaEl = document.querySelector('.big-meta');
+        const speedEl = document.getElementById('drive-speed');
+        const accEl = document.getElementById('drive-acc');
+        const navBtn = document.getElementById('drive-nav-btn');
+        const scanner = document.getElementById('drive-scanner');
+        const statusText = document.getElementById('drive-status-text');
 
-// --- Tools Logic (Planner, Analytics, etc.) ---
-function initPlannerMap() {
-    if(!plannerMap) {
-        plannerMap = L.map('planner-map', {zoomControl:false}).setView(STATE_CENTERS[currentState], 9);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(plannerMap);
-    }
-    setTimeout(() => plannerMap.invalidateSize(), 200);
-}
+        let lastFetchTime = 0;
 
-async function runPlanner() {
-    const start = document.getElementById('planner-start').value;
-    const end = document.getElementById('planner-end').value;
-    const btn = document.getElementById('planner-btn');
-    const resDiv = document.getElementById('planner-results');
-    
-    if(!start || !end) return;
-    btn.innerText = "Calculating...";
-    
-    try {
-        const res = await fetch(`${API_BASE}/planner`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({start, end}) });
-        const data = await res.json();
+        state.driveWatchId = navigator.geolocation.watchPosition(async (pos) => {
+            const { latitude, longitude, speed, accuracy } = pos.coords;
+            
+            // Update Speed
+            if (speed !== null && speedEl) {
+                speedEl.textContent = Math.round(speed * 3.6); // m/s to km/h
+            }
+            
+            // Update Accuracy
+            if (accEl) {
+                accEl.textContent = `±${Math.round(accuracy)}m`;
+                accEl.className = accEl.className.replace(/text-\w+-500 bg-\w+-500\/10 border-\w+-500\/20/g, '');
+                if (accuracy < 20) accEl.classList.add('text-emerald-500', 'bg-emerald-500/10', 'border-emerald-500/20');
+                else if (accuracy < 100) accEl.classList.add('text-amber-500', 'bg-amber-500/10', 'border-amber-500/20');
+                else accEl.classList.add('text-red-500', 'bg-red-500/10', 'border-red-500/20');
+            }
+
+            // Rate limit API calls to 1 per 30 seconds
+            const now = Date.now();
+            if (now - lastFetchTime > 30000) {
+                lastFetchTime = now;
+                if(scanner) scanner.classList.remove('hidden');
+                if(statusText) statusText.textContent = "Scanning nearby...";
+                
+                const results = await fetchApi('/find_cheapest_nearby', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latitude, longitude })
+                });
+
+                if(scanner) scanner.classList.add('hidden');
+                if(statusText) statusText.textContent = "Best Option Nearby";
+
+                if (results && results.length > 0) {
+                    const best = results[0];
+                    state.driveTargetStation = best;
+                    
+                    if(nameEl) nameEl.textContent = best.name;
+                    if(priceEl) priceEl.textContent = best.price.toFixed(1);
+                    if(metaEl) metaEl.innerHTML = `${best.brand} &bull; ${best.distance.toFixed(1)} km away`;
+                    
+                    if(navBtn) {
+                        navBtn.classList.remove('opacity-50', 'pointer-events-none');
+                        const query = encodeURIComponent(`${best.name} ${best.suburb}`);
+                        navBtn.href = `https://www.google.com/maps/search/?api=1&query=${query}`;
+                    }
+                }
+            }
+        }, 
+        (err) => {
+            console.error("GPS Error:", err);
+            if(accEl) {
+                accEl.textContent = "Lost Signal";
+                accEl.className = "text-sm font-bold text-red-500 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 inline-block";
+            }
+        }, 
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+    };
+
+    const stopDriveMode = () => {
+        if (state.driveWatchId) {
+            navigator.geolocation.clearWatch(state.driveWatchId);
+            state.driveWatchId = null;
+        }
+        if (state.wakeLock) {
+            state.wakeLock.release().catch(console.error);
+            state.wakeLock = null;
+        }
+    };
+
+    // --- Master Initialization ---
+    const loadAllData = () => {
+        loadMarketStatus();
+        loadStations();
         
-        if(data.stations) {
-            let html = `<div class="mt-4 space-y-2">`;
-            data.stations.forEach(s => {
-                html += `<div class="flex justify-between p-3 bg-slate-800 rounded-lg"><span class="text-sm text-slate-300">${s.name}</span><span class="text-emerald-400 font-bold">${s.price_cpl || s.price}c</span></div>`;
-            });
-            html += `</div>`;
-            resDiv.innerHTML = html;
+        // If intel view is active, reload its data too
+        if (state.activeView === 'intel') {
+            loadMarketContext();
+            loadAnalytics();
+            if(state.activeIntelTab === 'supply') { loadSupplyData(); loadTankers(); }
+            if(state.activeIntelTab === 'news') loadSentiment();
         }
+    };
 
-        // Plot route and markers on plannerMap
-        if(plannerMap) {
-            if(plannerLayer) {
-                plannerMap.removeLayer(plannerLayer);
-            }
-            plannerLayer = L.featureGroup().addTo(plannerMap);
+    const initLiveView = () => {
+        initMaps();
+        loadAllData();
+        setInterval(loadAllData, CONFIG.refreshInterval);
+    };
 
-            if(data.route_path && data.route_path.length > 0) {
-                const routeLine = L.polyline(data.route_path, {color: '#3b82f6', weight: 5, opacity: 0.8});
-                routeLine.addTo(plannerLayer);
-                
-                // Start/End markers
-                if(data.start) {
-                    L.marker([data.start.lat, data.start.lon]).addTo(plannerLayer)
-                        .bindPopup(`<b>Start:</b> ${data.start.name}`);
-                }
-                if(data.end) {
-                    L.marker([data.end.lat, data.end.lon]).addTo(plannerLayer)
-                        .bindPopup(`<b>Destination:</b> ${data.end.name}`);
-                }
-                
-                // Station markers
-                if(data.stations && data.stations.length > 0) {
-                    data.stations.forEach(s => {
-                        const lat = s.latitude || s.lat;
-                        const lng = s.longitude || s.lng;
-                        if(lat && lng) {
-                            const m = L.circleMarker([lat, lng], {
-                                radius: 7, fillColor: '#10b981', color: '#fff', weight: 1.5, fillOpacity: 0.9
-                            }).addTo(plannerLayer);
-                            m.bindPopup(`
-                                <div class="font-sans text-slate-900">
-                                    <div class="font-bold">${s.brand || 'Station'}</div>
-                                    <div class="text-xs text-slate-500">${s.name}</div>
-                                    <div class="text-sm font-black text-emerald-600">${s.price_cpl || s.price}c</div>
-                                </div>
-                            `);
-                        }
-                    });
-                }
-                
-                plannerMap.fitBounds(plannerLayer.getBounds(), {padding: [50, 50]});
+    // --- Public Methods (used by HTML onclicks) ---
+    return {
+        initLiveView,
+        initNavigation,
+        runPlanner,
+        panPlanner: (lat, lng) => {
+            if (state.plannerMap) {
+                state.plannerMap.setView([lat, lng], 14, {animate: true});
             }
         }
-    } catch(e) { 
-        resDiv.innerHTML = "Error calculating route."; 
-        console.error(e);
-    }
-    btn.innerText = "Find Fuel Stops";
-}
-
-async function loadRatings() {
-    const res = await fetch(`${API_BASE}/stations?state=${currentState}`);
-    const data = await res.json();
-    const render = (items, id) => {
-        document.getElementById(id).innerHTML = `<table class="w-full text-sm text-left text-slate-400">
-            <thead class="text-xs uppercase bg-slate-700/50 text-slate-300"><tr><th class="px-4 py-2">Station</th><th class="px-4 py-2">Price</th></tr></thead>
-            <tbody>${items.map(s => `<tr class="border-b border-slate-700/50"><td class="px-4 py-2 text-white">${s.name}</td><td class="px-4 py-2 text-emerald-400 font-bold">${s.price}c</td></tr>`).join('')}</tbody>
-        </table>`;
     };
-    render(data.sort((a,b) => a.price - b.price).slice(0, 10), 'table-best');
-    render(data.sort((a,b) => b.price - a.price).slice(0, 10), 'table-worst');
-}
+})();
 
-async function loadAnalytics() {
-    const res = await fetch(`${API_BASE}/analytics?state=${currentState}`);
-    const data = await res.json();
-    
-    // Draw chart
-    const ctx = document.getElementById('analyticsChart');
-    if(!ctx) return;
-    if(window.analyticsChartInstance) window.analyticsChartInstance.destroy();
-    
-    const hDates = data.trend?.history?.dates || [];
-    const hPrices = data.trend?.history?.values || [];
-    const fDates = data.trend?.sarimax?.forecast_dates || [];
-    const fPrices = data.trend?.sarimax?.forecast_mean || [];
-    
-    const combinedLabels = [...hDates, ...(new Array(fPrices.length).fill('Fcst'))];
-    const paddedFc = new Array(hPrices.length).fill(null);
-    if(hPrices.length > 0) paddedFc[paddedFc.length-1] = hPrices[hPrices.length-1];
-
-    window.analyticsChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: combinedLabels,
-            datasets: [
-                { label: 'History', data: hPrices, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4, pointRadius: 0 },
-                { label: 'Forecast', data: [...paddedFc, ...fPrices], borderColor: '#f59e0b', borderDash: [4,4], tension: 0.4, pointRadius: 0 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: {display:false} },
-            scales: { x: {display:false} }
-        }
-    });
-
-    // Suburbs table
-    if (data.suburb_ranking) {
-        document.getElementById('table-suburbs').innerHTML = `<table class="w-full text-sm text-left text-slate-400">
-            <thead class="text-xs uppercase bg-slate-700/50 text-slate-300"><tr><th class="px-4 py-2">Suburb</th><th class="px-4 py-2">Avg Price</th></tr></thead>
-            <tbody>${data.suburb_ranking.map(s => `<tr class="border-b border-slate-700/50"><td class="px-4 py-2 text-white">${s.suburb}</td><td class="px-4 py-2 text-emerald-400 font-bold">${s.price}c</td></tr>`).join('')}</tbody>
-        </table>`;
-    }
-}
-
-async function loadSentiment() {
-    const res = await fetch(`${API_BASE}/sentiment`);
-    const data = await res.json();
-    const render = (list, id) => {
-        list = list || [];
-        document.getElementById(id).innerHTML = list.map(n => `
-            <a href="${n.link}" target="_blank" class="block p-3 bg-slate-800 rounded-xl hover:bg-slate-700 transition">
-                <div class="text-sm font-bold text-white mb-1">${n.title}</div>
-                <div class="flex justify-between text-xs text-slate-500"><span>${n.publisher}</span><span class="${n.sentiment && n.sentiment.includes('High')?'text-red-400':'text-emerald-400'}">${n.sentiment || ''}</span></div>
-            </a>
-        `).join('');
-    };
-    render(data.global, 'feed-global');
-    render(data.domestic, 'feed-domestic');
-}
+// Export for global access if needed
+window.app = app;

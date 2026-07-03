@@ -1,7 +1,12 @@
 import os
+from dotenv import load_dotenv
+
+# Load .env file if present
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 
 # Security
-FUEL_API_TOKEN = os.getenv("FUEL_API_TOKEN", "028c992c-dc6a-4509-a94b-db707308841d") # Default fallback for dev
+FUEL_API_TOKEN = os.getenv("FUEL_API_TOKEN", "028c992c-dc6a-4509-a94b-db707308841d")
+AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "")
 
 # Geolocation & Regional Config
 STATES = {
@@ -17,11 +22,19 @@ STATES = {
 
 ACTIVE_STATES = ["QLD", "WA"]
 
+FUEL_TYPES = {
+    "unleaded": {"name": "Unleaded 91", "fpp_id": 2, "fuelwatch_product": 1},
+    "premium": {"name": "Premium 95/98", "fpp_id": 3, "fuelwatch_product": 2},
+    "diesel": {"name": "Diesel", "fpp_id": 4, "fuelwatch_product": 4},
+    "lpg": {"name": "LPG", "fpp_id": 7, "fuelwatch_product": 5},
+}
+
 DEFAULT_STATE = "QLD"
+DEFAULT_FUEL_TYPE = "unleaded"
 DEFAULT_CENTER_LAT = STATES[DEFAULT_STATE]["center"][0]
 DEFAULT_CENTER_LON = STATES[DEFAULT_STATE]["center"][1]
 
-# Brisbane Defaults (Legacy/Specific filtering)
+# Brisbane Metro Bounds (Legacy/Specific filtering)
 BOUNDS = {
     'lat_min': -27.70, 'lat_max': -27.00,
     'lng_min': 152.70
@@ -32,8 +45,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COLLECTION_FILE = os.path.join(BASE_DIR, "brisbane_fuel_live_collection.csv")
 METADATA_FILE = os.path.join(BASE_DIR, "station_metadata.csv")
 RATINGS_FILE = os.path.join(BASE_DIR, "station_ratings.csv")
+DB_FILE = os.path.join(BASE_DIR, "fuel_data.db")
 
 # Constants
 OSRM_BASE_URL = "http://router.project-osrm.org/route/v1/driving"
 NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/search"
-USER_AGENT = "BrisbaneFuelAI/2.0"
+USER_AGENT = "AustralianFuelAI/3.0"
+
+# Allowed CORS Origins (for production, restrict this)
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
