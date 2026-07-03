@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fuel-ai-cache-v2';
+const CACHE_NAME = 'fuel-ai-cache-v3';
 const urlsToCache = [
   '/',
   '/static/index.html',
@@ -7,6 +7,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -57,6 +58,6 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
