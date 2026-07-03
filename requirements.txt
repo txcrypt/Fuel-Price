@@ -18,3 +18,4 @@ scipy
 openpyxl
 shapely
 python-dotenv
+google-genai

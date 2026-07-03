@@ -13,6 +13,10 @@ except Exception:
 import os
 import json
 import time
+import base64
+import hashlib
+import hmac
+import secrets
 import asyncio
 import pandas as pd
 import numpy as np
@@ -20,7 +24,7 @@ from math import radians, cos, sin, asin, sqrt
 from datetime import datetime, timedelta
 from functools import lru_cache
 import threading
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +36,7 @@ from fuel_engine import FuelEngine
 # --- Import Local Modules ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import market_physics, tgp_forecast, route_optimizer, market_news
+from advanced_ai import AdvancedAIService
 
 # Import new modules (graceful fallback if not yet created)
 try:
@@ -88,6 +93,12 @@ try:
     import station_metadata
 except Exception:
     station_metadata = None
+
+advanced_ai = AdvancedAIService()
+
+_advanced_session_secret = config.ADVANCED_SESSION_SECRET or secrets.token_urlsafe(32)
+if not config.ADVANCED_SESSION_SECRET:
+    logger.warning("ADVANCED_SESSION_SECRET not set; Advanced sessions reset on restart")
 
 # --- FastAPI App ---
 app = FastAPI(title="Australian Fuel Intelligence API", version="4.0.0")
@@ -300,6 +311,318 @@ def load_live_data_latest(state="QLD"):
     return pd.DataFrame()
 
 
+def _create_advanced_token() -> tuple[str, str]:
+    expires_at = datetime.utcnow() + timedelta(hours=config.ADVANCED_SESSION_HOURS)
+    payload = {
+        "scope": "advanced",
+        "exp": int(expires_at.timestamp()),
+    }
+    payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(payload_json).decode("ascii").rstrip("=")
+    signature = hmac.new(
+        _advanced_session_secret.encode("utf-8"),
+        payload_b64.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    sig_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    return f"{payload_b64}.{sig_b64}", expires_at.isoformat() + "Z"
+
+
+def _require_advanced_token(authorization: str | None) -> None:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Advanced authorization required")
+
+    token = authorization.replace("Bearer ", "", 1).strip()
+    try:
+        payload_b64, sig_b64 = token.split(".", 1)
+        expected = hmac.new(
+            _advanced_session_secret.encode("utf-8"),
+            payload_b64.encode("ascii"),
+            hashlib.sha256,
+        ).digest()
+        actual = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
+        if not hmac.compare_digest(expected, actual):
+            raise ValueError("bad signature")
+        payload_raw = base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4))
+        payload = json.loads(payload_raw.decode("utf-8"))
+        if payload.get("scope") != "advanced" or int(payload.get("exp", 0)) < int(time.time()):
+            raise ValueError("expired token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired Advanced session")
+
+
+def _normalise_api_state(state: str) -> str:
+    state_upper = (state or config.DEFAULT_STATE).upper()
+    return state_upper if state_upper in config.STATES else config.DEFAULT_STATE
+
+
+def _summarise_daily_prices(daily_df: pd.DataFrame) -> dict:
+    if daily_df is None or daily_df.empty:
+        return {"available": False}
+
+    df = daily_df.sort_values("day").tail(90).copy()
+    values = pd.to_numeric(df["price_cpl"], errors="coerce").dropna()
+    if values.empty:
+        return {"available": False}
+
+    latest = float(values.iloc[-1])
+    previous = float(values.iloc[-2]) if len(values) > 1 else latest
+    seven_ago = float(values.iloc[-8]) if len(values) > 7 else previous
+
+    return {
+        "available": True,
+        "days": int(len(values)),
+        "start_date": df["day"].iloc[0].strftime("%Y-%m-%d"),
+        "end_date": df["day"].iloc[-1].strftime("%Y-%m-%d"),
+        "latest_median_cpl": round(latest, 1),
+        "delta_1d_cpl": round(latest - previous, 1),
+        "delta_7d_cpl": round(latest - seven_ago, 1),
+        "min_cpl": round(float(values.min()), 1),
+        "max_cpl": round(float(values.max()), 1),
+        "mean_cpl": round(float(values.mean()), 1),
+    }
+
+
+def _summarise_live_stations(live_df: pd.DataFrame) -> dict:
+    if live_df is None or live_df.empty or "price_cpl" not in live_df.columns:
+        return {"available": False}
+
+    prices = pd.to_numeric(live_df["price_cpl"], errors="coerce").dropna()
+    if prices.empty:
+        return {"available": False}
+
+    summary = {
+        "available": True,
+        "station_count": int(len(prices)),
+        "average_cpl": round(float(prices.mean()), 1),
+        "median_cpl": round(float(prices.median()), 1),
+        "min_cpl": round(float(prices.min()), 1),
+        "max_cpl": round(float(prices.max()), 1),
+        "dispersion_cpl": round(float(prices.max() - prices.min()), 1),
+    }
+
+    if "brand" in live_df.columns:
+        brand_stats = (
+            live_df.assign(price_cpl=pd.to_numeric(live_df["price_cpl"], errors="coerce"))
+            .dropna(subset=["price_cpl"])
+            .groupby("brand")["price_cpl"]
+            .agg(["mean", "count"])
+            .reset_index()
+        )
+        brand_stats = brand_stats[brand_stats["count"] >= 2].sort_values("mean").head(5)
+        summary["cheapest_brands"] = [
+            {"brand": str(row["brand"]), "avg_cpl": round(float(row["mean"]), 1), "count": int(row["count"])}
+            for _, row in brand_stats.iterrows()
+        ]
+
+    if "suburb" in live_df.columns:
+        suburb_stats = (
+            live_df.assign(price_cpl=pd.to_numeric(live_df["price_cpl"], errors="coerce"))
+            .dropna(subset=["price_cpl"])
+            .groupby("suburb")["price_cpl"]
+            .agg(["mean", "count"])
+            .reset_index()
+        )
+        suburb_stats = suburb_stats[suburb_stats["count"] >= 2].sort_values("mean").head(5)
+        summary["cheapest_suburbs"] = [
+            {"suburb": str(row["suburb"]), "avg_cpl": round(float(row["mean"]), 1), "count": int(row["count"])}
+            for _, row in suburb_stats.iterrows()
+        ]
+
+    return summary
+
+
+def _build_analyst_notes(evidence: dict) -> list[dict]:
+    notes = []
+    market_status = evidence.get("market_status", {})
+    ticker = market_status.get("ticker", {})
+    stations = evidence.get("live_stations", {})
+    daily = evidence.get("daily_prices", {})
+    snapshot_age = evidence.get("data_freshness", {}).get("snapshot_age_minutes")
+
+    if snapshot_age is not None and snapshot_age > 90:
+        notes.append({
+            "title": "Snapshot age",
+            "severity": "warning",
+            "detail": f"Latest snapshot is {snapshot_age:.0f} minutes old.",
+        })
+
+    dispersion = stations.get("dispersion_cpl")
+    if dispersion and dispersion > 35:
+        notes.append({
+            "title": "Wide station spread",
+            "severity": "info",
+            "detail": f"Current station spread is {dispersion:.1f} cpl between cheapest and most expensive sites.",
+        })
+
+    tgp = ticker.get("tgp")
+    current_avg = market_status.get("current_avg")
+    if tgp and current_avg:
+        margin = round(float(current_avg) - float(tgp), 1)
+        if margin < 6:
+            notes.append({
+                "title": "Retail margin squeeze",
+                "severity": "warning",
+                "detail": f"Average retail is only {margin:.1f} cpl above TGP.",
+            })
+        elif margin > 30:
+            notes.append({
+                "title": "Elevated retail premium",
+                "severity": "alert",
+                "detail": f"Average retail is {margin:.1f} cpl above TGP.",
+            })
+
+    delta_1d = daily.get("delta_1d_cpl")
+    if delta_1d is not None and abs(delta_1d) >= 5:
+        notes.append({
+            "title": "Daily move",
+            "severity": "alert" if delta_1d > 0 else "info",
+            "detail": f"Daily median moved {delta_1d:+.1f} cpl.",
+        })
+
+    if not notes:
+        notes.append({
+            "title": "No major anomaly",
+            "severity": "ok",
+            "detail": "Current data does not show an obvious margin, freshness, or dispersion warning.",
+        })
+
+    return notes[:5]
+
+
+def _build_advanced_evidence(state: str) -> dict:
+    state = _normalise_api_state(state)
+    capital = config.STATES[state]["capital"]
+
+    live_df = load_live_data_latest(state=state)
+    live_df = _enrich_live_df(live_df)
+    daily_df = _get_daily_data(state)
+    trend = tgp_forecast.analyze_trend(city=capital)
+
+    current_avg = float(live_df["price_cpl"].mean()) if live_df is not None and not live_df.empty else 0.0
+    current_median = float(live_df["price_cpl"].median()) if live_df is not None and not live_df.empty else 0.0
+
+    cycle_info = None
+    if cycle_detector and daily_df is not None and len(daily_df) > 5:
+        try:
+            cycle_info = cycle_detector.detect_current_regime(daily_df["price_cpl"])
+        except Exception as e:
+            logger.debug("Advanced cycle detection failed: %s", e)
+
+    market_context_payload = None
+    if market_context:
+        try:
+            market_context_payload = market_context.generate_context(
+                state=state,
+                current_avg=current_avg or current_median,
+                tgp=trend.get("current_tgp", 165.0),
+                brent_usd=trend.get("oil_price_usd", 75.0) or 75.0,
+                aud_usd=trend.get("aud_usd", 0.65) or 0.65,
+                cycle_info=cycle_info,
+                news_items=None,
+            )
+        except Exception as e:
+            logger.debug("Advanced market context failed: %s", e)
+
+    news_summary = {"global": [], "domestic": []}
+    try:
+        news_data = market_news.get_market_news()
+        for key in ["global", "domestic"]:
+            articles = news_data.get(key, {}).get("articles", []) if isinstance(news_data.get(key), dict) else []
+            news_summary[key] = [
+                {
+                    "title": item.get("title"),
+                    "sentiment_tag": item.get("sentiment_tag"),
+                    "impact_vector": item.get("impact_vector"),
+                    "analysis": item.get("analysis"),
+                    "publisher": item.get("publisher"),
+                }
+                for item in articles[:3]
+            ]
+            if isinstance(news_data.get(key), dict):
+                news_summary[f"{key}_overall_sentiment"] = news_data[key].get("overall_sentiment")
+                news_summary[f"{key}_summary"] = news_data[key].get("summary")
+    except Exception as e:
+        logger.debug("Advanced news fetch failed: %s", e)
+
+    snapshot_age = None
+    if os.path.exists(SNAPSHOT_FILE):
+        snapshot_age = round((time.time() - os.path.getmtime(SNAPSHOT_FILE)) / 60, 1)
+
+    evidence = clean_nan({
+        "state": state,
+        "capital": capital,
+        "generated_at": datetime.now().isoformat(),
+        "data_freshness": {
+            "snapshot_age_minutes": snapshot_age,
+            "db_available": db is not None,
+            "gemini_available": advanced_ai.available,
+        },
+        "market_status": {
+            "current_avg": round(current_avg, 1) if current_avg else None,
+            "current_median": round(current_median, 1) if current_median else None,
+            "station_count": int(len(live_df)) if live_df is not None else 0,
+            "hike_probability": None,
+            "advice": None,
+            "savings_insight": None,
+            "cycle": cycle_info or {"phase": "UNKNOWN"},
+            "ticker": {
+                "tgp": trend.get("current_tgp"),
+                "oil": trend.get("oil_price_usd"),
+                "fx": trend.get("aud_usd"),
+                "mogas": trend.get("current_mogas"),
+                "import_parity_lag": trend.get("import_parity_lag"),
+            },
+        },
+        "daily_prices": _summarise_daily_prices(daily_df),
+        "live_stations": _summarise_live_stations(live_df),
+        "tgp_history": trend.get("history", {}),
+        "market_context": market_context_payload,
+        "news": news_summary,
+    })
+    evidence["analyst_notes"] = _build_analyst_notes(evidence)
+    return evidence
+
+
+def _advanced_source_cards(evidence: dict) -> list[dict]:
+    status = evidence.get("market_status", {})
+    ticker = status.get("ticker", {})
+    daily = evidence.get("daily_prices", {})
+    stations = evidence.get("live_stations", {})
+
+    def cpl(value):
+        return f"{value} cpl" if value is not None else "--"
+
+    cards = [
+        {
+            "label": "Retail",
+            "value": cpl(status.get("current_avg")),
+            "detail": f"{status.get('station_count', 0)} stations in latest snapshot",
+        },
+        {
+            "label": "Wholesale",
+            "value": cpl(ticker.get("tgp")),
+            "detail": f"Parity signal: {ticker.get('import_parity_lag', 'UNKNOWN')}",
+        },
+        {
+            "label": "Cycle",
+            "value": str(status.get("cycle", {}).get("phase", "UNKNOWN")),
+            "detail": f"{status.get('cycle', {}).get('confidence', 0)} confidence",
+        },
+        {
+            "label": "Daily",
+            "value": cpl(daily.get("delta_1d_cpl")),
+            "detail": f"7-day move {daily.get('delta_7d_cpl', '--')} cpl",
+        },
+        {
+            "label": "Spread",
+            "value": cpl(stations.get("dispersion_cpl")),
+            "detail": "Cheapest to most expensive station",
+        },
+    ]
+    return cards
+
+
 def _get_daily_data(state):
     """Get daily price data, preferring SQLite, falling back to market_physics."""
     if db:
@@ -328,6 +651,96 @@ def _enrich_live_df(live_df):
 # ============================================================
 # API ENDPOINTS
 # ============================================================
+
+class AdvancedVerifyRequest(BaseModel):
+    password: str
+
+
+class AdvancedAskRequest(BaseModel):
+    state: str = "QLD"
+    question: str
+    history: list[dict] | None = None
+
+
+class AdvancedShockRequest(BaseModel):
+    state: str = "QLD"
+    scenario: str
+
+
+@app.post("/api/advanced/verify")
+async def verify_advanced(req: AdvancedVerifyRequest):
+    """Verify the single Advanced password and issue a session-only token."""
+    if not hmac.compare_digest(req.password, config.ADVANCED_PASSWORD):
+        raise HTTPException(status_code=401, detail="Invalid Advanced password")
+
+    token, expires_at = _create_advanced_token()
+    return {"ok": True, "token": token, "expires_at": expires_at}
+
+
+@app.post("/api/advanced/ask")
+async def ask_advanced(req: AdvancedAskRequest, authorization: str | None = Header(default=None)):
+    """Ask the analyst a natural-language market question."""
+    _require_advanced_token(authorization)
+    question = (req.question or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    state = _normalise_api_state(req.state)
+    evidence = await run_in_threadpool(_build_advanced_evidence, state)
+    result = await run_in_threadpool(advanced_ai.ask, question, evidence, req.history)
+    return clean_nan({
+        "answer": result.get("answer"),
+        "disabled": result.get("disabled", False),
+        "message": result.get("message", ""),
+        "evidence": _advanced_source_cards(evidence),
+        "analyst_notes": evidence.get("analyst_notes", []),
+        "generated_at": datetime.now().isoformat(),
+    })
+
+
+@app.get("/api/advanced/briefing")
+async def get_advanced_briefing(state: str = "QLD", authorization: str | None = Header(default=None)):
+    """Generate an executive morning briefing from the compact evidence pack."""
+    _require_advanced_token(authorization)
+    state = _normalise_api_state(state)
+    evidence = await run_in_threadpool(_build_advanced_evidence, state)
+    result = await run_in_threadpool(advanced_ai.briefing, evidence)
+    return clean_nan({
+        "title": result.get("title", "Morning Fuel Briefing"),
+        "summary": result.get("summary", []),
+        "action": result.get("action", ""),
+        "risks": result.get("risks", []),
+        "metrics": _advanced_source_cards(evidence),
+        "evidence": _advanced_source_cards(evidence),
+        "analyst_notes": evidence.get("analyst_notes", []),
+        "disabled": result.get("disabled", False),
+        "message": result.get("message", ""),
+        "generated_at": datetime.now().isoformat(),
+    })
+
+
+@app.post("/api/advanced/shock")
+async def run_advanced_shock(req: AdvancedShockRequest, authorization: str | None = Header(default=None)):
+    """Convert a natural-language shock into deterministic fuel-price impacts."""
+    _require_advanced_token(authorization)
+    scenario = (req.scenario or "").strip()
+    if not scenario:
+        raise HTTPException(status_code=400, detail="Scenario is required")
+
+    state = _normalise_api_state(req.state)
+    evidence = await run_in_threadpool(_build_advanced_evidence, state)
+    result = await run_in_threadpool(advanced_ai.shock, scenario, evidence)
+    return clean_nan({
+        "parsed_variables": result.get("parsed_variables", {}),
+        "forecast_impact": result.get("forecast_impact", {}),
+        "explanation": result.get("explanation", ""),
+        "evidence": _advanced_source_cards(evidence),
+        "analyst_notes": evidence.get("analyst_notes", []),
+        "disabled": result.get("disabled", False),
+        "message": result.get("message", ""),
+        "generated_at": datetime.now().isoformat(),
+    })
+
 
 @app.get("/api/market-status")
 async def get_market_status(state: str = "QLD"):

@@ -16,6 +16,8 @@ const app = (function() {
         context: null,
         supply: null,
         tankers: null,
+        advancedBriefing: null,
+        advancedUnlocked: false,
         map: null,
         markers: [],
         plannerMap: null,
@@ -67,6 +69,16 @@ const app = (function() {
     const formatPrice = (price) => {
         if (price === null || price === undefined || isNaN(price)) return '--.-';
         return Number(price).toFixed(1);
+    };
+
+    const escapeHtml = (value) => {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[char]));
     };
 
     // --- Core API Layer ---
@@ -126,9 +138,12 @@ const app = (function() {
         if (stateSelect) {
             stateSelect.addEventListener('change', (e) => {
                 state.currentStateCode = e.target.value;
+                state.advancedBriefing = null;
                 loadAllData();
             });
         }
+
+        initAdvancedControls();
     };
 
     const switchView = (viewId) => {
@@ -196,6 +211,8 @@ const app = (function() {
             loadSentiment();
         } else if (tabId === 'planner' && !state.plannerMap) {
             initPlannerMap();
+        } else if (tabId === 'advanced') {
+            initAdvancedMode();
         } else if (tabId === 'forecast' && state.mainChart) {
             // Chart.js bug requires explicit resize when unhidden
             setTimeout(() => state.mainChart.resize(), 50);
@@ -793,6 +810,394 @@ const app = (function() {
         renderFeed(data.domestic?.articles, 'news-domestic-feed');
     };
 
+    // --- Advanced Mode ---
+    const ADVANCED_TOKEN_KEY = 'fuelai_advanced_token';
+    const ADVANCED_EXPIRY_KEY = 'fuelai_advanced_expires';
+
+    const getAdvancedToken = () => {
+        const token = sessionStorage.getItem(ADVANCED_TOKEN_KEY);
+        const expiry = sessionStorage.getItem(ADVANCED_EXPIRY_KEY);
+        if (!token || !expiry) return null;
+        if (Date.parse(expiry) <= Date.now()) {
+            clearAdvancedSession();
+            return null;
+        }
+        return token;
+    };
+
+    const clearAdvancedSession = () => {
+        sessionStorage.removeItem(ADVANCED_TOKEN_KEY);
+        sessionStorage.removeItem(ADVANCED_EXPIRY_KEY);
+        state.advancedUnlocked = false;
+        state.advancedBriefing = null;
+        setAdvancedUnlocked(false);
+    };
+
+    const setAdvancedUnlocked = (unlocked) => {
+        state.advancedUnlocked = unlocked;
+        const locked = document.getElementById('advanced-locked');
+        const suite = document.getElementById('advanced-suite');
+        if (locked) locked.classList.toggle('hidden', unlocked);
+        if (suite) suite.classList.toggle('hidden', !unlocked);
+    };
+
+    const advancedFetch = async (endpoint, options = {}) => {
+        const token = getAdvancedToken();
+        if (!token) {
+            clearAdvancedSession();
+            return null;
+        }
+
+        const headers = {
+            ...(options.headers || {}),
+            'Authorization': `Bearer ${token}`
+        };
+
+        try {
+            const res = await fetch(`${CONFIG.apiBase}${endpoint}`, { ...options, headers });
+            if (res.status === 401) {
+                clearAdvancedSession();
+                showToast('Advanced session expired. Unlock again.', 'error');
+                return null;
+            }
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return await res.json();
+        } catch (error) {
+            console.error(`Advanced API Error on ${endpoint}:`, error);
+            showToast('Advanced analysis failed', 'error');
+            return null;
+        }
+    };
+
+    const initAdvancedControls = () => {
+        const unlockBtn = document.getElementById('advanced-unlock-btn');
+        const passwordInput = document.getElementById('advanced-password');
+        const refreshBtn = document.getElementById('advanced-refresh-btn');
+        const lockBtn = document.getElementById('advanced-lock-btn');
+        const askBtn = document.getElementById('advanced-ask-btn');
+        const questionInput = document.getElementById('advanced-question');
+        const shockBtn = document.getElementById('advanced-shock-btn');
+
+        if (unlockBtn && !unlockBtn.dataset.bound) {
+            unlockBtn.dataset.bound = 'true';
+            unlockBtn.addEventListener('click', unlockAdvancedMode);
+        }
+
+        if (passwordInput && !passwordInput.dataset.bound) {
+            passwordInput.dataset.bound = 'true';
+            passwordInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') unlockAdvancedMode();
+            });
+        }
+
+        if (refreshBtn && !refreshBtn.dataset.bound) {
+            refreshBtn.dataset.bound = 'true';
+            refreshBtn.addEventListener('click', () => loadAdvancedBriefing(true));
+        }
+
+        if (lockBtn && !lockBtn.dataset.bound) {
+            lockBtn.dataset.bound = 'true';
+            lockBtn.addEventListener('click', clearAdvancedSession);
+        }
+
+        if (askBtn && !askBtn.dataset.bound) {
+            askBtn.dataset.bound = 'true';
+            askBtn.addEventListener('click', askAdvancedQuestion);
+        }
+
+        if (questionInput && !questionInput.dataset.bound) {
+            questionInput.dataset.bound = 'true';
+            questionInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') askAdvancedQuestion();
+            });
+        }
+
+        if (shockBtn && !shockBtn.dataset.bound) {
+            shockBtn.dataset.bound = 'true';
+            shockBtn.addEventListener('click', runAdvancedShock);
+        }
+
+        document.querySelectorAll('.advanced-prompt').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('advanced-question');
+                if (input) {
+                    input.value = btn.dataset.prompt || '';
+                    input.focus();
+                }
+            });
+        });
+    };
+
+    const initAdvancedMode = () => {
+        initAdvancedControls();
+        const token = getAdvancedToken();
+        setAdvancedUnlocked(!!token);
+        if (token && !state.advancedBriefing) {
+            loadAdvancedBriefing();
+        }
+    };
+
+    const unlockAdvancedMode = async () => {
+        const input = document.getElementById('advanced-password');
+        const status = document.getElementById('advanced-auth-status');
+        const btn = document.getElementById('advanced-unlock-btn');
+        const password = input?.value || '';
+
+        if (!password) {
+            if (status) status.textContent = 'Enter the Advanced password.';
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+        }
+        if (status) status.textContent = 'Checking credentials...';
+
+        try {
+            const res = await fetch(`${CONFIG.apiBase}/advanced/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+
+            if (!res.ok) {
+                if (status) status.textContent = 'Password rejected.';
+                showToast('Invalid Advanced password', 'error');
+                return;
+            }
+
+            const data = await res.json();
+            sessionStorage.setItem(ADVANCED_TOKEN_KEY, data.token);
+            sessionStorage.setItem(ADVANCED_EXPIRY_KEY, data.expires_at);
+            if (input) input.value = '';
+            if (status) status.textContent = '';
+            setAdvancedUnlocked(true);
+            loadAdvancedBriefing(true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Unlock Advanced';
+            }
+        }
+    };
+
+    const renderAdvancedMetrics = (cards = []) => {
+        const container = document.getElementById('advanced-metrics');
+        if (!container) return;
+        container.innerHTML = cards.map(card => `
+            <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4">
+                <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">${escapeHtml(card.label)}</div>
+                <div class="text-lg font-black text-white">${escapeHtml(card.value)}</div>
+                <div class="text-xs text-slate-400 mt-1">${escapeHtml(card.detail)}</div>
+            </div>
+        `).join('');
+    };
+
+    const renderAnalystNotes = (notes = []) => {
+        const container = document.getElementById('advanced-notes');
+        if (!container) return;
+        const colorFor = (severity) => {
+            if (severity === 'alert') return 'border-red-500/30 text-red-300 bg-red-500/10';
+            if (severity === 'warning') return 'border-amber-500/30 text-amber-300 bg-amber-500/10';
+            if (severity === 'ok') return 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10';
+            return 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10';
+        };
+        container.innerHTML = notes.map(note => `
+            <div class="rounded-2xl border p-4 ${colorFor(note.severity)}">
+                <div class="font-bold text-white mb-1">${escapeHtml(note.title)}</div>
+                <div class="text-sm text-slate-300">${escapeHtml(note.detail)}</div>
+            </div>
+        `).join('');
+    };
+
+    const renderEvidenceChips = (containerId, cards = []) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = cards.slice(0, 5).map(card => `
+            <span class="text-[11px] bg-slate-900 border border-slate-700 rounded-full px-2.5 py-1 text-slate-300">
+                ${escapeHtml(card.label)}: <span class="text-white font-bold">${escapeHtml(card.value)}</span>
+            </span>
+        `).join('');
+    };
+
+    const loadAdvancedBriefing = async (force = false) => {
+        if (!getAdvancedToken()) return;
+        if (state.advancedBriefing && !force) {
+            renderAdvancedBriefing(state.advancedBriefing);
+            return;
+        }
+
+        const status = document.getElementById('advanced-briefing-status');
+        const briefing = document.getElementById('advanced-briefing');
+        if (status) status.textContent = 'Generating...';
+        if (briefing) {
+            briefing.innerHTML = `
+                <div class="pulse-skeleton h-8 rounded-xl w-3/4"></div>
+                <div class="pulse-skeleton h-24 rounded-2xl w-full"></div>
+                <div class="pulse-skeleton h-16 rounded-2xl w-full"></div>
+            `;
+        }
+
+        const data = await advancedFetch(`/advanced/briefing?state=${state.currentStateCode}`);
+        if (!data) return;
+        state.advancedBriefing = data;
+        renderAdvancedBriefing(data);
+    };
+
+    const renderAdvancedBriefing = (data) => {
+        const status = document.getElementById('advanced-briefing-status');
+        const briefing = document.getElementById('advanced-briefing');
+        if (status) {
+            status.textContent = data.disabled ? 'Local fallback' : 'Generated';
+            status.className = data.disabled
+                ? 'text-xs bg-amber-500/10 text-amber-300 px-3 py-1 rounded-full border border-amber-500/30'
+                : 'text-xs bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30';
+        }
+        renderAdvancedMetrics(data.metrics || data.evidence || []);
+        renderAnalystNotes(data.analyst_notes || []);
+        renderEvidenceChips('advanced-ask-evidence', data.evidence || []);
+
+        const summary = Array.isArray(data.summary) ? data.summary : [data.summary].filter(Boolean);
+        if (briefing) {
+            briefing.innerHTML = `
+                ${data.message ? `<div class="text-sm rounded-2xl p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200">${escapeHtml(data.message)}</div>` : ''}
+                <div>
+                    <h4 class="text-2xl font-black text-white mb-3">${escapeHtml(data.title || 'Morning Fuel Briefing')}</h4>
+                    <div class="space-y-3 text-slate-300 leading-relaxed">
+                        ${summary.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('')}
+                    </div>
+                </div>
+                <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                    <div class="text-xs text-emerald-300 uppercase font-bold tracking-wider mb-1">Action</div>
+                    <div class="text-white font-bold">${escapeHtml(data.action || 'Monitor the dashboard.')}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Risks</div>
+                    <div class="space-y-2">
+                        ${(data.risks || []).map(risk => `<div class="text-sm bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-slate-300">${escapeHtml(risk)}</div>`).join('') || '<div class="text-sm text-slate-500">No explicit risks returned.</div>'}
+                    </div>
+                </div>
+            `;
+        }
+    };
+
+    const appendAdvancedMessage = (role, text, isLoading = false) => {
+        const log = document.getElementById('advanced-chat-log');
+        if (!log) return null;
+        const msg = document.createElement('div');
+        msg.className = role === 'user'
+            ? 'ml-auto max-w-[88%] bg-cyan-500 text-slate-950 rounded-2xl px-4 py-3 text-sm font-semibold'
+            : 'mr-auto max-w-[92%] bg-slate-900 border border-slate-800 text-slate-200 rounded-2xl px-4 py-3 text-sm leading-relaxed';
+        msg.innerHTML = isLoading ? '<div class="animate-pulse">Analyst is reading the evidence...</div>' : escapeHtml(text);
+        log.appendChild(msg);
+        log.scrollTop = log.scrollHeight;
+        return msg;
+    };
+
+    const askAdvancedQuestion = async () => {
+        const input = document.getElementById('advanced-question');
+        const btn = document.getElementById('advanced-ask-btn');
+        const question = input?.value.trim();
+        if (!question || !getAdvancedToken()) return;
+
+        appendAdvancedMessage('user', question);
+        if (input) input.value = '';
+        const loading = appendAdvancedMessage('assistant', '', true);
+        if (btn) btn.disabled = true;
+
+        const data = await advancedFetch('/advanced/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: state.currentStateCode, question })
+        });
+
+        if (loading) loading.remove();
+        if (btn) btn.disabled = false;
+        if (!data) return;
+
+        appendAdvancedMessage('assistant', data.answer || 'No answer returned.');
+        renderEvidenceChips('advanced-ask-evidence', data.evidence || []);
+        renderAnalystNotes(data.analyst_notes || []);
+        if (data.disabled && data.message) showToast(data.message, 'error');
+    };
+
+    const runAdvancedShock = async () => {
+        const input = document.getElementById('advanced-shock-scenario');
+        const output = document.getElementById('advanced-shock-output');
+        const btn = document.getElementById('advanced-shock-btn');
+        const scenario = input?.value.trim();
+        if (!scenario || !getAdvancedToken()) {
+            showToast('Enter a shock scenario first', 'error');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Modeling...';
+        }
+        if (output) {
+            output.innerHTML = '<div class="pulse-skeleton h-32 rounded-2xl w-full"></div>';
+        }
+
+        const data = await advancedFetch('/advanced/shock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: state.currentStateCode, scenario })
+        });
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Run Shock Model';
+        }
+        if (!data) return;
+
+        renderAdvancedShock(data);
+        renderAdvancedMetrics(data.evidence || []);
+        renderAnalystNotes(data.analyst_notes || []);
+        if (data.disabled && data.message) showToast(data.message, 'error');
+    };
+
+    const renderAdvancedShock = (data) => {
+        const output = document.getElementById('advanced-shock-output');
+        if (!output) return;
+        const parsed = data.parsed_variables || {};
+        const impact = data.forecast_impact || {};
+        output.innerHTML = `
+            ${data.message ? `<div class="text-sm rounded-2xl p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200">${escapeHtml(data.message)}</div>` : ''}
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">TGP Impact</div>
+                    <div class="text-2xl font-black ${impact.tgp_delta_cpl >= 0 ? 'text-red-300' : 'text-emerald-300'}">${impact.tgp_delta_cpl >= 0 ? '+' : ''}${escapeHtml(impact.tgp_delta_cpl)}c</div>
+                </div>
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">Retail Impact</div>
+                    <div class="text-2xl font-black ${impact.retail_delta_cpl >= 0 ? 'text-red-300' : 'text-emerald-300'}">${impact.retail_delta_cpl >= 0 ? '+' : ''}${escapeHtml(impact.retail_delta_cpl)}c</div>
+                </div>
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">AUD/USD After</div>
+                    <div class="text-xl font-black text-white">${escapeHtml(impact.fx_after)}</div>
+                </div>
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">Brent After</div>
+                    <div class="text-xl font-black text-white">$${escapeHtml(impact.brent_after_usd)}</div>
+                </div>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Parsed Variables</div>
+                <div class="grid grid-cols-2 gap-2 text-sm text-slate-300">
+                    <div>AUD delta: <span class="text-white font-bold">${escapeHtml(parsed.aud_usd_delta)}</span></div>
+                    <div>Brent delta: <span class="text-white font-bold">${escapeHtml(parsed.brent_usd_delta)}</span></div>
+                    <div>Supply risk: <span class="text-white font-bold">${escapeHtml(parsed.supply_risk_level)}</span></div>
+                    <div>Demand risk: <span class="text-white font-bold">${escapeHtml(parsed.demand_risk_level)}</span></div>
+                </div>
+            </div>
+            <div class="text-sm leading-relaxed text-slate-300 bg-slate-950/40 border border-slate-800 rounded-2xl p-4">${escapeHtml(data.explanation)}</div>
+        `;
+    };
+
     // --- Route Planner ---
     const runPlanner = async () => {
         const start = document.getElementById('planner-start')?.value;
@@ -980,6 +1385,7 @@ const app = (function() {
             loadAnalytics();
             if(state.activeIntelTab === 'supply') { loadSupplyData(); loadTankers(); }
             if(state.activeIntelTab === 'news') loadSentiment();
+            if(state.activeIntelTab === 'advanced' && getAdvancedToken()) loadAdvancedBriefing(true);
         }
     };
 

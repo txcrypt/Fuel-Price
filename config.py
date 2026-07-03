@@ -7,6 +7,9 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 # Security
 FUEL_API_TOKEN = os.getenv("FUEL_API_TOKEN", "028c992c-dc6a-4509-a94b-db707308841d")
 AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "")
+ADVANCED_PASSWORD = os.getenv("ADVANCED_PASSWORD", "txcrypt")
+ADVANCED_SESSION_SECRET = os.getenv("ADVANCED_SESSION_SECRET", "")
+ADVANCED_SESSION_HOURS = int(os.getenv("ADVANCED_SESSION_HOURS", "8"))
 
 # Geolocation & Regional Config
 STATES = {
