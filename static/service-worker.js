@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fuel-ai-cache-v1';
+const CACHE_NAME = 'fuel-ai-cache-v2';
 const urlsToCache = [
   '/',
   '/static/index.html',
@@ -26,14 +26,22 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Network-first strategy for pages and assets to ensure we get updates
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
+        // Clone the response and update the cache
+        if (response && response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        return fetch(event.request);
+        return response;
+      })
+      .catch(() => {
+        // If network fails, fallback to cache
+        return caches.match(event.request);
       })
   );
 });
