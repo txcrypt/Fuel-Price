@@ -105,15 +105,6 @@ class DeepCycleModel:
         
         # Clean null values resulting from lags/std calculations
         df = df.ffill().bfill()
-        
-        # Exclude non-feature columns
-        self.feature_cols = [
-            c for c in df.columns if c not in [
-                'date', 'price_next', 'target_delta', 'is_hike', 'reported_at', 
-                'site_id', 'region', 'latitude', 'longitude', 'state', 'scraped_at'
-            ]
-        ]
-        
         return df
 
     def train(self, csv_path, city_name='brisbane'):
@@ -139,6 +130,14 @@ class DeepCycleModel:
         
         # Feature Engineering
         df_feats = self._feature_engineering(df_daily)
+        
+        # Exclude non-feature columns
+        self.feature_cols = [
+            c for c in df_feats.columns if c not in [
+                'date', 'price_next', 'target_delta', 'is_hike', 'reported_at', 
+                'site_id', 'region', 'latitude', 'longitude', 'state', 'scraped_at'
+            ]
+        ]
         
         # Set targets
         df_feats['price_next'] = df_feats['price_cpl'].shift(-1)
