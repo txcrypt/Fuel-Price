@@ -9,6 +9,10 @@ const app = (function() {
         currentStateCode: 'QLD',
         activeView: 'live',
         activeIntelTab: 'context',
+        bootstrap: null,
+        dataHealth: null,
+        technical: null,
+        profile: null,
         marketStatus: null,
         stations: [],
         analytics: null,
@@ -25,7 +29,9 @@ const app = (function() {
         tankerMap: null,
         miniChart: null,
         mainChart: null,
+        mapPriceFilter: 'all',
         driveWatchId: null,
+        driveActive: false,
         driveTargetStation: null
     };
 
@@ -81,6 +87,44 @@ const app = (function() {
         }[char]));
     };
 
+    const PROFILE_KEY = 'fuelai_profile';
+
+    const defaultProfile = () => ({
+        fuel: 'unleaded',
+        tankSize: 50,
+        homeSuburb: '',
+        workSuburb: '',
+        brands: '',
+        threshold: 180
+    });
+
+    const loadProfile = () => {
+        try {
+            state.profile = { ...defaultProfile(), ...(JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}) };
+        } catch {
+            state.profile = defaultProfile();
+        }
+        return state.profile;
+    };
+
+    const saveProfile = () => {
+        if (!state.profile) loadProfile();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(state.profile));
+        const saveState = document.getElementById('profile-save-state');
+        if (saveState) {
+            saveState.textContent = 'Saved locally';
+            setTimeout(() => { saveState.textContent = 'Saved locally'; }, 1200);
+        }
+        renderProfileSummary();
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) return '--';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '--';
+        return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
     // --- Core API Layer ---
     const fetchApi = async (endpoint, options = {}) => {
         try {
@@ -91,6 +135,43 @@ const app = (function() {
             console.error(`API Error on ${endpoint}:`, error);
             showToast(`Error loading data from ${endpoint}`, 'error');
             return null;
+        }
+    };
+
+    const initProfileControls = () => {
+        const profile = loadProfile();
+        const bindings = [
+            ['profile-fuel', 'fuel'],
+            ['profile-tank', 'tankSize'],
+            ['profile-home', 'homeSuburb'],
+            ['profile-work', 'workSuburb'],
+            ['profile-brands', 'brands'],
+            ['profile-threshold', 'threshold']
+        ];
+
+        bindings.forEach(([id, key]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = profile[key] ?? '';
+            el.addEventListener('change', () => {
+                const value = el.type === 'number' ? Number(el.value) : el.value;
+                state.profile[key] = value;
+                const saveState = document.getElementById('profile-save-state');
+                if (saveState) saveState.textContent = 'Saving...';
+                saveProfile();
+                loadBootstrap();
+            });
+        });
+
+        renderProfileSummary();
+    };
+
+    const renderProfileSummary = () => {
+        const profile = state.profile || loadProfile();
+        const summary = document.getElementById('profile-summary');
+        if (summary) {
+            const suburb = profile.homeSuburb ? ` near ${profile.homeSuburb}` : '';
+            summary.textContent = `${profile.fuel || 'unleaded'} fuel, ${profile.tankSize || 50}L tank${suburb}. Alert target ${profile.threshold || 180} cpl.`;
         }
     };
 
@@ -133,12 +214,41 @@ const app = (function() {
             });
         });
 
+        document.querySelectorAll('.map-filter').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                state.mapPriceFilter = e.currentTarget.dataset.filter || 'all';
+                document.querySelectorAll('.map-filter').forEach(filterBtn => {
+                    const active = filterBtn.dataset.filter === state.mapPriceFilter;
+                    filterBtn.classList.toggle('bg-primary-600/90', active);
+                    filterBtn.classList.toggle('text-white', active);
+                    filterBtn.classList.toggle('border-primary-400/50', active);
+                    filterBtn.classList.toggle('bg-slate-900/80', !active);
+                    filterBtn.classList.toggle('text-slate-300', !active);
+                    filterBtn.classList.toggle('border-slate-700/50', !active);
+                });
+                filterMap(document.getElementById('map-search')?.value.toLowerCase() || '');
+            });
+        });
+
+        const driveStartBtn = document.getElementById('drive-start-btn');
+        if (driveStartBtn) driveStartBtn.addEventListener('click', initDriveMode);
+
+        initProfileControls();
+
+        const sourceDataset = document.getElementById('source-dataset');
+        if (sourceDataset) {
+            sourceDataset.addEventListener('change', () => loadSourceExplorer());
+        }
+
         // State Selector
         const stateSelect = document.getElementById('state-selector');
         if (stateSelect) {
             stateSelect.addEventListener('change', (e) => {
                 state.currentStateCode = e.target.value;
                 state.advancedBriefing = null;
+                state.bootstrap = null;
+                state.dataHealth = null;
+                state.technical = null;
                 loadAllData();
             });
         }
@@ -159,14 +269,20 @@ const app = (function() {
         state.activeView = viewId;
         
         // View-specific actions
-        if (viewId === 'live' && state.map) {
-            setTimeout(() => state.map.invalidateSize(), 100);
+        if (viewId === 'live') {
+            loadBootstrap();
+        } else if (viewId === 'map') {
+            if (state.map) setTimeout(() => state.map.invalidateSize(), 100);
+            if (!state.stations.length) loadStations();
         } else if (viewId === 'drive') {
-            initDriveMode();
+            prepareDriveMode();
         } else if (viewId === 'intel') {
             // Lazy load intelligence components
             if (!state.context) loadMarketContext();
             if (!state.analytics) loadAnalytics();
+        } else if (viewId === 'more') {
+            renderProfileSummary();
+            loadDataHealth();
         }
         
         // Clean up
@@ -209,6 +325,9 @@ const app = (function() {
             loadTankers();
         } else if (tabId === 'news' && !state.sentiment) {
             loadSentiment();
+        } else if (tabId === 'technical') {
+            loadTechnicalSummary();
+            loadSourceExplorer();
         } else if (tabId === 'planner' && !state.plannerMap) {
             initPlannerMap();
         } else if (tabId === 'advanced') {
@@ -262,9 +381,12 @@ const app = (function() {
         
         state.stations.forEach(s => {
             const txt = (`${s.name} ${s.suburb} ${s.brand}`).toLowerCase();
-            if (term === "" || txt.includes(term)) {
+            const median = state.marketStatus?.current_median || 0;
+            const category = s.is_cheap === 1 ? 'cheap' : (median && s.price > median ? 'expensive' : 'fair');
+            const matchesPrice = state.mapPriceFilter === 'all' || state.mapPriceFilter === category;
+            if ((term === "" || txt.includes(term)) && matchesPrice) {
                 if (s.lat && s.lng) {
-                    const color = s.is_cheap === 1 ? '#10b981' : (s.price > state.marketStatus?.current_median ? '#ef4444' : '#f59e0b');
+                    const color = category === 'cheap' ? '#10b981' : (category === 'expensive' ? '#ef4444' : '#f59e0b');
                     const m = L.circleMarker([s.lat, s.lng], {
                         radius: 5, fillColor: color, color: '#0f172a', weight: 1.5, fillOpacity: 0.9
                     }).addTo(state.map);
@@ -440,6 +562,228 @@ const app = (function() {
     };
 
     // --- Data Loaders ---
+
+    const loadBootstrap = async () => {
+        const profile = state.profile || loadProfile();
+        const params = new URLSearchParams({
+            state: state.currentStateCode,
+            fuel: profile.fuel || 'unleaded',
+            tank_size_l: profile.tankSize || 50
+        });
+        if (profile.homeSuburb) params.set('suburb', profile.homeSuburb);
+
+        const data = await fetchApi(`/bootstrap?${params.toString()}`);
+        if (!data || data.ok === false) return;
+        state.bootstrap = data;
+        state.dataHealth = data.data_health;
+        renderToday(data);
+        renderDataHealth(data.data_health);
+    };
+
+    const toneClass = (tone) => {
+        if (tone === 'ok') return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30';
+        if (tone === 'alert') return 'bg-red-500/10 text-red-300 border-red-500/30';
+        if (tone === 'warning') return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
+        return 'bg-slate-800 text-slate-300 border-slate-700';
+    };
+
+    const renderToday = (data) => {
+        const rec = data.recommendation || {};
+        const decision = document.getElementById('today-decision');
+        if (decision) {
+            decision.textContent = rec.decision_label || '--';
+            decision.className = decision.className.replace(/text-(red|amber|emerald|blue|white)-[0-9]+|text-white/g, '').trim();
+            const color = rec.decision === 'FILL_NOW' ? 'text-emerald-300' : rec.decision === 'WAIT' ? 'text-blue-300' : rec.decision === 'CHECK_DATA' ? 'text-amber-300' : 'text-white';
+            decision.classList.add(color);
+        }
+
+        const answerState = document.getElementById('today-answer-state');
+        if (answerState) {
+            answerState.textContent = rec.answer_state || 'limited evidence';
+            const tone = rec.answer_state === 'confident' ? 'ok' : rec.answer_state === 'data stale' ? 'warning' : 'neutral';
+            answerState.className = `text-xs font-bold border rounded-full px-3 py-1 ${toneClass(tone)}`;
+        }
+
+        const confidence = document.getElementById('today-confidence');
+        if (confidence) confidence.textContent = `${Math.round(rec.confidence || 0)}%`;
+
+        const saving = document.getElementById('today-saving');
+        if (saving) saving.textContent = `$${Number(rec.expected_saving?.amount || 0).toFixed(2)}`;
+
+        const reason = document.getElementById('today-reason');
+        if (reason) reason.textContent = rec.reason || 'No recommendation is available yet.';
+
+        const generated = document.getElementById('today-generated');
+        if (generated) generated.textContent = formatDateTime(data.generated_at || rec.generated_at);
+
+        const chips = document.getElementById('status-chips');
+        if (chips) {
+            chips.innerHTML = (data.status_chips || []).map(chip => `
+                <span class="text-xs border rounded-full px-3 py-1 ${toneClass(chip.tone)}">${escapeHtml(chip.label)}</span>
+            `).join('');
+        }
+
+        const cheapest = document.getElementById('today-cheapest');
+        if (cheapest) {
+            if (rec.cheapest_option) {
+                const s = rec.cheapest_option;
+                cheapest.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-white font-bold">${escapeHtml(s.name)}</div>
+                            <div class="text-xs text-slate-400 mt-1">${escapeHtml(s.brand)} &bull; ${escapeHtml(s.suburb)}</div>
+                        </div>
+                        <div class="text-2xl font-black text-emerald-300">${formatPrice(s.price_cpl)}<span class="text-xs">c</span></div>
+                    </div>
+                `;
+            } else {
+                cheapest.textContent = 'No station option available.';
+            }
+        }
+
+        const evidence = document.getElementById('today-evidence');
+        if (evidence) {
+            evidence.innerHTML = (rec.evidence || []).map(item => `
+                <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">${escapeHtml(item.label)}</div>
+                        <span class="text-[10px] text-slate-400 border border-slate-700 rounded-full px-2 py-0.5">${escapeHtml(item.freshness)}</span>
+                    </div>
+                    <div class="text-xl font-black text-white mt-1">${escapeHtml(item.value)}</div>
+                    <div class="text-xs text-slate-400 mt-2 leading-relaxed">${escapeHtml(item.detail)}</div>
+                </div>
+            `).join('');
+        }
+
+        const alerts = document.getElementById('today-alerts');
+        if (alerts) {
+            alerts.innerHTML = (data.alerts || []).map(alert => `
+                <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                    <div class="font-bold text-white">${escapeHtml(alert.title)}</div>
+                    <div class="text-sm text-slate-400 mt-1 leading-relaxed">${escapeHtml(alert.detail)}</div>
+                </div>
+            `).join('');
+        }
+    };
+
+    const loadDataHealth = async () => {
+        const data = await fetchApi(`/data-health?state=${state.currentStateCode}`);
+        if (!data || data.ok === false) return;
+        state.dataHealth = data;
+        renderDataHealth(data);
+    };
+
+    const renderDataHealth = (data) => {
+        if (!data) return;
+        const status = document.getElementById('data-quality-status');
+        if (status) {
+            const tone = data.overall_status === 'live' ? 'ok' : data.overall_status === 'offline' ? 'alert' : 'warning';
+            status.textContent = data.overall_status || 'unknown';
+            status.className = `text-xs border px-3 py-1 rounded-full ${toneClass(tone)}`;
+        }
+
+        const sources = document.getElementById('data-quality-sources');
+        if (sources) {
+            sources.innerHTML = (data.sources || []).map(source => {
+                const tone = source.status === 'fresh' ? 'ok' : source.status === 'unavailable' ? 'alert' : 'warning';
+                return `
+                    <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                        <div class="flex justify-between gap-3">
+                            <div>
+                                <div class="font-bold text-white">${escapeHtml(source.name)}</div>
+                                <div class="text-xs text-slate-500 mt-1">${escapeHtml(source.source || '')}</div>
+                            </div>
+                            <span class="h-fit text-[10px] border rounded-full px-2 py-1 ${toneClass(tone)}">${escapeHtml(source.status)}</span>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
+                            <div>Rows: <span class="text-white font-bold">${source.rows ?? '--'}</span></div>
+                            <div>Age: <span class="text-white font-bold">${source.age_minutes ?? '--'} min</span></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const moreHealth = document.getElementById('more-health');
+        if (moreHealth) {
+            const deps = data.dependencies || {};
+            moreHealth.innerHTML = [
+                ['Overall', data.overall_status],
+                ['DB', deps.database_available ? 'Available' : 'Unavailable'],
+                ['Forecast model', deps.model_loaded ? 'Loaded' : 'Fallback'],
+                ['Gemini', deps.gemini_available ? 'Ready' : 'Disabled'],
+                ['Fuel API token', deps.fuel_api_token_configured ? 'Configured' : 'Missing']
+            ].map(([label, value]) => `
+                <div class="flex items-center justify-between bg-slate-950/45 border border-slate-800 rounded-2xl p-3">
+                    <span class="text-sm text-slate-400">${escapeHtml(label)}</span>
+                    <span class="text-sm font-bold text-white">${escapeHtml(value)}</span>
+                </div>
+            `).join('');
+        }
+    };
+
+    const loadTechnicalSummary = async () => {
+        const data = await fetchApi(`/technical/summary?state=${state.currentStateCode}`);
+        if (!data || data.ok === false) return;
+        state.technical = data;
+        renderTechnicalSummary(data);
+    };
+
+    const renderTechnicalSummary = (data) => {
+        const generated = document.getElementById('technical-generated');
+        if (generated) generated.textContent = formatDateTime(data.generated_at);
+
+        const internals = data.market_internals || {};
+        const cards = [
+            ['Retail Avg', `${formatPrice(internals.retail_avg_cpl)}c`],
+            ['TGP', `${formatPrice(internals.tgp_cpl)}c`],
+            ['Retail/TGP Spread', internals.retail_tgp_spread_cpl == null ? '--' : `${formatPrice(internals.retail_tgp_spread_cpl)}c`],
+            ['Cycle', internals.cycle_phase || 'UNKNOWN'],
+            ['Dispersion', internals.station_dispersion_cpl == null ? '--' : `${formatPrice(internals.station_dispersion_cpl)}c`]
+        ];
+        const container = document.getElementById('technical-internals');
+        if (container) {
+            container.innerHTML = cards.map(([label, value]) => `
+                <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">${escapeHtml(label)}</div>
+                    <div class="text-xl font-black text-white mt-1">${escapeHtml(value)}</div>
+                </div>
+            `).join('');
+        }
+
+        renderDataHealth(data.data_quality);
+
+        const notes = document.getElementById('technical-notes');
+        if (notes) {
+            notes.innerHTML = (data.analyst_notes || []).map(note => `
+                <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                    <div class="font-bold text-white">${escapeHtml(note.title)}</div>
+                    <div class="text-sm text-slate-400 mt-1">${escapeHtml(note.detail)}</div>
+                </div>
+            `).join('');
+        }
+    };
+
+    const loadSourceExplorer = async () => {
+        const selector = document.getElementById('source-dataset');
+        const dataset = selector?.value || 'snapshot';
+        const exportLink = document.getElementById('source-export-link');
+        if (exportLink) exportLink.href = `/api/technical/export?state=${state.currentStateCode}&dataset=${encodeURIComponent(dataset)}`;
+
+        const data = await fetchApi(`/technical/source-explorer?state=${state.currentStateCode}&dataset=${encodeURIComponent(dataset)}&limit=50`);
+        if (!data || data.ok === false) return;
+        const head = document.getElementById('source-table-head');
+        const body = document.getElementById('source-table-body');
+        if (!head || !body) return;
+
+        const columns = (data.columns || []).slice(0, 8);
+        head.innerHTML = `<tr>${columns.map(col => `<th class="px-3 py-2 font-bold">${escapeHtml(col)}</th>`).join('')}</tr>`;
+        body.innerHTML = (data.rows || []).slice(0, 50).map(row => `
+            <tr class="hover:bg-slate-800/40">
+                ${columns.map(col => `<td class="px-3 py-2 text-slate-300 whitespace-nowrap">${escapeHtml(row[col])}</td>`).join('')}
+            </tr>
+        `).join('');
+    };
     
     const loadMarketStatus = async () => {
         const data = await fetchApi(`/market-status?state=${state.currentStateCode}`);
@@ -1279,11 +1623,27 @@ const app = (function() {
     };
 
     // --- Drive Mode ---
+    const prepareDriveMode = () => {
+        const status = document.getElementById('drive-permission-status');
+        const preflight = document.getElementById('drive-preflight');
+        if (preflight && !state.driveActive) preflight.classList.remove('hidden');
+        if (status && !state.driveActive) status.textContent = 'Ready to request location permission.';
+    };
+
     const initDriveMode = async () => {
+        if (state.driveActive) return;
         if (!navigator.geolocation) {
             showToast("Geolocation not supported by browser", "error");
+            const status = document.getElementById('drive-permission-status');
+            if (status) status.textContent = 'Geolocation is not supported by this browser.';
             return;
         }
+
+        state.driveActive = true;
+        const preflight = document.getElementById('drive-preflight');
+        const permissionStatus = document.getElementById('drive-permission-status');
+        if (preflight) preflight.classList.add('hidden');
+        if (permissionStatus) permissionStatus.textContent = 'Location watch active.';
 
         try {
             if ('wakeLock' in navigator) {
@@ -1355,6 +1715,11 @@ const app = (function() {
         }, 
         (err) => {
             console.error("GPS Error:", err);
+            state.driveActive = false;
+            if (preflight) preflight.classList.remove('hidden');
+            if (permissionStatus) permissionStatus.textContent = err.code === 1
+                ? 'Location permission was denied. Use Map or enter a suburb instead.'
+                : 'Location could not be acquired. Try again when GPS is available.';
             if(accEl) {
                 accEl.textContent = "Lost Signal";
                 accEl.className = "text-sm font-bold text-red-500 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 inline-block";
@@ -1368,6 +1733,7 @@ const app = (function() {
             navigator.geolocation.clearWatch(state.driveWatchId);
             state.driveWatchId = null;
         }
+        state.driveActive = false;
         if (state.wakeLock) {
             state.wakeLock.release().catch(console.error);
             state.wakeLock = null;
@@ -1376,6 +1742,7 @@ const app = (function() {
 
     // --- Master Initialization ---
     const loadAllData = () => {
+        loadBootstrap();
         loadMarketStatus();
         loadStations();
         
@@ -1383,13 +1750,18 @@ const app = (function() {
         if (state.activeView === 'intel') {
             loadMarketContext();
             loadAnalytics();
+            if(state.activeIntelTab === 'technical') { loadTechnicalSummary(); loadSourceExplorer(); }
             if(state.activeIntelTab === 'supply') { loadSupplyData(); loadTankers(); }
             if(state.activeIntelTab === 'news') loadSentiment();
             if(state.activeIntelTab === 'advanced' && getAdvancedToken()) loadAdvancedBriefing(true);
+        } else if (state.activeView === 'more') {
+            loadDataHealth();
         }
     };
 
     const initLiveView = () => {
+        loadProfile();
+        renderProfileSummary();
         initMaps();
         loadAllData();
         setInterval(loadAllData, CONFIG.refreshInterval);

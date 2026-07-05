@@ -24,9 +24,9 @@ from math import radians, cos, sin, asin, sqrt
 from datetime import datetime, timedelta
 from functools import lru_cache
 import threading
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
@@ -109,6 +109,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+_rate_limit_buckets: dict[str, list[float]] = {}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "ok": False,
+            "code": f"HTTP_{exc.status_code}",
+            "message": detail,
+            "details": exc.detail if not isinstance(exc.detail, str) else None,
+            "generated_at": datetime.now().isoformat(),
+        },
+    )
 
 # --- File Paths ---
 SNAPSHOT_FILE = os.path.join(config.BASE_DIR, "live_snapshot.csv")
@@ -210,11 +227,13 @@ async def background_refresher():
                     trend = tgp_forecast.analyze_trend(city=capital)
                     if db and trend.get('current_tgp'):
                         db.save_tgp(datetime.now().strftime('%Y-%m-%d'), capital, trend['current_tgp'])
-                    if db and trend.get('current_oil'):
+                    oil = _trend_value(trend, "current_oil", "oil_price_usd", fallback=0)
+                    fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0.65)
+                    if db and oil:
                         db.save_market_data(
                             datetime.now().strftime('%Y-%m-%d'),
-                            trend.get('current_oil', 0),
-                            trend.get('current_fx', 0.65),
+                            oil,
+                            fx,
                             trend.get('current_mogas', 0)
                         )
             except Exception as e:
@@ -273,6 +292,49 @@ def haversine(lon1, lat1, lon2, lat2):
     return 6371 * 2 * asin(sqrt(a))
 
 
+def _safe_float(value, fallback=None):
+    try:
+        if value is None:
+            return fallback
+        number = float(value)
+        if np.isnan(number) or np.isinf(number):
+            return fallback
+        return number
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _rate_limit(request: Request, bucket: str, max_requests: int, window_seconds: int) -> None:
+    client_host = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not client_host and request.client:
+        client_host = request.client.host
+    client_host = client_host or "unknown"
+    key = f"{bucket}:{client_host}"
+    now = time.time()
+    window_start = now - window_seconds
+    recent = [ts for ts in _rate_limit_buckets.get(key, []) if ts >= window_start]
+    if len(recent) >= max_requests:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again shortly.")
+    recent.append(now)
+    _rate_limit_buckets[key] = recent
+
+
+def _snapshot_age_minutes() -> float | None:
+    if not os.path.exists(SNAPSHOT_FILE):
+        return None
+    return round((time.time() - os.path.getmtime(SNAPSHOT_FILE)) / 60, 1)
+
+
+def _freshness_status(age_minutes: float | None, stale_after: int = 90, degraded_after: int = 240) -> str:
+    if age_minutes is None:
+        return "unavailable"
+    if age_minutes > degraded_after:
+        return "degraded"
+    if age_minutes > stale_after:
+        return "stale"
+    return "fresh"
+
+
 @lru_cache(maxsize=1)
 def get_cached_metadata():
     """Load station metadata from CSV."""
@@ -286,6 +348,16 @@ def get_cached_metadata():
 
 def load_live_data_latest(state="QLD"):
     """Load the most recent live snapshot data."""
+    if db and state:
+        try:
+            db_df = db.get_latest_snapshot(state.upper())
+            if db_df is not None and not db_df.empty:
+                db_df = db_df.rename(columns={"lat": "latitude", "lng": "longitude"})
+                db_df["site_id"] = db_df["site_id"].astype(str)
+                return db_df
+        except Exception as e:
+            logger.debug("SQLite latest snapshot fallback to CSV: %s", e)
+
     if os.path.exists(SNAPSHOT_FILE):
         try:
             df = pd.read_csv(SNAPSHOT_FILE)
@@ -648,6 +720,453 @@ def _enrich_live_df(live_df):
     return live_df
 
 
+def _trend_value(trend: dict, *keys: str, fallback=None):
+    for key in keys:
+        value = trend.get(key)
+        if value is not None:
+            return value
+    return fallback
+
+
+def _latest_scrape_time(live_df: pd.DataFrame) -> datetime | None:
+    if live_df is None or live_df.empty or "scraped_at" not in live_df.columns:
+        return None
+    parsed = pd.to_datetime(live_df["scraped_at"], errors="coerce").dropna()
+    if parsed.empty:
+        return None
+    value = parsed.max()
+    if isinstance(value, pd.Timestamp):
+        return value.to_pydatetime()
+    return value
+
+
+def _serialise_station(row: pd.Series | None) -> dict | None:
+    if row is None:
+        return None
+    return clean_nan({
+        "site_id": str(row.get("site_id", "")),
+        "name": str(row.get("name", "Station")),
+        "brand": str(row.get("brand", "")),
+        "suburb": str(row.get("suburb", "")),
+        "price_cpl": round(_safe_float(row.get("price_cpl"), 0.0), 1),
+        "latitude": _safe_float(row.get("latitude")),
+        "longitude": _safe_float(row.get("longitude")),
+        "reported_at": row.get("reported_at"),
+    })
+
+
+def _build_recommendation_payload(
+    state: str,
+    fuel: str = "unleaded",
+    suburb: str | None = None,
+    tank_size_l: float = 50.0,
+) -> dict:
+    state = _normalise_api_state(state)
+    capital = config.STATES[state]["capital"]
+    tank_size_l = max(5.0, min(200.0, _safe_float(tank_size_l, 50.0)))
+
+    live_df = _enrich_live_df(load_live_data_latest(state=state))
+    daily_df = _get_daily_data(state)
+    trend = tgp_forecast.analyze_trend(city=capital)
+    snapshot_age = _snapshot_age_minutes()
+    freshness = _freshness_status(snapshot_age)
+
+    if live_df is None or live_df.empty or "price_cpl" not in live_df.columns:
+        return {
+            "ok": True,
+            "state": state,
+            "fuel": fuel,
+            "decision": "CHECK_DATA",
+            "decision_label": "Check Data",
+            "confidence": 0,
+            "expected_saving": {"amount": 0.0, "basis": "No live station data available."},
+            "cheapest_option": None,
+            "reason": "Live station prices are unavailable, so Fuel AI cannot make a reliable fill/wait recommendation.",
+            "answer_state": "cannot answer from available data",
+            "evidence": [],
+            "freshness": {"status": freshness, "snapshot_age_minutes": snapshot_age},
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    live_df = live_df.copy()
+    live_df["price_cpl"] = pd.to_numeric(live_df["price_cpl"], errors="coerce")
+    live_df = live_df.dropna(subset=["price_cpl"])
+    if live_df.empty:
+        return {
+            "ok": True,
+            "state": state,
+            "fuel": fuel,
+            "decision": "CHECK_DATA",
+            "decision_label": "Check Data",
+            "confidence": 0,
+            "expected_saving": {"amount": 0.0, "basis": "No valid live station prices available."},
+            "cheapest_option": None,
+            "reason": "Live station prices failed validation, so Fuel AI cannot make a reliable recommendation.",
+            "answer_state": "cannot answer from available data",
+            "evidence": [],
+            "freshness": {"status": freshness, "snapshot_age_minutes": snapshot_age},
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    local_df = live_df
+    suburb_clean = (suburb or "").strip()
+    if suburb_clean and "suburb" in live_df.columns:
+        matched = live_df[live_df["suburb"].astype(str).str.lower() == suburb_clean.lower()]
+        if not matched.empty:
+            local_df = matched
+
+    cheapest_row = local_df.sort_values(["price_cpl"]).iloc[0]
+    cheapest = _serialise_station(cheapest_row)
+    current_avg = float(live_df["price_cpl"].mean())
+    current_median = float(live_df["price_cpl"].median())
+    local_median = float(local_df["price_cpl"].median())
+    spread_cpl = float(live_df["price_cpl"].max() - live_df["price_cpl"].min())
+    cheapest_delta_cpl = max(0.0, current_median - float(cheapest_row["price_cpl"]))
+
+    current_tgp = _safe_float(_trend_value(trend, "current_tgp"), 165.0)
+    margin_cpl = current_median - current_tgp
+    oil = _trend_value(trend, "current_oil", "oil_price_usd", fallback=0)
+    fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0)
+    mogas = _trend_value(trend, "current_mogas", fallback=0)
+
+    cycle_info = None
+    if cycle_detector and daily_df is not None and len(daily_df) > 5:
+        try:
+            cycle_info = cycle_detector.detect_current_regime(daily_df["price_cpl"])
+        except Exception as e:
+            logger.debug("Recommendation cycle detection failed: %s", e)
+    cycle_info = cycle_info or {"phase": "UNKNOWN", "confidence": 0, "estimated_days_remaining": 0}
+
+    hike_prob = 0.0
+    forecast_min = None
+    forecast_max = None
+    forecast_delta_7d = 0.0
+    if daily_df is not None and not daily_df.empty and ai_model:
+        try:
+            ai_input = daily_df.rename(columns={"day": "date"}).copy()
+            today = pd.Timestamp.now().normalize()
+            if ai_input["date"].max() < today and current_median > 0:
+                ai_input = pd.concat(
+                    [ai_input, pd.DataFrame({"date": [today], "price_cpl": [current_median]})],
+                    ignore_index=True,
+                )
+            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+            if future_df is not None and not future_df.empty:
+                first = future_df.iloc[0]
+                hike_prob = _safe_float(first.get("hike_probability"), 0.0) * 100
+                prices = pd.to_numeric(future_df["predicted_price"], errors="coerce").dropna()
+                if not prices.empty:
+                    forecast_min = float(prices.min())
+                    forecast_max = float(prices.max())
+                    forecast_delta_7d = float(prices.iloc[min(6, len(prices) - 1)] - current_median)
+        except Exception as e:
+            logger.debug("Recommendation forecast failed: %s", e)
+
+    phase = str(cycle_info.get("phase", "UNKNOWN")).upper()
+    cycle_confidence = _safe_float(cycle_info.get("confidence"), 0.0)
+    decision = "COMPARE"
+    decision_label = "Compare Nearby"
+
+    if hike_prob >= 65 or (phase == "RESTORATION" and cycle_confidence >= 0.55):
+        decision = "FILL_NOW"
+        decision_label = "Fill Now"
+    elif forecast_min is not None and forecast_min <= current_median - 2.0 and hike_prob < 50:
+        decision = "WAIT"
+        decision_label = "Wait"
+    elif margin_cpl <= 10 or cheapest_delta_cpl >= 8:
+        decision = "FILL_NOW"
+        decision_label = "Fill Now"
+
+    if decision == "FILL_NOW":
+        upside_cpl = max(cheapest_delta_cpl, (forecast_max or current_median) - float(cheapest_row["price_cpl"]), 0)
+        saving_amount = round(upside_cpl * tank_size_l / 100, 2)
+        saving_basis = "Estimated against forecast high or the current market median."
+    elif decision == "WAIT":
+        downside_cpl = max(current_median - (forecast_min or current_median), 0)
+        saving_amount = round(downside_cpl * tank_size_l / 100, 2)
+        saving_basis = "Estimated from the forecast low over the next 14 days."
+    else:
+        saving_amount = round(cheapest_delta_cpl * tank_size_l / 100, 2)
+        saving_basis = "Estimated from choosing the cheapest visible station now."
+
+    confidence = 45
+    if MODEL_LOADED:
+        confidence += 20
+    if freshness == "fresh":
+        confidence += 15
+    elif freshness == "stale":
+        confidence -= 10
+    if len(live_df) >= 50:
+        confidence += 10
+    if cycle_confidence:
+        confidence += int(cycle_confidence * 10)
+    confidence = max(10, min(95, confidence))
+    if freshness in {"degraded", "unavailable"}:
+        confidence = min(confidence, 45)
+
+    reason_parts = []
+    if decision == "FILL_NOW":
+        reason_parts.append(f"Hike risk is {hike_prob:.0f}% and the best visible price is {float(cheapest_row['price_cpl']):.1f} cpl.")
+    elif decision == "WAIT":
+        reason_parts.append(f"The 14-day forecast shows prices could ease toward {forecast_min:.1f} cpl.")
+    else:
+        reason_parts.append(f"The market signal is mixed, but the station spread is {spread_cpl:.1f} cpl.")
+    reason_parts.append(f"Retail median is {margin_cpl:.1f} cpl above TGP and cycle phase is {phase}.")
+    if freshness != "fresh":
+        reason_parts.append(f"Data is {freshness}, so verify the station price before driving.")
+
+    answer_state = "confident" if confidence >= 70 and freshness == "fresh" else "limited evidence"
+    if freshness in {"stale", "degraded"}:
+        answer_state = "data stale"
+
+    evidence = [
+        {
+            "label": "Hike probability",
+            "value": f"{hike_prob:.0f}%",
+            "detail": "Forecast probability for the next movement.",
+            "source": "DeepCycle model" if ai_model else "Fallback heuristic",
+            "freshness": freshness,
+        },
+        {
+            "label": "TGP margin",
+            "value": f"{margin_cpl:.1f} cpl",
+            "detail": f"Retail median {current_median:.1f} cpl vs TGP {current_tgp:.1f} cpl.",
+            "source": "AIP/Viva TGP plus live station data",
+            "freshness": freshness,
+        },
+        {
+            "label": "Station spread",
+            "value": f"{spread_cpl:.1f} cpl",
+            "detail": f"Cheapest visible station is {cheapest_delta_cpl:.1f} cpl below median.",
+            "source": "Latest station snapshot",
+            "freshness": freshness,
+        },
+        {
+            "label": "Cycle phase",
+            "value": phase,
+            "detail": f"Confidence {cycle_confidence:.2f}; estimated days remaining {cycle_info.get('estimated_days_remaining', 0)}.",
+            "source": "Cycle detector",
+            "freshness": freshness,
+        },
+    ]
+
+    return clean_nan({
+        "ok": True,
+        "state": state,
+        "fuel": fuel,
+        "suburb": suburb_clean,
+        "tank_size_l": tank_size_l,
+        "decision": decision,
+        "decision_label": decision_label,
+        "confidence": confidence,
+        "expected_saving": {"amount": saving_amount, "basis": saving_basis},
+        "cheapest_option": cheapest,
+        "reason": " ".join(reason_parts),
+        "answer_state": answer_state,
+        "evidence": evidence,
+        "metrics": {
+            "current_avg_cpl": round(current_avg, 1),
+            "current_median_cpl": round(current_median, 1),
+            "local_median_cpl": round(local_median, 1),
+            "current_tgp_cpl": round(current_tgp, 1),
+            "margin_cpl": round(margin_cpl, 1),
+            "hike_probability": round(hike_prob, 1),
+            "forecast_min_cpl": round(forecast_min, 1) if forecast_min is not None else None,
+            "forecast_max_cpl": round(forecast_max, 1) if forecast_max is not None else None,
+            "forecast_delta_7d_cpl": round(forecast_delta_7d, 1),
+            "station_count": int(len(live_df)),
+            "oil_usd": oil,
+            "aud_usd": fx,
+            "mogas": mogas,
+        },
+        "cycle": cycle_info,
+        "freshness": {
+            "status": freshness,
+            "snapshot_age_minutes": snapshot_age,
+            "latest_scrape_time": _latest_scrape_time(live_df).isoformat() if _latest_scrape_time(live_df) else None,
+        },
+        "generated_at": datetime.now().isoformat(),
+    })
+
+
+def _count_csv_rows(path: str) -> int | None:
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            rows = sum(1 for _ in handle)
+        return max(rows - 1, 0)
+    except Exception:
+        return None
+
+
+def _build_data_health_payload(state: str = "QLD") -> dict:
+    state = _normalise_api_state(state)
+    live_df = _enrich_live_df(load_live_data_latest(state=state))
+    daily_df = _get_daily_data(state)
+    snapshot_age = _snapshot_age_minutes()
+    snapshot_status = _freshness_status(snapshot_age)
+    latest_scrape = _latest_scrape_time(live_df)
+
+    daily_status = "unavailable"
+    latest_daily = None
+    if daily_df is not None and not daily_df.empty:
+        latest_day = pd.to_datetime(daily_df["day"], errors="coerce").dropna().max()
+        if isinstance(latest_day, pd.Timestamp):
+            latest_daily = latest_day.strftime("%Y-%m-%d")
+            age_days = (pd.Timestamp.now().normalize() - latest_day.normalize()).days
+            daily_status = "fresh" if age_days <= 1 else "stale" if age_days <= 7 else "degraded"
+
+    live_count = int(len(live_df)) if live_df is not None else 0
+    metadata = get_cached_metadata()
+    fallbacks = []
+    if snapshot_status != "fresh":
+        fallbacks.append("latest_snapshot_stale_or_missing")
+    if not config.FUEL_API_TOKEN and state != "WA":
+        fallbacks.append("fuel_api_token_missing")
+    if not advanced_ai.available:
+        fallbacks.append("gemini_disabled")
+    if daily_status != "fresh":
+        fallbacks.append("daily_stats_not_fresh")
+
+    overall = "live"
+    if snapshot_status in {"stale", "degraded"} or daily_status in {"stale", "degraded"}:
+        overall = "degraded"
+    if live_count == 0:
+        overall = "offline"
+
+    sources = [
+        {
+            "name": "Live station snapshot",
+            "status": snapshot_status,
+            "rows": live_count,
+            "latest_observation": latest_scrape.isoformat() if latest_scrape else None,
+            "age_minutes": snapshot_age,
+            "source": "SQLite latest snapshot with CSV fallback",
+        },
+        {
+            "name": "Daily price aggregates",
+            "status": daily_status,
+            "rows": int(len(daily_df)) if daily_df is not None else 0,
+            "latest_observation": latest_daily,
+            "source": "SQLite daily_stats with CSV/cache fallback",
+        },
+        {
+            "name": "Station metadata",
+            "status": "fresh" if not metadata.empty else "unavailable",
+            "rows": int(len(metadata)) if metadata is not None else 0,
+            "source": os.path.basename(config.METADATA_FILE),
+        },
+        {
+            "name": "Gemini analyst",
+            "status": "fresh" if advanced_ai.available else "unavailable",
+            "rows": None,
+            "source": "Backend-only GEMINI_API_KEY",
+            "fallback_reason": "" if advanced_ai.available else advanced_ai.disabled_reason,
+        },
+    ]
+
+    return clean_nan({
+        "ok": True,
+        "state": state,
+        "overall_status": overall,
+        "generated_at": datetime.now().isoformat(),
+        "sources": sources,
+        "fallback_usage": fallbacks,
+        "row_counts": {
+            "latest_snapshot": live_count,
+            "daily_stats": int(len(daily_df)) if daily_df is not None else 0,
+            "station_metadata": int(len(metadata)) if metadata is not None else 0,
+            "snapshot_csv": _count_csv_rows(SNAPSHOT_FILE),
+            "history_csv": _count_csv_rows(HISTORY_FILE),
+        },
+        "dependencies": {
+            "fuel_api_token_configured": bool(config.FUEL_API_TOKEN),
+            "database_available": db is not None,
+            "ai_model_available": ai_model is not None,
+            "model_loaded": MODEL_LOADED,
+            "cycle_detector_available": cycle_detector is not None,
+            "market_context_available": market_context is not None,
+            "gemini_available": advanced_ai.available,
+            "cors_origins": config.CORS_ORIGINS,
+        },
+        "flags": {
+            "stale": snapshot_status == "stale" or daily_status == "stale",
+            "degraded": overall in {"degraded", "offline"},
+            "offline": overall == "offline",
+        },
+    })
+
+
+def _build_status_chips(health: dict, recommendation: dict) -> list[dict]:
+    chips = []
+    overall = health.get("overall_status", "degraded")
+    chips.append({"label": overall.title(), "tone": "ok" if overall == "live" else "warning" if overall == "degraded" else "alert"})
+    freshness = recommendation.get("freshness", {}).get("status", "unavailable")
+    chips.append({"label": freshness.title(), "tone": "ok" if freshness == "fresh" else "warning"})
+    chips.append({"label": "AI Ready" if advanced_ai.available else "AI Disabled", "tone": "ok" if advanced_ai.available else "warning"})
+    chips.append({"label": "Advanced Locked", "tone": "neutral"})
+    return chips
+
+
+def _build_alerts(recommendation: dict, health: dict) -> list[dict]:
+    alerts = []
+    if recommendation.get("decision") == "FILL_NOW" and recommendation.get("confidence", 0) >= 65:
+        alerts.append({
+            "type": "price_hike_likely",
+            "title": "Price hike likely",
+            "detail": recommendation.get("reason", "Fuel prices may rise soon."),
+        })
+    cheapest = recommendation.get("cheapest_option")
+    if cheapest:
+        alerts.append({
+            "type": "cheap_fuel_nearby",
+            "title": "Cheap visible station",
+            "detail": f"{cheapest.get('name')} is showing {cheapest.get('price_cpl')} cpl in {cheapest.get('suburb')}.",
+        })
+    if health.get("flags", {}).get("stale"):
+        alerts.append({
+            "type": "data_stale",
+            "title": "Data is stale",
+            "detail": "Recommendation confidence is capped until the next successful refresh.",
+        })
+    if not alerts:
+        alerts.append({
+            "type": "morning_briefing_ready",
+            "title": "Morning briefing ready",
+            "detail": "Open Intelligence for market context and technical evidence.",
+        })
+    return alerts[:4]
+
+
+def _build_technical_summary(state: str = "QLD") -> dict:
+    state = _normalise_api_state(state)
+    evidence = _build_advanced_evidence(state)
+    health = _build_data_health_payload(state)
+    status = evidence.get("market_status", {})
+    ticker = status.get("ticker", {})
+    current_avg = _safe_float(status.get("current_avg"), 0.0)
+    current_tgp = _safe_float(ticker.get("tgp"), 0.0)
+    spread = evidence.get("live_stations", {}).get("dispersion_cpl")
+    return clean_nan({
+        "ok": True,
+        "state": state,
+        "generated_at": datetime.now().isoformat(),
+        "market_internals": {
+            "retail_avg_cpl": current_avg,
+            "tgp_cpl": current_tgp,
+            "retail_tgp_spread_cpl": round(current_avg - current_tgp, 1) if current_avg and current_tgp else None,
+            "cycle_phase": status.get("cycle", {}).get("phase", "UNKNOWN"),
+            "cycle_confidence": status.get("cycle", {}).get("confidence", 0),
+            "station_dispersion_cpl": spread,
+            "model_loaded": MODEL_LOADED,
+        },
+        "data_quality": health,
+        "analyst_notes": evidence.get("analyst_notes", []),
+        "source_cards": _advanced_source_cards(evidence),
+    })
+
+
 # ============================================================
 # API ENDPOINTS
 # ============================================================
@@ -667,9 +1186,182 @@ class AdvancedShockRequest(BaseModel):
     scenario: str
 
 
+@app.get("/api/recommendation")
+async def get_recommendation(
+    request: Request,
+    state: str = "QLD",
+    fuel: str = "unleaded",
+    suburb: str | None = None,
+    tank_size_l: float = 50.0,
+):
+    """Normal-user fill/wait recommendation with local evidence cards."""
+    _rate_limit(request, "recommendation", 80, 60)
+    try:
+        return await run_in_threadpool(_build_recommendation_payload, state, fuel, suburb, tank_size_l)
+    except Exception as e:
+        logger.error("recommendation error: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "code": "RECOMMENDATION_ERROR",
+                "message": "Unable to build a fuel recommendation.",
+                "details": str(e),
+                "generated_at": datetime.now().isoformat(),
+            },
+        )
+
+
+@app.get("/api/data-health")
+async def get_data_health(request: Request, state: str = "QLD"):
+    """Source freshness, fallback usage, row counts, and dependency checks."""
+    _rate_limit(request, "data_health", 80, 60)
+    try:
+        return await run_in_threadpool(_build_data_health_payload, state)
+    except Exception as e:
+        logger.error("data-health error: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "code": "DATA_HEALTH_ERROR",
+                "message": "Unable to inspect data health.",
+                "details": str(e),
+                "generated_at": datetime.now().isoformat(),
+            },
+        )
+
+
+@app.get("/api/bootstrap")
+async def get_bootstrap(
+    request: Request,
+    state: str = "QLD",
+    fuel: str = "unleaded",
+    suburb: str | None = None,
+    tank_size_l: float = 50.0,
+):
+    """Initial dashboard payload for the Today experience."""
+    _rate_limit(request, "bootstrap", 80, 60)
+    try:
+        recommendation = await run_in_threadpool(_build_recommendation_payload, state, fuel, suburb, tank_size_l)
+        health = await run_in_threadpool(_build_data_health_payload, state)
+        live_df = await run_in_threadpool(load_live_data_latest, state=_normalise_api_state(state))
+        live_df = await run_in_threadpool(_enrich_live_df, live_df)
+        return clean_nan({
+            "ok": True,
+            "state": _normalise_api_state(state),
+            "generated_at": datetime.now().isoformat(),
+            "recommendation": recommendation,
+            "data_health": health,
+            "latest_stations_summary": _summarise_live_stations(live_df),
+            "status_chips": _build_status_chips(health, recommendation),
+            "alerts": _build_alerts(recommendation, health),
+        })
+    except Exception as e:
+        logger.error("bootstrap error: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "code": "BOOTSTRAP_ERROR",
+                "message": "Unable to build bootstrap payload.",
+                "details": str(e),
+                "generated_at": datetime.now().isoformat(),
+            },
+        )
+
+
+@app.get("/api/technical/summary")
+async def get_technical_summary(request: Request, state: str = "QLD"):
+    """Technical-user workbench summary: internals, health, and analyst notes."""
+    _rate_limit(request, "technical_summary", 60, 60)
+    try:
+        return await run_in_threadpool(_build_technical_summary, state)
+    except Exception as e:
+        logger.error("technical summary error: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "code": "TECHNICAL_SUMMARY_ERROR",
+                "message": "Unable to build technical summary.",
+                "details": str(e),
+                "generated_at": datetime.now().isoformat(),
+            },
+        )
+
+
+def _source_explorer_frame(state: str, dataset: str, limit: int) -> pd.DataFrame:
+    state = _normalise_api_state(state)
+    limit = max(1, min(int(limit), 500))
+    dataset = (dataset or "snapshot").lower()
+    if dataset == "snapshot":
+        return _enrich_live_df(load_live_data_latest(state=state)).head(limit)
+    if dataset == "daily_stats":
+        return _get_daily_data(state).tail(limit)
+    if dataset == "tgp_history":
+        city = config.STATES[state]["capital"]
+        if db:
+            try:
+                frame = db.get_tgp_history(city, days=365).tail(limit)
+                if frame is not None and not frame.empty:
+                    return frame
+            except Exception:
+                pass
+        trend = tgp_forecast.analyze_trend(city=city).get("history", {})
+        return pd.DataFrame({"date": trend.get("dates", []), "tgp": trend.get("values", [])}).tail(limit)
+    if dataset == "market_data" and db:
+        try:
+            return db.get_market_history(days=365).tail(limit)
+        except Exception:
+            return pd.DataFrame()
+    raise HTTPException(status_code=400, detail="Unknown dataset. Use snapshot, daily_stats, tgp_history, or market_data.")
+
+
+@app.get("/api/technical/source-explorer")
+async def get_source_explorer(
+    request: Request,
+    state: str = "QLD",
+    dataset: str = "snapshot",
+    limit: int = 50,
+):
+    """Inspect selected source datasets with bounded row counts."""
+    _rate_limit(request, "source_explorer", 60, 60)
+    frame = await run_in_threadpool(_source_explorer_frame, state, dataset, limit)
+    return clean_nan({
+        "ok": True,
+        "state": _normalise_api_state(state),
+        "dataset": dataset,
+        "columns": list(frame.columns),
+        "rows": frame.to_dict(orient="records"),
+        "row_count": int(len(frame)),
+        "generated_at": datetime.now().isoformat(),
+    })
+
+
+@app.get("/api/technical/export")
+async def export_source_dataset(
+    request: Request,
+    state: str = "QLD",
+    dataset: str = "snapshot",
+    limit: int = 500,
+):
+    """CSV export for bounded technical source datasets."""
+    _rate_limit(request, "source_export", 20, 60)
+    frame = await run_in_threadpool(_source_explorer_frame, state, dataset, limit)
+    csv_data = frame.to_csv(index=False)
+    filename = f"{_normalise_api_state(state).lower()}_{dataset.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.post("/api/advanced/verify")
-async def verify_advanced(req: AdvancedVerifyRequest):
+async def verify_advanced(req: AdvancedVerifyRequest, request: Request):
     """Verify the single Advanced password and issue a session-only token."""
+    _rate_limit(request, "advanced_verify", 10, 60)
     if not hmac.compare_digest(req.password, config.ADVANCED_PASSWORD):
         raise HTTPException(status_code=401, detail="Invalid Advanced password")
 
@@ -678,8 +1370,9 @@ async def verify_advanced(req: AdvancedVerifyRequest):
 
 
 @app.post("/api/advanced/ask")
-async def ask_advanced(req: AdvancedAskRequest, authorization: str | None = Header(default=None)):
+async def ask_advanced(req: AdvancedAskRequest, request: Request, authorization: str | None = Header(default=None)):
     """Ask the analyst a natural-language market question."""
+    _rate_limit(request, "advanced_ask", 20, 60)
     _require_advanced_token(authorization)
     question = (req.question or "").strip()
     if not question:
@@ -699,8 +1392,9 @@ async def ask_advanced(req: AdvancedAskRequest, authorization: str | None = Head
 
 
 @app.get("/api/advanced/briefing")
-async def get_advanced_briefing(state: str = "QLD", authorization: str | None = Header(default=None)):
+async def get_advanced_briefing(request: Request, state: str = "QLD", authorization: str | None = Header(default=None)):
     """Generate an executive morning briefing from the compact evidence pack."""
+    _rate_limit(request, "advanced_briefing", 12, 60)
     _require_advanced_token(authorization)
     state = _normalise_api_state(state)
     evidence = await run_in_threadpool(_build_advanced_evidence, state)
@@ -720,8 +1414,9 @@ async def get_advanced_briefing(state: str = "QLD", authorization: str | None = 
 
 
 @app.post("/api/advanced/shock")
-async def run_advanced_shock(req: AdvancedShockRequest, authorization: str | None = Header(default=None)):
+async def run_advanced_shock(req: AdvancedShockRequest, request: Request, authorization: str | None = Header(default=None)):
     """Convert a natural-language shock into deterministic fuel-price impacts."""
+    _rate_limit(request, "advanced_shock", 20, 60)
     _require_advanced_token(authorization)
     scenario = (req.scenario or "").strip()
     if not scenario:
@@ -767,8 +1462,8 @@ async def get_market_status(state: str = "QLD"):
         capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
         trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
         current_tgp = trend.get('current_tgp', 165.0)
-        current_oil = trend.get('current_oil', 0)
-        current_fx = trend.get('current_fx', 0.65)
+        current_oil = _trend_value(trend, "current_oil", "oil_price_usd", fallback=0)
+        current_fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0.65)
         current_mogas = trend.get('current_mogas', 0)
 
         # Store TGP/market data in SQLite
@@ -929,8 +1624,9 @@ class LocationRequest(BaseModel):
 
 
 @app.post("/api/find_cheapest_nearby")
-async def find_cheapest_nearby(loc: LocationRequest):
+async def find_cheapest_nearby(loc: LocationRequest, request: Request):
     """Find cheapest stations within 15km of GPS position."""
+    _rate_limit(request, "find_cheapest_nearby", 60, 60)
     try:
         live_df = await run_in_threadpool(load_live_data_latest, state=None)
         if live_df.empty:
@@ -968,8 +1664,9 @@ class RouteRequest(BaseModel):
 
 
 @app.post("/api/planner")
-async def plan_route(req: RouteRequest):
+async def plan_route(req: RouteRequest, request: Request):
     """Route planner — find cheapest stops along a trip."""
+    _rate_limit(request, "planner", 20, 60)
     try:
         res = await run_in_threadpool(route_optimizer.optimize_route, req.start, req.end)
         if res and 'stations' in res:
@@ -1062,8 +1759,8 @@ async def get_market_context(state: str = "QLD"):
         trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
 
         tgp = trend.get('current_tgp', 165.0)
-        brent = trend.get('current_oil', 75.0)
-        fx = trend.get('current_fx', 0.65)
+        brent = _trend_value(trend, "current_oil", "oil_price_usd", fallback=75.0)
+        fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0.65)
 
         # Get cycle info
         ci = None

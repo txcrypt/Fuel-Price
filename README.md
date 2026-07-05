@@ -1,36 +1,68 @@
-# Brisbane Fuel AI Dashboard ⛽
+# Australian Fuel Intelligence Dashboard
 
-A comprehensive, AI-powered dashboard for monitoring, predicting, and analyzing fuel prices in the Brisbane market. This application combines real-time data collection, econometric forecasting, and geospatial analysis to help consumers and commercial fleets optimize their refueling strategies.
+FastAPI + SQLite + Leaflet + Chart.js dashboard for Australian fuel-price decisions and market analysis.
 
-## 🚀 Features
+## Current Product Shape
 
-*   **Live Market Analysis:** Real-time monitoring of fuel prices, TGP (Terminal Gate Price), and market trends.
-*   **Cycle Prediction Engine:** Algorithmic prediction of price cycles (Hike, Stable, Drop, Bottom) with backtesting capabilities.
-*   **Geospatial Intelligence:** Interactive maps showing price clusters ("Hot Spots" vs. "Cold Spots") and station ratings.
-*   **Route Optimizer:**
-    *   **Commuter Mode:** Compare prices at home vs. work.
-    *   **Fleet Mode:** Optimize refueling stops along long-haul routes based on net utility (price vs. detour cost).
-*   **Advanced Analytics:**
-    *   SARIMAX Forecasts for wholesale prices.
-    *   Competitor Profiling (Game Theory).
-    *   Market Sentiment Analysis using Google News RSS.
+- **Today:** fill/wait recommendation, confidence, expected saving, cheapest visible station, alerts, and evidence cards.
+- **Map:** searchable and filterable live station map.
+- **Drive:** permission-gated nearby station lookup for moving use.
+- **Intelligence:** market context, forecasts, supply/news views, technical data quality, source explorer, and password-gated Advanced AI.
+- **More:** local profile settings for fuel type, tank size, suburbs, brands, and alert threshold.
 
+## Setup
 
+1. Install Python dependencies:
 
-## 📂 Project Structure
+   ```powershell
+   pip install -r requirements.txt
+   ```
 
-*   `fuel_dashboard.py`: The main entry point for the Streamlit application.
-*   `data_collector.py`: Script to fetch live data from the fuel price API.
-*   `cycle_prediction.py`: Logic for detecting and predicting market cycles.
-*   `backtester.py`: Tools for validating prediction algorithms against historical data.
-*   `route_optimizer.py`: Logic for pathfinding and utility-based station selection.
-*   `tgp_forecast.py`: Econometric models for wholesale price forecasting.
-*   `market_news.py`: Fetches and analyzes energy market sentiment.
+2. Configure environment variables in `.env` or the host environment:
 
-## 📊 Data
+   ```text
+   FUEL_API_TOKEN=your_qld_fuel_api_token
+   GEMINI_API_KEY=optional_backend_only_key
+   ADVANCED_PASSWORD=txcrypt
+   ADVANCED_SESSION_SECRET=change_me
+   CORS_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+   AISSTREAM_API_KEY=optional
+   ```
 
-The application uses a local CSV file (`brisbane_fuel_live_collection.csv`) to store historical price data. 
+3. Run the app:
 
-## ⚠️ Note
+   ```powershell
+   uvicorn fuel_dashboard:app --host 0.0.0.0 --port 8000
+   ```
 
-This project is configured for the Brisbane, QLD market. API tokens and specific logic (e.g., TGP scraping) are tailored to Australian data sources.
+4. Open `http://localhost:8000`.
+
+## Data Sources And Fallbacks
+
+- Live station prices are loaded from SQLite first, then `live_snapshot.csv` / `brisbane_fuel_live_collection.csv`.
+- QLD live refresh requires `FUEL_API_TOKEN`; WA uses FuelWatch RSS.
+- TGP uses AIP first, Viva fallback, then emergency fallback if both fail.
+- Market data uses Frankfurter/yfinance with synthetic fallback.
+- Gemini is backend-only. If `GEMINI_API_KEY` is missing, Advanced mode returns deterministic local summaries.
+
+## Key API Endpoints
+
+- `GET /api/bootstrap`
+- `GET /api/recommendation`
+- `GET /api/data-health`
+- `GET /api/technical/summary`
+- `GET /api/technical/source-explorer`
+- `GET /api/technical/export`
+- `POST /api/advanced/verify`
+- `POST /api/advanced/ask`
+- `GET /api/advanced/briefing`
+- `POST /api/advanced/shock`
+
+## Verification
+
+Run syntax checks:
+
+```powershell
+python -m py_compile fuel_dashboard.py config.py fuel_engine.py advanced_ai.py data_store.py tgp_forecast.py
+node --check static\app.js
+```

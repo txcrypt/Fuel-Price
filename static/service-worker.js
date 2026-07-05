@@ -1,9 +1,10 @@
-const CACHE_NAME = 'fuel-ai-cache-v3';
+const CACHE_NAME = 'fuel-ai-cache-v4';
 const urlsToCache = [
   '/',
   '/static/index.html',
   '/static/app.js',
-  '/static/manifest.json'
+  '/static/manifest.json',
+  '/static/icon.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -19,6 +20,25 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   // Only cache GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+  const cacheableApi = requestUrl.pathname === '/api/bootstrap' || requestUrl.pathname === '/api/data-health';
+  if (cacheableApi) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
   

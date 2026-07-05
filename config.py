@@ -55,5 +55,12 @@ OSRM_BASE_URL = "http://router.project-osrm.org/route/v1/driving"
 NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "AustralianFuelAI/3.0"
 
-# Allowed CORS Origins (for production, restrict this)
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+# Allowed CORS origins. Same-origin browser use does not require CORS.
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:8000,http://127.0.0.1:8000",
+    ).split(",")
+    if origin.strip()
+]

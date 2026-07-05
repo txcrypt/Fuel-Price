@@ -19,6 +19,9 @@ class FuelEngine:
 
     def fetch_sites(self):
         """Get static site data (Location, Name, Brand)"""
+        if not self.token:
+            print("Fuel API token missing; skipping QLD site fetch")
+            return pd.DataFrame()
         try:
             endpoint = f"{self.base_url}/Subscriber/GetFullSiteDetails"
             params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.state_id}
@@ -47,6 +50,9 @@ class FuelEngine:
 
     def fetch_prices(self):
         """Get live prices for Unleaded 91 (ID 2)"""
+        if not self.token:
+            print("Fuel API token missing; skipping QLD price fetch")
+            return pd.DataFrame()
         try:
             endpoint = f"{self.base_url}/Price/GetSitesPrices"
             params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.state_id}
