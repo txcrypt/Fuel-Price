@@ -46,6 +46,7 @@ _market_data_cache_time = {}
 
 _live_tgp_cache = {}
 _live_tgp_cache_time = {}
+_live_tgp_source_cache = {}
 
 _fx_cache = {}
 _fx_cache_time = {}
@@ -191,15 +192,27 @@ def _parse_tgp_value(raw) -> float | None:
     except (ValueError, TypeError):
         return None
 
+    # Some feeds expose tenths of a cent (e.g. 1799 => 179.9 cpl).
+    if 1000 < price < 2500:
+        price = price / 10.0
+
     if 100 < price < 250:
         return price
     return None
 
 
-def _cache_live_tgp(city_upper: str, value: float, timestamp: datetime) -> float:
+def _cache_live_tgp(city_upper: str, value: float, timestamp: datetime, source: str) -> float:
     _live_tgp_cache[city_upper] = value
     _live_tgp_cache_time[city_upper] = timestamp
+    _live_tgp_source_cache[city_upper] = source
     return value
+
+
+def _mogas_cpl(brent_usd: float, aud_usd: float) -> float:
+    """Approximate MOGAS/crude landed component in AUD cents per litre."""
+    safe_aud = aud_usd if aud_usd > 0 else 0.65
+    barrels_to_litres = 158.987
+    return (brent_usd + CRACK_SPREAD_USD_BBL) / barrels_to_litres / safe_aud * 100
 
 
 def _extract_aip_tgp_from_table(soup: BeautifulSoup, city_upper: str) -> float | None:
@@ -330,7 +343,7 @@ def fetch_live_tgp(city="BRISBANE"):
             soup = BeautifulSoup(r.text, 'html.parser')
             value = _extract_aip_tgp_from_table(soup, city_upper)
             if value is not None:
-                return _cache_live_tgp(city_upper, value, now)
+                return _cache_live_tgp(city_upper, value, now, "AIP table")
 
             workbook_url = _fetch_aip_workbook_url(soup, headers)
             if workbook_url:
@@ -338,7 +351,7 @@ def fetch_live_tgp(city="BRISBANE"):
                 if workbook_response.status_code == 200:
                     value = _extract_aip_tgp_from_workbook(workbook_response.content, city_upper)
                     if value is not None:
-                        return _cache_live_tgp(city_upper, value, now)
+                        return _cache_live_tgp(city_upper, value, now, "AIP workbook")
                 else:
                     logger.warning("AIP TGP workbook returned HTTP %d", workbook_response.status_code)
             else:
@@ -363,7 +376,7 @@ def fetch_live_tgp(city="BRISBANE"):
                             continue
                         price = _parse_tgp_value(raw)
                         if price is not None:
-                            return _cache_live_tgp(city_upper, price, now)
+                            return _cache_live_tgp(city_upper, price, now, "Viva fallback")
     except Exception as e:
         logger.warning("Viva TGP fetch failed: %s", e)
 
@@ -387,21 +400,27 @@ def get_tgp_history(days=90, city="BRISBANE"):
     live_tgp = fetch_live_tgp(city)
     if live_tgp is None:
         live_tgp = 170.0  # Emergency Fallback
+        _live_tgp_source_cache[city.upper()] = "Emergency fallback"
         logger.warning("Using emergency TGP fallback of 170.0 cpl for %s", city)
 
     # 2. Market Drivers
     market_df = fetch_market_data(days)
 
-    # 3. Calculate Import Parity (Theoretical)
-    # MOPS95 ~ Brent + Crack Spread ($12-15 USD/bbl approx)
-    market_df['mogas_aud'] = (market_df['oil_price'] + CRACK_SPREAD_USD_BBL) / market_df['aud_fx']
+    # 3. Calculate MOGAS/crude component in cents per litre.
+    market_df['mogas_cpl'] = market_df.apply(
+        lambda row: _mogas_cpl(float(row['oil_price']), float(row['aud_fx'])),
+        axis=1,
+    )
 
     # 4. Anchor to Reality
-    last_theoretical = market_df['mogas_aud'].iloc[-1]
+    last_theoretical = market_df['mogas_cpl'].iloc[-1]
 
     if last_theoretical > 0:
-        ratio = live_tgp / last_theoretical
-        tgp_series = market_df['mogas_aud'] * ratio
+        # TGP is not just commodity cost; it includes a relatively stable basis
+        # of excise, freight, terminal and wholesale margin. Preserve commodity
+        # cpl moves with an additive basis instead of scaling the whole series.
+        basis_cpl = live_tgp - last_theoretical
+        tgp_series = market_df['mogas_cpl'] + basis_cpl
     else:
         tgp_series = pd.Series([live_tgp] * len(market_df), index=market_df.index)
 
@@ -494,7 +513,7 @@ def analyze_trend(city="BRISBANE"):
     Returns the trend analysis for the Dashboard.
 
     Backward compatible with the original return dict, plus enriched fields:
-      - current_mogas: latest MOGAS AUD value (fixes ticker showing '--.-')
+      - current_mogas: latest MOGAS/crude component in AUD cpl
       - aud_usd: current AUD/USD rate
       - oil_price_usd: current Brent crude USD/bbl
       - import_parity: IPP analysis dict
@@ -519,9 +538,7 @@ def analyze_trend(city="BRISBANE"):
         current_fx = round(float(market['aud_fx'].iloc[-1]), 6)
 
         if current_fx and current_fx > 0:
-            current_mogas = round(
-                (current_oil + CRACK_SPREAD_USD_BBL) / current_fx, 2
-            )
+            current_mogas = round(_mogas_cpl(current_oil, current_fx), 2)
 
     # Singapore Lag (Proxy using Oil 10 days ago vs today)
     if len(market) > 10:
@@ -556,6 +573,11 @@ def analyze_trend(city="BRISBANE"):
         'aud_usd': current_fx,
         'oil_price_usd': current_oil,
         'import_parity': ipp_data,
+        'tgp_source': _live_tgp_source_cache.get(city.upper(), 'Unknown'),
+        'tgp_fetched_at': (
+            _live_tgp_cache_time.get(city.upper()).isoformat()
+            if city.upper() in _live_tgp_cache_time else None
+        ),
     }
 
     return result

@@ -145,16 +145,25 @@ class MarketContextEngine:
         if cycle_info is None:
             return {
                 "phase": "UNKNOWN",
+                "raw_phase": "UNKNOWN",
                 "days_in_phase": 0,
                 "estimated_days_remaining": 0,
                 "confidence": 0.0,
+                "visual_position_percent": 0.0,
+                "cycle_progress_percent": 0.0,
                 "description": "Cycle data not available.",
             }
 
-        phase = cycle_info.get("phase", "UNKNOWN")
+        raw_phase = cycle_info.get("phase", "UNKNOWN")
+        phase = cycle_info.get("market_phase") or {
+            "RESTORATION": "RISING",
+            "UNDERCUTTING": "FALLING",
+        }.get(raw_phase, raw_phase)
         days_in = cycle_info.get("days_in_phase", 0)
         remaining = cycle_info.get("estimated_days_remaining", 0)
         confidence = cycle_info.get("confidence", 0.0)
+        visual_position = cycle_info.get("visual_position_percent", 0.0)
+        cycle_progress = cycle_info.get("cycle_progress_percent", 0.0)
 
         descriptions = {
             "RISING": (
@@ -177,9 +186,15 @@ class MarketContextEngine:
 
         return {
             "phase": phase,
+            "raw_phase": raw_phase,
             "days_in_phase": days_in,
             "estimated_days_remaining": remaining,
             "confidence": round(confidence, 2),
+            "visual_position_percent": round(float(visual_position or 0.0), 1),
+            "cycle_progress_percent": round(float(cycle_progress or 0.0), 1),
+            "recent_trough_cpl": cycle_info.get("recent_trough_cpl"),
+            "recent_peak_cpl": cycle_info.get("recent_peak_cpl"),
+            "cycle_amplitude_cpl": cycle_info.get("cycle_amplitude_cpl"),
             "description": descriptions.get(
                 phase, "Cycle phase cannot be determined."
             ),
@@ -239,12 +254,14 @@ class MarketContextEngine:
 
         # 3. Cycle position
         if cycle_info:
-            phase = cycle_info.get("phase", "UNKNOWN")
+            phase = cycle_info.get("market_phase") or cycle_info.get("phase", "UNKNOWN")
             cycle_impact = {
                 "RISING": ("UP", 3.0, "Price cycle is in the upswing."),
                 "PEAK": ("UP", 5.0, "Cycle is near the peak — prices are at their highest."),
                 "FALLING": ("DOWN", 3.0, "Cycle is falling — prices headed to trough."),
                 "TROUGH": ("DOWN", 5.0, "Prices at cycle trough — best time to buy."),
+                "RESTORATION": ("UP", 3.0, "Price restoration is underway."),
+                "UNDERCUTTING": ("DOWN", 3.0, "Retailers are undercutting toward the cycle floor."),
             }
             if phase in cycle_impact:
                 d, imp, expl = cycle_impact[phase]
@@ -375,7 +392,7 @@ class MarketContextEngine:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _assess_market_health(breakdown: dict, factors: list[dict]) -> str:
+    def _assess_market_health(breakdown: dict, factors: list[dict]) -> dict:
         """
         Classify the market as HEALTHY, STRESSED, or VOLATILE.
 
@@ -395,10 +412,25 @@ class MarketContextEngine:
 
         # Check for volatility (strong opposing forces)
         if up_impact > 5 and down_impact > 5:
-            return "VOLATILE"
+            return {
+                "status": "VOLATILE",
+                "detail": "Strong opposing upward and downward drivers are both present.",
+                "up_impact_cpl": round(up_impact, 1),
+                "down_impact_cpl": round(down_impact, 1),
+            }
 
         # Check for stress
         if margin < 5.0 or margin > 25.0 or total_impact > 15.0:
-            return "STRESSED"
+            return {
+                "status": "STRESSED",
+                "detail": "Retail margin or combined driver impact is outside normal bounds.",
+                "up_impact_cpl": round(up_impact, 1),
+                "down_impact_cpl": round(down_impact, 1),
+            }
 
-        return "HEALTHY"
+        return {
+            "status": "HEALTHY",
+            "detail": "Margins and drivers are within normal operating bounds.",
+            "up_impact_cpl": round(up_impact, 1),
+            "down_impact_cpl": round(down_impact, 1),
+        }

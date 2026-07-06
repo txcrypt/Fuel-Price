@@ -360,11 +360,67 @@ class CycleDetector:
 
         remaining = max(0, int(round(avg_dur - days_in_phase)))
 
+        pt = self.find_peaks_and_troughs(pd.Series(prices))
+        peak_idx = pt["peak_indices"]
+        trough_idx = pt["trough_indices"]
+        current_idx = len(prices) - 1
+        last_peak_idx = int(peak_idx[-1]) if len(peak_idx) else None
+        last_trough_idx = int(trough_idx[-1]) if len(trough_idx) else None
+
+        lookback = min(len(prices), max(14, int(round(self.cycle_period or 28.0))))
+        recent = prices[-lookback:]
+        recent_low = float(np.min(recent))
+        recent_high = float(np.max(recent))
+        amplitude = max(1.0, recent_high - recent_low)
+        current_price = float(prices[-1])
+        price_position = float(np.clip((current_price - recent_low) / amplitude * 100.0, 0.0, 100.0))
+
+        if phase == self.RESTORATION:
+            market_phase = "PEAK" if days_in_phase >= max(2, avg_dur) or price_position >= 85 else "RISING"
+            phase_start_idx = current_idx - days_in_phase + 1
+        else:
+            if last_peak_idx is not None and (last_trough_idx is None or last_peak_idx > last_trough_idx):
+                days_since_peak = current_idx - last_peak_idx
+            else:
+                days_since_peak = days_in_phase
+
+            near_floor = price_position <= 18 or (
+                last_trough_idx is not None and last_trough_idx >= current_idx - 3
+            )
+            market_phase = "TROUGH" if near_floor or remaining <= 1 else "FALLING"
+            phase_start_idx = current_idx - days_since_peak
+
+        if last_peak_idx is not None and last_trough_idx is not None:
+            cycle_anchor_idx = max(0, min(last_peak_idx, last_trough_idx))
+        else:
+            cycle_anchor_idx = max(0, phase_start_idx)
+        cycle_progress = float(np.clip((current_idx - cycle_anchor_idx) / max(self.cycle_period, 1.0) * 100.0, 0.0, 100.0))
+
+        if phase == self.UNDERCUTTING:
+            floor_pressure = 1.0 - (price_position / 100.0)
+            duration_pressure = min(1.0, days_in_phase / max(avg_dur, 1.0))
+            dynamic_restore_prob = np.clip(0.10 + 0.55 * floor_pressure + 0.25 * duration_pressure, 0.05, 0.90)
+            prob_restore = max(prob_restore, float(dynamic_restore_prob))
+            prob_undercut = 1.0 - prob_restore
+            confidence = prob_undercut if market_phase == "FALLING" else prob_restore
+        else:
+            restore_duration_pressure = min(1.0, days_in_phase / max(avg_dur, 1.0))
+            prob_restore = float(np.clip(0.85 - 0.55 * restore_duration_pressure, 0.10, 0.85))
+            prob_undercut = 1.0 - prob_restore
+            confidence = prob_restore if market_phase == "RISING" else prob_undercut
+
         return {
             "phase": phase,
+            "market_phase": market_phase,
             "confidence": round(confidence, 3),
             "days_in_phase": days_in_phase,
             "estimated_days_remaining": remaining,
+            "visual_position_percent": round(price_position, 1),
+            "cycle_progress_percent": round(cycle_progress, 1),
+            "current_price_cpl": round(current_price, 2),
+            "recent_trough_cpl": round(recent_low, 2),
+            "recent_peak_cpl": round(recent_high, 2),
+            "cycle_amplitude_cpl": round(amplitude, 2),
             "probabilities": {
                 self.UNDERCUTTING: round(prob_undercut, 3),
                 self.RESTORATION: round(prob_restore, 3),
@@ -375,9 +431,16 @@ class CycleDetector:
     def _default_regime(self) -> Dict[str, Any]:
         return {
             "phase": self.UNDERCUTTING,
+            "market_phase": "UNKNOWN",
             "confidence": 0.5,
             "days_in_phase": 0,
             "estimated_days_remaining": 0,
+            "visual_position_percent": 0.0,
+            "cycle_progress_percent": 0.0,
+            "current_price_cpl": None,
+            "recent_trough_cpl": None,
+            "recent_peak_cpl": None,
+            "cycle_amplitude_cpl": None,
             "probabilities": {
                 self.UNDERCUTTING: 0.5,
                 self.RESTORATION: 0.5,

@@ -573,6 +573,8 @@ def _build_advanced_evidence(state: str) -> dict:
 
     current_avg = float(live_df["price_cpl"].mean()) if live_df is not None and not live_df.empty else 0.0
     current_median = float(live_df["price_cpl"].median()) if live_df is not None and not live_df.empty else 0.0
+    raw_tgp = _safe_float(trend.get("current_tgp"), 165.0)
+    effective_tgp, tgp_anchor_reason = _forecast_tgp_anchor(raw_tgp, live_df, daily_df, trend)
 
     cycle_info = None
     if cycle_detector and daily_df is not None and len(daily_df) > 5:
@@ -587,7 +589,7 @@ def _build_advanced_evidence(state: str) -> dict:
             market_context_payload = market_context.generate_context(
                 state=state,
                 current_avg=current_avg or current_median,
-                tgp=trend.get("current_tgp", 165.0),
+                tgp=effective_tgp,
                 brent_usd=trend.get("oil_price_usd", 75.0) or 75.0,
                 aud_usd=trend.get("aud_usd", 0.65) or 0.65,
                 cycle_info=cycle_info,
@@ -639,7 +641,10 @@ def _build_advanced_evidence(state: str) -> dict:
             "savings_insight": None,
             "cycle": cycle_info or {"phase": "UNKNOWN"},
             "ticker": {
-                "tgp": trend.get("current_tgp"),
+                "tgp": effective_tgp,
+                "raw_tgp": raw_tgp,
+                "tgp_anchor_reason": tgp_anchor_reason,
+                "tgp_source": trend.get("tgp_source"),
                 "oil": trend.get("oil_price_usd"),
                 "fx": trend.get("aud_usd"),
                 "mogas": trend.get("current_mogas"),
@@ -726,6 +731,37 @@ def _trend_value(trend: dict, *keys: str, fallback=None):
         if value is not None:
             return value
     return fallback
+
+
+def _forecast_tgp_anchor(raw_tgp: float, live_df: pd.DataFrame | None, daily_df: pd.DataFrame | None, trend: dict) -> tuple[float, str]:
+    """Choose a TGP anchor that is safe for retail-price forecasting."""
+    raw_tgp = _safe_float(raw_tgp, 0.0)
+    source = str(trend.get("tgp_source", "") or "").lower()
+
+    observed_prices = []
+    if live_df is not None and not live_df.empty and "price_cpl" in live_df.columns:
+        live_prices = pd.to_numeric(live_df["price_cpl"], errors="coerce").dropna()
+        if not live_prices.empty:
+            observed_prices.extend([float(live_prices.median()), float(live_prices.min())])
+    if daily_df is not None and not daily_df.empty and "price_cpl" in daily_df.columns:
+        daily_prices = pd.to_numeric(daily_df["price_cpl"], errors="coerce").dropna().tail(21)
+        if not daily_prices.empty:
+            observed_prices.extend([float(daily_prices.iloc[-1]), float(daily_prices.min())])
+
+    if not observed_prices:
+        return raw_tgp or 165.0, "raw_tgp_no_observed_retail"
+
+    retail_median = float(np.median(observed_prices))
+    observed_floor = max(90.0, min(observed_prices) - 4.0)
+
+    invalid_tgp = raw_tgp < 100 or raw_tgp > 250
+    emergency_tgp = "emergency" in source or "unknown" in source
+    contradicts_retail = raw_tgp > retail_median + 12.0
+
+    if invalid_tgp or emergency_tgp or contradicts_retail:
+        return round(observed_floor, 1), "observed_retail_floor"
+
+    return round(raw_tgp, 1), "source_tgp"
 
 
 def _latest_scrape_time(live_df: pd.DataFrame) -> datetime | None:
@@ -823,7 +859,8 @@ def _build_recommendation_payload(
     spread_cpl = float(live_df["price_cpl"].max() - live_df["price_cpl"].min())
     cheapest_delta_cpl = max(0.0, current_median - float(cheapest_row["price_cpl"]))
 
-    current_tgp = _safe_float(_trend_value(trend, "current_tgp"), 165.0)
+    raw_tgp = _safe_float(_trend_value(trend, "current_tgp"), 165.0)
+    current_tgp, tgp_anchor_reason = _forecast_tgp_anchor(raw_tgp, live_df, daily_df, trend)
     margin_cpl = current_median - current_tgp
     oil = _trend_value(trend, "current_oil", "oil_price_usd", fallback=0)
     fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0)
@@ -969,6 +1006,9 @@ def _build_recommendation_payload(
             "current_median_cpl": round(current_median, 1),
             "local_median_cpl": round(local_median, 1),
             "current_tgp_cpl": round(current_tgp, 1),
+            "raw_tgp_cpl": round(raw_tgp, 1),
+            "tgp_anchor_reason": tgp_anchor_reason,
+            "tgp_source": trend.get("tgp_source"),
             "margin_cpl": round(margin_cpl, 1),
             "hike_probability": round(hike_prob, 1),
             "forecast_min_cpl": round(forecast_min, 1) if forecast_min is not None else None,
@@ -1461,7 +1501,8 @@ async def get_market_status(state: str = "QLD"):
         # TGP / Market data
         capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
         trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
-        current_tgp = trend.get('current_tgp', 165.0)
+        raw_tgp = _safe_float(trend.get('current_tgp'), 165.0)
+        current_tgp, tgp_anchor_reason = _forecast_tgp_anchor(raw_tgp, live_df, daily_df, trend)
         current_oil = _trend_value(trend, "current_oil", "oil_price_usd", fallback=0)
         current_fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0.65)
         current_mogas = trend.get('current_mogas', 0)
@@ -1470,8 +1511,8 @@ async def get_market_status(state: str = "QLD"):
         if db:
             try:
                 today_str = datetime.now().strftime('%Y-%m-%d')
-                if current_tgp > 0:
-                    db.save_tgp(today_str, capital, current_tgp)
+                if raw_tgp > 0:
+                    db.save_tgp(today_str, capital, raw_tgp)
                 if current_oil > 0:
                     db.save_market_data(today_str, current_oil, current_fx, current_mogas)
             except Exception:
@@ -1584,6 +1625,10 @@ async def get_market_status(state: str = "QLD"):
             },
             "ticker": {
                 "tgp": round(current_tgp, 1),
+                "raw_tgp": round(raw_tgp, 1),
+                "forecast_tgp_anchor": round(current_tgp, 1),
+                "tgp_anchor_reason": tgp_anchor_reason,
+                "tgp_source": trend.get("tgp_source", "Unknown"),
                 "oil": round(current_oil, 2) if current_oil else 0,
                 "mogas": round(current_mogas, 1) if current_mogas else 0,
                 "fx": round(current_fx, 4) if current_fx else 0,
@@ -1696,7 +1741,9 @@ async def get_analytics(state: str = "QLD"):
         if daily_df is not None and not daily_df.empty and ai_model:
             capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
             trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
-            current_tgp = trend.get('current_tgp', 165.0)
+            raw_tgp = _safe_float(trend.get('current_tgp'), 165.0)
+            live_for_anchor = await run_in_threadpool(load_live_data_latest, state=state)
+            current_tgp, _ = _forecast_tgp_anchor(raw_tgp, live_for_anchor, daily_df, trend)
 
             ai_input = daily_df.rename(columns={'day': 'date'})
             future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
@@ -1758,7 +1805,13 @@ async def get_market_context(state: str = "QLD"):
         capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
         trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
 
-        tgp = trend.get('current_tgp', 165.0)
+        raw_tgp = _safe_float(trend.get('current_tgp'), 165.0)
+        daily_for_anchor = None
+        try:
+            daily_for_anchor = await run_in_threadpool(_get_daily_data, state)
+        except Exception:
+            daily_for_anchor = None
+        tgp, _ = _forecast_tgp_anchor(raw_tgp, live_df, daily_for_anchor, trend)
         brent = _trend_value(trend, "current_oil", "oil_price_usd", fallback=75.0)
         fx = _trend_value(trend, "current_fx", "aud_usd", fallback=0.65)
 

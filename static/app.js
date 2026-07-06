@@ -851,12 +851,20 @@ const app = (function() {
             tgpVal.textContent = formatPrice(data.ticker.tgp);
             tgpVal.classList.remove('pulse-skeleton');
         }
+        const tgpTrendIcon = document.getElementById('tgp-trend-icon');
+        if (tgpTrendIcon && data.ticker) {
+            tgpTrendIcon.textContent = data.ticker.tgp_anchor_reason === 'source_tgp' ? 'SRC' : 'EST';
+            tgpTrendIcon.className = data.ticker.tgp_anchor_reason === 'source_tgp'
+                ? 'text-sm font-black text-emerald-300'
+                : 'text-sm font-black text-amber-300';
+        }
 
         // Update Ticker
         const ticker = document.getElementById('nav-ticker');
         if (ticker && data.ticker) {
             const t = data.ticker;
-            const content = `OIL $${t.oil} | AUD/USD ${t.fx} | TGP ${t.tgp}c | MOGAS ${t.mogas}c | PARITY: ${t.import_parity_lag}`;
+            const tgpSource = t.tgp_anchor_reason === 'source_tgp' ? (t.tgp_source || 'TGP source') : 'Retail-derived forecast anchor';
+            const content = `OIL $${t.oil} | AUD/USD ${t.fx} | TGP ${t.tgp}c (${tgpSource}) | MOGAS ${t.mogas}c | PARITY: ${t.import_parity_lag}`;
             ticker.innerHTML = `<span class="ticker-content mr-8">${content}</span><span class="ticker-content mr-8">${content}</span><span class="ticker-content">${content}</span>`;
         }
         
@@ -877,16 +885,28 @@ const app = (function() {
 
     const loadMarketContext = async () => {
         const data = await fetchApi(`/market-context?state=${state.currentStateCode}`);
-        if (!data || data.error) return;
+        if (!data || data.error) {
+            const narrative = document.getElementById('mc-narrative');
+            if (narrative) narrative.textContent = data?.error || 'Market context is not available.';
+            const badge = document.getElementById('mc-health-badge');
+            if (badge) {
+                badge.textContent = 'Unavailable';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+            }
+            return;
+        }
         state.context = data;
 
         // Populate Health Badge
         const badge = document.getElementById('mc-health-badge');
         if (badge) {
-            badge.textContent = data.market_health.status;
+            const health = typeof data.market_health === 'string'
+                ? { status: data.market_health }
+                : (data.market_health || { status: 'UNKNOWN' });
+            badge.textContent = health.status || 'UNKNOWN';
             badge.className = badge.className.replace(/bg-\w+-500\/20 text-\w+-400/g, '');
-            if(data.market_health.status === 'HEALTHY') badge.classList.add('bg-emerald-500/20', 'text-emerald-400');
-            else if(data.market_health.status === 'VOLATILE') badge.classList.add('bg-red-500/20', 'text-red-400');
+            if(health.status === 'HEALTHY') badge.classList.add('bg-emerald-500/20', 'text-emerald-400');
+            else if(health.status === 'VOLATILE') badge.classList.add('bg-red-500/20', 'text-red-400');
             else badge.classList.add('bg-amber-500/20', 'text-amber-400');
         }
 
@@ -897,7 +917,11 @@ const app = (function() {
         // Populate Factors
         const factorsList = document.getElementById('mc-factors-list');
         if (factorsList && data.driving_factors) {
-            factorsList.innerHTML = data.driving_factors.map(f => `
+            const normalisedFactors = data.driving_factors.map(f => ({
+                ...f,
+                direction: String(f.direction || '').toLowerCase()
+            }));
+            factorsList.innerHTML = normalisedFactors.map(f => `
                 <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700/50 flex items-start gap-3">
                     <div class="mt-0.5 ${f.direction === 'up' ? 'text-red-400' : (f.direction === 'down' ? 'text-emerald-400' : 'text-slate-400')}">
                         ${f.direction === 'up' ? '↑' : (f.direction === 'down' ? '↓' : '→')}
@@ -914,9 +938,12 @@ const app = (function() {
         const marker = document.getElementById('mc-cycle-marker');
         const text = document.getElementById('mc-cycle-text');
         if (marker && text && data.cycle_position) {
-            const pos = data.cycle_position.visual_position_percent;
+            const pos = Number(data.cycle_position.visual_position_percent || 0);
             marker.style.left = `${pos}%`;
-            text.innerHTML = `<span class="text-white font-bold">${data.cycle_position.phase}</span> - est. ${data.cycle_position.estimated_days_remaining} days remaining`;
+            const trough = data.cycle_position.recent_trough_cpl;
+            const peak = data.cycle_position.recent_peak_cpl;
+            const range = trough && peak ? ` (${formatPrice(trough)}c trough / ${formatPrice(peak)}c peak)` : '';
+            text.innerHTML = `<span class="text-white font-bold">${escapeHtml(data.cycle_position.phase)}</span> - ${pos.toFixed(0)}% of recent range${range}`;
         }
 
         // Populate Breakdown Bar
