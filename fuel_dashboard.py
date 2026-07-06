@@ -11,6 +11,7 @@ except Exception:
     pass
 
 import os
+import csv
 import json
 import time
 import base64
@@ -47,7 +48,18 @@ except Exception as e:
     db = None
     logger.warning(f"⚠️ DataStore not available: {e}")
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+ML_MODEL_ENABLED = _env_flag("ENABLE_ML_MODEL", False)
+
 try:
+    if not ML_MODEL_ENABLED:
+        raise RuntimeError("DeepCycle ML disabled; set ENABLE_ML_MODEL=true to load XGBoost")
     from predictive_core import DeepCycleModel
     ai_model = DeepCycleModel()
     MODEL_LOADED = ai_model.load("brisbane")
@@ -111,6 +123,7 @@ app.add_middleware(
 )
 
 _rate_limit_buckets: dict[str, list[float]] = {}
+_RATE_LIMIT_MAX_BUCKETS = 1000
 
 
 @app.exception_handler(HTTPException)
@@ -208,21 +221,16 @@ def _append_to_history(df):
     if not os.path.exists(HISTORY_FILE):
         should_append = True
     else:
-        try:
-            last_rows = pd.read_csv(HISTORY_FILE, nrows=0)
-            # Read just the last line for timestamp check
-            import subprocess
-            should_append = True  # Default to append
+        should_append = True
+        last_row = _last_csv_row(HISTORY_FILE)
+        if last_row:
+            last_raw = last_row.get("scraped_at") or last_row.get("reported_at")
             try:
-                hist_df = pd.read_csv(HISTORY_FILE)
-                if not hist_df.empty and 'scraped_at' in hist_df.columns:
-                    last_ts = pd.to_datetime(hist_df['scraped_at'].iloc[-1])
-                    if (datetime.now() - last_ts).total_seconds() < 3600:
-                        should_append = False
+                last_ts = pd.to_datetime(last_raw, errors="coerce")
+                if not pd.isna(last_ts) and (datetime.now() - last_ts.to_pydatetime()).total_seconds() < 3600:
+                    should_append = False
             except Exception:
                 should_append = True
-        except Exception:
-            should_append = True
 
     if should_append:
         cols_to_save = ['site_id', 'price_cpl', 'reported_at', 'region', 'state', 'latitude', 'longitude', 'scraped_at']
@@ -337,6 +345,25 @@ def _rate_limit(request: Request, bucket: str, max_requests: int, window_seconds
     recent.append(now)
     _rate_limit_buckets[key] = recent
 
+    if len(_rate_limit_buckets) > _RATE_LIMIT_MAX_BUCKETS:
+        cutoff = now - max(window_seconds * 2, 3600)
+        stale_keys = [
+            bucket_key
+            for bucket_key, timestamps in _rate_limit_buckets.items()
+            if not timestamps or max(timestamps) < cutoff
+        ]
+        for bucket_key in stale_keys:
+            _rate_limit_buckets.pop(bucket_key, None)
+
+        overflow = len(_rate_limit_buckets) - _RATE_LIMIT_MAX_BUCKETS
+        if overflow > 0:
+            oldest_keys = sorted(
+                _rate_limit_buckets,
+                key=lambda bucket_key: max(_rate_limit_buckets[bucket_key] or [0]),
+            )[:overflow]
+            for bucket_key in oldest_keys:
+                _rate_limit_buckets.pop(bucket_key, None)
+
 
 def _snapshot_age_minutes() -> float | None:
     if not os.path.exists(SNAPSHOT_FILE):
@@ -352,6 +379,107 @@ def _freshness_status(age_minutes: float | None, stale_after: int = 90, degraded
     if age_minutes > stale_after:
         return "stale"
     return "fresh"
+
+
+def _csv_header(path: str) -> list[str]:
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace", newline="") as handle:
+            return next(csv.reader(handle), [])
+    except Exception:
+        return []
+
+
+def _last_csv_row(path: str) -> dict[str, str] | None:
+    """Read the final CSV record without materialising the whole file."""
+    header = _csv_header(path)
+    if not header:
+        return None
+
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            position = handle.tell()
+            buffer = b""
+            while position > 0:
+                read_size = min(4096, position)
+                position -= read_size
+                handle.seek(position)
+                buffer = handle.read(read_size) + buffer
+                lines = [line for line in buffer.splitlines() if line.strip()]
+                if len(lines) >= 2 or position == 0:
+                    last_line = lines[-1] if lines else b""
+                    break
+            else:
+                return None
+
+        if not last_line:
+            return None
+        decoded = last_line.decode("utf-8", errors="replace")
+        values = next(csv.reader([decoded]), [])
+        return dict(zip(header, values))
+    except Exception:
+        return None
+
+
+def _load_latest_history_snapshot(state: str | None = "QLD") -> pd.DataFrame:
+    """Load only the latest scrape batch from the growing history CSV."""
+    if not os.path.exists(HISTORY_FILE):
+        return pd.DataFrame()
+
+    header = _csv_header(HISTORY_FILE)
+    if not header:
+        return pd.DataFrame()
+
+    wanted = [
+        "site_id", "price_cpl", "reported_at", "region", "state",
+        "latitude", "longitude", "scraped_at",
+    ]
+    usecols = [col for col in wanted if col in header]
+    if "price_cpl" not in usecols:
+        return pd.DataFrame()
+
+    date_col = "scraped_at" if "scraped_at" in usecols else "reported_at" if "reported_at" in usecols else None
+    if date_col is None:
+        return pd.DataFrame()
+
+    state_upper = state.upper() if isinstance(state, str) and state else None
+    latest_ts = None
+    latest_chunks: list[pd.DataFrame] = []
+
+    try:
+        for chunk in pd.read_csv(HISTORY_FILE, usecols=usecols, chunksize=50000):
+            if chunk.empty:
+                continue
+            if "site_id" in chunk.columns:
+                chunk["site_id"] = chunk["site_id"].astype(str)
+            if state_upper and "state" in chunk.columns:
+                chunk = chunk[chunk["state"].astype(str).str.upper() == state_upper]
+            elif state_upper and state_upper != "QLD":
+                continue
+            if chunk.empty:
+                continue
+
+            parsed = pd.to_datetime(chunk[date_col], errors="coerce")
+            chunk = chunk.assign(_parsed_scrape=parsed).dropna(subset=["_parsed_scrape"])
+            if chunk.empty:
+                continue
+
+            chunk_latest = chunk["_parsed_scrape"].max()
+            latest_rows = chunk[chunk["_parsed_scrape"] == chunk_latest].drop(columns=["_parsed_scrape"])
+            if latest_ts is None or chunk_latest > latest_ts:
+                latest_ts = chunk_latest
+                latest_chunks = [latest_rows]
+            elif chunk_latest == latest_ts:
+                latest_chunks.append(latest_rows)
+
+        if latest_chunks:
+            return pd.concat(latest_chunks, ignore_index=True)
+    except Exception as e:
+        logger.debug("Latest history snapshot load failed: %s", e)
+
+    return pd.DataFrame()
 
 
 @lru_cache(maxsize=1)
@@ -390,13 +518,10 @@ def load_live_data_latest(state="QLD"):
 
     if os.path.exists(HISTORY_FILE):
         try:
-            df = pd.read_csv(HISTORY_FILE)
+            df = _load_latest_history_snapshot(state=state)
             if not df.empty:
                 df['site_id'] = df['site_id'].astype(str)
-                if state and 'state' in df.columns:
-                    df = df[df['state'] == state]
-                last_scrape = df['scraped_at'].max()
-                return df[df['scraped_at'] == last_scrape].copy()
+                return df.copy()
         except Exception:
             pass
     return pd.DataFrame()
@@ -530,38 +655,72 @@ def _profile_live_collection(state: str) -> dict:
         return {"available": False, "reason": "collection_file_missing"}
 
     try:
-        header = pd.read_csv(HISTORY_FILE, nrows=0).columns.tolist()
+        header = _csv_header(HISTORY_FILE)
         wanted = ["site_id", "price_cpl", "reported_at", "scraped_at", "state"]
         usecols = [col for col in wanted if col in header]
-        df = pd.read_csv(HISTORY_FILE, usecols=usecols)
-        if df.empty or "price_cpl" not in df.columns:
+        if "price_cpl" not in usecols:
             return {"available": False, "reason": "collection_file_empty"}
 
-        if "state" in df.columns:
-            states_present = sorted(df["state"].dropna().astype(str).str.upper().unique().tolist())
-            df = df[df["state"].astype(str).str.upper() == state].copy()
-        else:
-            states_present = ["QLD"]
-            if state != "QLD":
-                return {"available": False, "reason": "legacy_qld_only_collection"}
+        date_basis = "scraped_at" if "scraped_at" in usecols else "reported_at" if "reported_at" in usecols else None
+        if date_basis is None:
+            return {"available": False, "reason": "no_collection_timestamp"}
 
-        raw_rows = int(len(df))
-        df["price_cpl"] = pd.to_numeric(df["price_cpl"], errors="coerce")
-        df = df[(df["price_cpl"] > 100) & (df["price_cpl"] < 300)].copy()
+        states_present_set: set[str] = set()
+        daily_values: dict[pd.Timestamp, list[float]] = {}
+        station_ids: set[str] = set()
+        reported_days_set = set()
+        raw_rows = 0
+        usable_rows = 0
 
-        date_basis = "scraped_at" if "scraped_at" in df.columns else "reported_at"
-        df["date"] = pd.to_datetime(df[date_basis], errors="coerce")
-        df = df.dropna(subset=["date", "price_cpl"])
-        if df.empty:
+        for chunk in pd.read_csv(HISTORY_FILE, usecols=usecols, chunksize=50000):
+            if chunk.empty:
+                continue
+
+            if "state" in chunk.columns:
+                chunk_states = chunk["state"].dropna().astype(str).str.upper()
+                states_present_set.update(chunk_states.unique().tolist())
+                chunk = chunk[chunk["state"].astype(str).str.upper() == state].copy()
+            else:
+                states_present_set.add("QLD")
+                if state != "QLD":
+                    return {"available": False, "reason": "legacy_qld_only_collection"}
+
+            raw_rows += int(len(chunk))
+            if chunk.empty:
+                continue
+
+            chunk["price_cpl"] = pd.to_numeric(chunk["price_cpl"], errors="coerce")
+            chunk["date"] = pd.to_datetime(chunk[date_basis], errors="coerce")
+            chunk = chunk.dropna(subset=["date", "price_cpl"])
+            chunk = chunk[(chunk["price_cpl"] > 100) & (chunk["price_cpl"] < 300)]
+            if chunk.empty:
+                continue
+
+            usable_rows += int(len(chunk))
+            if "site_id" in chunk.columns:
+                station_ids.update(chunk["site_id"].dropna().astype(str).unique().tolist())
+            if "reported_at" in chunk.columns:
+                reported = pd.to_datetime(chunk["reported_at"], errors="coerce").dropna()
+                reported_days_set.update(reported.dt.date.unique().tolist())
+
+            chunk["day"] = chunk["date"].dt.normalize()
+            for day, prices in chunk.groupby("day")["price_cpl"]:
+                daily_values.setdefault(day, []).extend(prices.astype(float).tolist())
+
+        if not daily_values:
             return {"available": False, "reason": "no_valid_collection_rows"}
 
-        df["day"] = df["date"].dt.normalize()
-        daily = (
-            df.groupby("day")["price_cpl"]
-            .agg(["median", "mean", "min", "max", "count"])
-            .reset_index()
-            .sort_values("day")
-        )
+        daily = pd.DataFrame(
+            {
+                "day": day,
+                "median": float(pd.Series(values).median()),
+                "mean": float(pd.Series(values).mean()),
+                "min": float(pd.Series(values).min()),
+                "max": float(pd.Series(values).max()),
+                "count": len(values),
+            }
+            for day, values in daily_values.items()
+        ).sort_values("day")
 
         latest = daily.iloc[-1]
         recent = daily.tail(min(4, len(daily)))
@@ -573,20 +732,17 @@ def _profile_live_collection(state: str) -> dict:
         else:
             trend_label = "mostly flat"
 
-        reported_days = None
-        if "reported_at" in df.columns:
-            reported_days = int(pd.to_datetime(df["reported_at"], errors="coerce").dt.date.nunique())
-
+        states_present = sorted(states_present_set) or [state]
         return {
             "available": True,
             "file_name": os.path.basename(HISTORY_FILE),
             "states_present": states_present,
             "state_rows": raw_rows,
-            "usable_rows": int(len(df)),
-            "station_count": int(df["site_id"].nunique()) if "site_id" in df.columns else None,
+            "usable_rows": usable_rows,
+            "station_count": len(station_ids) if station_ids else None,
             "date_basis": date_basis,
             "scrape_days": int(len(daily)),
-            "reported_days": reported_days,
+            "reported_days": len(reported_days_set) if reported_days_set else None,
             "latest_date": latest["day"].strftime("%Y-%m-%d"),
             "latest_median_cpl": round(float(latest["median"]), 1),
             "latest_mean_cpl": round(float(latest["mean"]), 1),
@@ -601,6 +757,7 @@ def _profile_live_collection(state: str) -> dict:
                 f"scrape-day move is {latest_delta:+.1f} cpl."
             ),
         }
+
     except Exception as e:
         logger.debug("Live collection profile failed: %s", e)
         return {"available": False, "reason": "profile_failed"}
@@ -1019,6 +1176,122 @@ def _forecast_tgp_anchor(raw_tgp: float, live_df: pd.DataFrame | None, daily_df:
     return round(raw_tgp, 1), "source_tgp"
 
 
+def _prepare_forecast_history(history_df: pd.DataFrame | None) -> pd.DataFrame:
+    if history_df is None or history_df.empty:
+        return pd.DataFrame(columns=["date", "price_cpl"])
+
+    df = history_df.copy()
+    df.columns = [str(col).lower().strip() for col in df.columns]
+    if "date" not in df.columns and "day" in df.columns:
+        df = df.rename(columns={"day": "date"})
+    if "date" not in df.columns or "price_cpl" not in df.columns:
+        return pd.DataFrame(columns=["date", "price_cpl"])
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["price_cpl"] = pd.to_numeric(df["price_cpl"], errors="coerce")
+    df = df.dropna(subset=["date", "price_cpl"])
+    df = df[(df["price_cpl"] > 80) & (df["price_cpl"] < 350)]
+    if df.empty:
+        return pd.DataFrame(columns=["date", "price_cpl"])
+
+    daily = (
+        df.groupby(df["date"].dt.normalize())["price_cpl"]
+        .median()
+        .reset_index()
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+    return daily
+
+
+def _predict_horizon_physics(history_df: pd.DataFrame | None, days: int = 14, tgp: float | None = None) -> pd.DataFrame:
+    history = _prepare_forecast_history(history_df)
+    columns = [
+        "date",
+        "predicted_price",
+        "predicted_low",
+        "predicted_high",
+        "hike_probability",
+        "trend",
+        "regime",
+    ]
+    if history.empty:
+        return pd.DataFrame(columns=columns)
+
+    prices = history["price_cpl"].astype(float)
+    current_price = float(prices.iloc[-1])
+    current_date = pd.Timestamp(history["date"].iloc[-1])
+    effective_tgp = _safe_float(tgp, None)
+    if effective_tgp is None:
+        effective_tgp = max(90.0, min(current_price - 6.0, float(prices.tail(14).min()) - 4.0))
+
+    detector_cls = globals().get("CycleDetector")
+    detector = detector_cls() if detector_cls else cycle_detector
+    cycle_info = {"phase": "UNKNOWN", "confidence": 0.0}
+    daily_decay = 1.0
+    spike_magnitude = 18.0
+    floor_margin = 6.0
+
+    if detector is not None and len(prices) >= 5:
+        try:
+            detector.fit(prices)
+            daily_decay = max(0.3, min(3.0, _safe_float(getattr(detector, "daily_decay", None), daily_decay)))
+            spike_magnitude = max(8.0, min(35.0, _safe_float(getattr(detector, "spike_magnitude", None), spike_magnitude)))
+            floor_margin = max(3.0, min(12.0, _safe_float(getattr(detector, "floor_margin", None), floor_margin)))
+            cycle_info = detector.detect_current_regime(prices)
+        except Exception as e:
+            logger.debug("Fallback forecast calibration failed: %s", e)
+
+    phase = str(cycle_info.get("phase", "UNKNOWN")).upper()
+    is_hiking = phase == "RESTORATION"
+    hike_days_left = 2 if is_hiking else 0
+    rows = []
+
+    for step in range(1, max(1, int(days)) + 1):
+        current_date += pd.Timedelta(days=1)
+        margin = current_price - effective_tgp
+        hike_prob = float(1.0 / (1.0 + np.exp((margin - floor_margin - 2.0) / 2.0)))
+
+        if is_hiking:
+            step_spike = spike_magnitude * (0.65 if hike_days_left >= 2 else 0.35)
+            current_price += step_spike
+            hike_days_left -= 1
+            if hike_days_left <= 0:
+                is_hiking = False
+        elif margin <= floor_margin or hike_prob > 0.65:
+            is_hiking = True
+            hike_days_left = 1
+            current_price += spike_magnitude * 0.65
+        else:
+            current_price = max(effective_tgp + floor_margin, current_price - daily_decay)
+
+        uncertainty = 1.5 * np.sqrt(step)
+        low_bound = max(effective_tgp, current_price - uncertainty)
+        high_bound = current_price + uncertainty
+        rows.append({
+            "date": current_date.strftime("%Y-%m-%d"),
+            "predicted_price": round(float(current_price), 2),
+            "predicted_low": round(float(low_bound), 2),
+            "predicted_high": round(float(high_bound), 2),
+            "hike_probability": round(max(0.0, min(1.0, hike_prob)), 3),
+            "trend": "ROCKET" if is_hiking or hike_prob > 0.5 else "FEATHER",
+            "regime": "RESTORATION" if is_hiking or hike_prob > 0.5 else "UNDERCUTTING",
+        })
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _predict_horizon(history_df: pd.DataFrame | None, days: int = 14, tgp: float | None = None) -> pd.DataFrame:
+    if ai_model is not None:
+        try:
+            result = ai_model.predict_horizon(history_df, days=days, tgp=tgp)
+            if result is not None and not result.empty:
+                return result
+        except Exception as e:
+            logger.debug("ML forecast failed; using lightweight fallback: %s", e)
+    return _predict_horizon_physics(history_df, days=days, tgp=tgp)
+
+
 def _latest_scrape_time(live_df: pd.DataFrame) -> datetime | None:
     if live_df is None or live_df.empty or "scraped_at" not in live_df.columns:
         return None
@@ -1133,7 +1406,7 @@ def _build_recommendation_payload(
     forecast_min = None
     forecast_max = None
     forecast_delta_7d = 0.0
-    if daily_df is not None and not daily_df.empty and ai_model:
+    if daily_df is not None and not daily_df.empty:
         try:
             ai_input = daily_df.rename(columns={"day": "date"}).copy()
             today = pd.Timestamp.now().normalize()
@@ -1142,7 +1415,7 @@ def _build_recommendation_payload(
                     [ai_input, pd.DataFrame({"date": [today], "price_cpl": [current_median]})],
                     ignore_index=True,
                 )
-            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+            future_df = _predict_horizon(ai_input, days=14, tgp=current_tgp)
             if future_df is not None and not future_df.empty:
                 first = future_df.iloc[0]
                 hike_prob = _safe_float(first.get("hike_probability"), 0.0) * 100
@@ -1216,7 +1489,7 @@ def _build_recommendation_payload(
             "label": "Hike probability",
             "value": f"{hike_prob:.0f}%",
             "detail": "Forecast probability for the next movement.",
-            "source": "DeepCycle model" if ai_model else "Fallback heuristic",
+            "source": "DeepCycle model" if MODEL_LOADED and ai_model else "Fallback heuristic",
             "freshness": freshness,
         },
         {
@@ -1378,6 +1651,7 @@ def _build_data_health_payload(state: str = "QLD") -> dict:
         "dependencies": {
             "fuel_api_token_configured": bool(config.FUEL_API_TOKEN),
             "database_available": db is not None,
+            "ml_model_enabled": ML_MODEL_ENABLED,
             "ai_model_available": ai_model is not None,
             "model_loaded": MODEL_LOADED,
             "cycle_detector_available": cycle_detector is not None,
@@ -1788,7 +2062,7 @@ async def get_market_status(state: str = "QLD"):
         status_label = "STABLE"
         advice = "Hold"
 
-        if daily_df is not None and not daily_df.empty and ai_model:
+        if daily_df is not None and not daily_df.empty:
             ai_input = daily_df.rename(columns={'day': 'date'}).copy()
 
             # Inject today's live price
@@ -1796,7 +2070,7 @@ async def get_market_status(state: str = "QLD"):
             if ai_input['date'].max() < today and current_median > 0:
                 ai_input = pd.concat([ai_input, pd.DataFrame({'date': [today], 'price_cpl': [current_median]})], ignore_index=True)
 
-            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+            future_df = _predict_horizon(ai_input, days=14, tgp=current_tgp)
 
             if future_df is not None and not future_df.empty:
                 tomorrow = future_df.iloc[0]
@@ -1994,7 +2268,7 @@ async def get_analytics(state: str = "QLD"):
 
         forecast = {"forecast_dates": [], "forecast_mean": [], "forecast_low": [], "forecast_high": []}
 
-        if daily_df is not None and not daily_df.empty and ai_model:
+        if daily_df is not None and not daily_df.empty:
             capital = config.STATES.get(state, config.STATES["QLD"])["capital"]
             trend = await run_in_threadpool(tgp_forecast.analyze_trend, city=capital)
             raw_tgp = _safe_float(trend.get('current_tgp'), 165.0)
@@ -2002,7 +2276,7 @@ async def get_analytics(state: str = "QLD"):
             current_tgp, _ = _forecast_tgp_anchor(raw_tgp, live_for_anchor, daily_df, trend)
 
             ai_input = daily_df.rename(columns={'day': 'date'})
-            future_df = ai_model.predict_horizon(ai_input, days=14, tgp=current_tgp)
+            future_df = _predict_horizon(ai_input, days=14, tgp=current_tgp)
             if future_df is not None and not future_df.empty:
                 forecast = {
                     "forecast_dates": future_df['date'].astype(str).tolist(),
@@ -2166,6 +2440,7 @@ async def get_health():
             "timestamp": datetime.now().isoformat(),
             "modules": {
                 "data_store": db is not None,
+                "ml_model_enabled": ML_MODEL_ENABLED,
                 "ai_model": ai_model is not None,
                 "model_loaded": MODEL_LOADED,
                 "cycle_detector": cycle_detector is not None,

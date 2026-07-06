@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import requests
 import polyline
+from collections import OrderedDict
 from math import radians, cos, sin, asin, sqrt
 import config
 
@@ -26,11 +27,13 @@ def load_local_data():
             print(f"Warning: Error loading local data: {e}")
     return pd.DataFrame()
 
-_geocode_cache = {}
+_GEOCODE_CACHE_MAX = 256
+_geocode_cache = OrderedDict()
 
 def get_coords_from_address(address):
     global _geocode_cache
     if address in _geocode_cache:
+        _geocode_cache.move_to_end(address)
         return _geocode_cache[address]
 
     params = {'q': f"{address}, Australia", 'format': 'json', 'limit': 1}
@@ -41,6 +44,9 @@ def get_coords_from_address(address):
             data = r.json()[0]
             res = (float(data['lat']), float(data['lon']), data['display_name'])
             _geocode_cache[address] = res
+            _geocode_cache.move_to_end(address)
+            while len(_geocode_cache) > _GEOCODE_CACHE_MAX:
+                _geocode_cache.popitem(last=False)
             return res
     except Exception:
         pass

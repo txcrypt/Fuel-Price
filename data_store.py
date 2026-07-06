@@ -364,42 +364,45 @@ class FuelDataStore:
             logger.error("backfill_from_csv: file not found — %s", csv_path)
             return 0
 
+        def normalise_chunk(chunk: pd.DataFrame) -> pd.DataFrame | None:
+            chunk = chunk.copy()
+            chunk.columns = [c.lower().strip() for c in chunk.columns]
+
+            for alias, canon in [("latitude", "lat"), ("longitude", "lng")]:
+                if alias in chunk.columns and canon not in chunk.columns:
+                    chunk.rename(columns={alias: canon}, inplace=True)
+
+            if "scraped_at" not in chunk.columns:
+                if "reported_at" in chunk.columns:
+                    chunk["scraped_at"] = chunk["reported_at"]
+                else:
+                    mtime = datetime.fromtimestamp(os.path.getmtime(csv_path))
+                    chunk["scraped_at"] = mtime.strftime("%Y-%m-%d %H:%M:%S")
+
+            if "state" not in chunk.columns:
+                chunk["state"] = "QLD"
+
+            if "site_id" not in chunk.columns:
+                return None
+            return chunk
+
+        inserted = 0
+        saw_site_id = False
         try:
-            df = pd.read_csv(csv_path, low_memory=False)
+            for chunk in pd.read_csv(csv_path, low_memory=False, chunksize=50000):
+                normalised = normalise_chunk(chunk)
+                if normalised is None:
+                    continue
+                saw_site_id = True
+                inserted += self.save_snapshot(normalised)
         except Exception as exc:
-            logger.error("backfill_from_csv: read error — %s", exc)
-            return 0
+            logger.error("backfill_from_csv: read error: %s", exc)
+            return inserted
 
-        df.columns = [c.lower().strip() for c in df.columns]
-
-        # Detect format by column count / presence
-        has_scraped = "scraped_at" in df.columns
-        has_state = "state" in df.columns
-
-        # Normalise latitude/longitude → lat/lng
-        for alias, canon in [("latitude", "lat"), ("longitude", "lng")]:
-            if alias in df.columns and canon not in df.columns:
-                df.rename(columns={alias: canon}, inplace=True)
-
-        # 7-column (no scraped_at): use reported_at as scraped_at
-        if not has_scraped:
-            if "reported_at" in df.columns:
-                df["scraped_at"] = df["reported_at"]
-            else:
-                # last-resort: use file mtime
-                mtime = datetime.fromtimestamp(os.path.getmtime(csv_path))
-                df["scraped_at"] = mtime.strftime("%Y-%m-%d %H:%M:%S")
-
-        # 7-column (no state): default to QLD (Brisbane-centric legacy file)
-        if not has_state:
-            df["state"] = "QLD"
-
-        # Ensure site_id exists
-        if "site_id" not in df.columns:
+        if not saw_site_id:
             logger.error("backfill_from_csv: no site_id column")
-            return 0
 
-        return self.save_snapshot(df)
+        return inserted
 
     # ------------------------------------------------------------------
     # Aggregate snapshots → daily stats
@@ -461,4 +464,3 @@ class FuelDataStore:
 
 # Alias for backward compatibility
 DataStore = FuelDataStore
-

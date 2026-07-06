@@ -34,23 +34,38 @@ def load_daily_data(force_refresh=False, state="QLD"):
         available_cols = pd.read_csv(HISTORY_FILE, nrows=0).columns.tolist()
         desired_cols = ['price_cpl', 'reported_at', 'scraped_at', 'state']
         use_cols = [c for c in desired_cols if c in available_cols]
-        df = pd.read_csv(HISTORY_FILE, usecols=use_cols)
-        
-        # Filter by state
-        if 'state' in df.columns:
-            df = df[df['state'] == state].copy()
-        elif state != "QLD":
+        if 'price_cpl' not in use_cols or ('scraped_at' not in use_cols and 'reported_at' not in use_cols):
             return pd.DataFrame(columns=['day', 'price_cpl'])
-        
-        # Prefer scraped_at
-        col = 'scraped_at' if 'scraped_at' in df.columns else 'reported_at'
-        
-        df['date'] = pd.to_datetime(df[col], errors='coerce')
-        df = df.dropna(subset=['date', 'price_cpl'])
-        df['day'] = df['date'].dt.normalize()
-        
-        # Group
-        daily_df = df.groupby('day')['price_cpl'].median().reset_index().sort_values('day')
+        col = 'scraped_at' if 'scraped_at' in use_cols else 'reported_at'
+        daily_values = {}
+
+        for chunk in pd.read_csv(HISTORY_FILE, usecols=use_cols, chunksize=50000):
+            if 'state' in chunk.columns:
+                chunk = chunk[chunk['state'].astype(str).str.upper() == state.upper()].copy()
+            elif state != "QLD":
+                return pd.DataFrame(columns=['day', 'price_cpl'])
+
+            if chunk.empty:
+                continue
+
+            chunk['price_cpl'] = pd.to_numeric(chunk['price_cpl'], errors='coerce')
+            chunk['date'] = pd.to_datetime(chunk[col], errors='coerce')
+            chunk = chunk.dropna(subset=['date', 'price_cpl'])
+            chunk = chunk[(chunk['price_cpl'] > 80) & (chunk['price_cpl'] < 350)]
+            if chunk.empty:
+                continue
+
+            chunk['day'] = chunk['date'].dt.normalize()
+            for day, prices in chunk.groupby('day')['price_cpl']:
+                daily_values.setdefault(day, []).extend(prices.astype(float).tolist())
+
+        if not daily_values:
+            return pd.DataFrame(columns=['day', 'price_cpl'])
+
+        daily_df = pd.DataFrame(
+            {'day': day, 'price_cpl': float(pd.Series(values).median())}
+            for day, values in daily_values.items()
+        ).sort_values('day')
         
         # Save Cache
         daily_df['day_str'] = daily_df['day'].dt.strftime('%Y-%m-%d')

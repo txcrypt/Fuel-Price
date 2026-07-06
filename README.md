@@ -27,6 +27,7 @@ FastAPI + SQLite + Leaflet + Chart.js dashboard for Australian fuel-price decisi
    ADVANCED_SESSION_SECRET=change_me
    CORS_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
    AISSTREAM_API_KEY=optional
+   ENABLE_ML_MODEL=false
    ```
 
 3. Run the app:
@@ -44,6 +45,7 @@ FastAPI + SQLite + Leaflet + Chart.js dashboard for Australian fuel-price decisi
 - TGP uses AIP first, Viva fallback, then emergency fallback if both fail.
 - Market data uses Frankfurter/yfinance with synthetic fallback.
 - Gemini is backend-only. If `GEMINI_API_KEY` is missing, Advanced mode returns deterministic local summaries.
+- XGBoost forecasting is opt-in with `ENABLE_ML_MODEL=true`; the default uses the memory-light calibrated cycle fallback for small Render instances.
 
 ## Key API Endpoints
 
