@@ -762,6 +762,60 @@ const app = (function() {
                 </div>
             `).join('');
         }
+
+        renderPredictionMethod(data.prediction_method || {});
+    };
+
+    const renderPredictionMethod = (method) => {
+        const summary = document.getElementById('prediction-method-summary');
+        if (summary) summary.textContent = method.summary || 'Prediction methodology is unavailable.';
+
+        const mode = document.getElementById('prediction-mode');
+        if (mode) mode.textContent = method.forecast_mode || 'Unavailable';
+
+        const signals = document.getElementById('prediction-signals');
+        if (signals) {
+            signals.innerHTML = (method.signals || []).map(signal => `
+                <div class="bg-slate-950/45 border border-slate-800 rounded-2xl p-4">
+                    <div class="text-[10px] uppercase text-slate-500 font-bold">${escapeHtml(signal.label)}</div>
+                    <div class="text-lg font-black text-white mt-1">${escapeHtml(signal.value)}</div>
+                    <div class="text-xs text-slate-400 mt-2 leading-relaxed">${escapeHtml(signal.detail)}</div>
+                </div>
+            `).join('');
+        }
+
+        const formula = document.getElementById('prediction-formula');
+        if (formula) {
+            formula.innerHTML = (method.formula_steps || []).map(step => `
+                <li class="pl-1">${escapeHtml(step)}</li>
+            `).join('');
+        }
+
+        const validation = document.getElementById('prediction-validation');
+        if (validation) {
+            const v = method.validation || {};
+            const live = method.live_collection || {};
+            const validationText = v.available
+                ? `Clean-history backtest (${escapeHtml(v.window_days)} days): cycle baseline MAE ${formatPrice(v.cycle_baseline_mae_cpl)}c vs persistence ${formatPrice(v.naive_mae_cpl)}c; ${formatPrice(v.within_5c_percent)}% of next-day medians landed within 5c. ${escapeHtml(v.note)}`
+                : `Validation unavailable: ${escapeHtml(v.reason || 'no validation data')}.`;
+            const liveText = live.available
+                ? `Live file: ${escapeHtml(live.file_name)} has ${escapeHtml(live.scrape_days)} scrape days for this state; latest trend is ${escapeHtml(live.trend_label)}.`
+                : `Live file profile unavailable: ${escapeHtml(live.reason || 'unknown')}.`;
+            validation.innerHTML = `
+                <p>${validationText}</p>
+                <p class="mt-3 text-slate-400">${liveText}</p>
+            `;
+        }
+
+        const sources = document.getElementById('prediction-sources');
+        if (sources) {
+            sources.innerHTML = (method.research_sources || []).map(source => `
+                <a class="block text-xs text-cyan-300 hover:text-cyan-200" href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">
+                    <span class="font-bold">${escapeHtml(source.label)}</span>
+                    <span class="block text-slate-500 mt-0.5">${escapeHtml(source.note)}</span>
+                </a>
+            `).join('');
+        }
     };
 
     const loadSourceExplorer = async () => {

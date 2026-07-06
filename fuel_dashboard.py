@@ -130,6 +130,25 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 # --- File Paths ---
 SNAPSHOT_FILE = os.path.join(config.BASE_DIR, "live_snapshot.csv")
 HISTORY_FILE = config.COLLECTION_FILE
+CLEAN_HISTORY_FILE = os.path.join(config.BASE_DIR, "brisbane_fuel_history_clean.csv")
+
+PREDICTION_RESEARCH_SOURCES = [
+    {
+        "label": "ACCC petrol price cycles",
+        "url": "https://www.accc.gov.au/consumers/petrol-diesel-lpg/petrol-price-cycles",
+        "note": "Retail cycle markets can rise sharply and then discount gradually.",
+    },
+    {
+        "label": "ACCC fuel price drivers",
+        "url": "https://www.accc.gov.au/consumers/petrol-and-fuel/what-affects-fuel-prices",
+        "note": "International refined fuel costs, exchange rates, taxes and retail cycles all matter.",
+    },
+    {
+        "label": "AIP terminal gate prices",
+        "url": "https://www.aip.com.au/pricing/terminal-gate-prices",
+        "note": "Wholesale TGP is used as the cost anchor for the retail margin calculation.",
+    },
+]
 
 # ============================================================
 # DATA SYNC
@@ -502,6 +521,242 @@ def _summarise_live_stations(live_df: pd.DataFrame) -> dict:
         ]
 
     return summary
+
+
+def _profile_live_collection(state: str) -> dict:
+    """Summarise the live collection file using scrape time as the market observation time."""
+    state = _normalise_api_state(state)
+    if not os.path.exists(HISTORY_FILE):
+        return {"available": False, "reason": "collection_file_missing"}
+
+    try:
+        header = pd.read_csv(HISTORY_FILE, nrows=0).columns.tolist()
+        wanted = ["site_id", "price_cpl", "reported_at", "scraped_at", "state"]
+        usecols = [col for col in wanted if col in header]
+        df = pd.read_csv(HISTORY_FILE, usecols=usecols)
+        if df.empty or "price_cpl" not in df.columns:
+            return {"available": False, "reason": "collection_file_empty"}
+
+        if "state" in df.columns:
+            states_present = sorted(df["state"].dropna().astype(str).str.upper().unique().tolist())
+            df = df[df["state"].astype(str).str.upper() == state].copy()
+        else:
+            states_present = ["QLD"]
+            if state != "QLD":
+                return {"available": False, "reason": "legacy_qld_only_collection"}
+
+        raw_rows = int(len(df))
+        df["price_cpl"] = pd.to_numeric(df["price_cpl"], errors="coerce")
+        df = df[(df["price_cpl"] > 100) & (df["price_cpl"] < 300)].copy()
+
+        date_basis = "scraped_at" if "scraped_at" in df.columns else "reported_at"
+        df["date"] = pd.to_datetime(df[date_basis], errors="coerce")
+        df = df.dropna(subset=["date", "price_cpl"])
+        if df.empty:
+            return {"available": False, "reason": "no_valid_collection_rows"}
+
+        df["day"] = df["date"].dt.normalize()
+        daily = (
+            df.groupby("day")["price_cpl"]
+            .agg(["median", "mean", "min", "max", "count"])
+            .reset_index()
+            .sort_values("day")
+        )
+
+        latest = daily.iloc[-1]
+        recent = daily.tail(min(4, len(daily)))
+        latest_delta = float(recent["median"].iloc[-1] - recent["median"].iloc[0]) if len(recent) > 1 else 0.0
+        if latest_delta >= 3.0:
+            trend_label = "rising from the recent trough"
+        elif latest_delta <= -3.0:
+            trend_label = "discounting lower"
+        else:
+            trend_label = "mostly flat"
+
+        reported_days = None
+        if "reported_at" in df.columns:
+            reported_days = int(pd.to_datetime(df["reported_at"], errors="coerce").dt.date.nunique())
+
+        return {
+            "available": True,
+            "file_name": os.path.basename(HISTORY_FILE),
+            "states_present": states_present,
+            "state_rows": raw_rows,
+            "usable_rows": int(len(df)),
+            "station_count": int(df["site_id"].nunique()) if "site_id" in df.columns else None,
+            "date_basis": date_basis,
+            "scrape_days": int(len(daily)),
+            "reported_days": reported_days,
+            "latest_date": latest["day"].strftime("%Y-%m-%d"),
+            "latest_median_cpl": round(float(latest["median"]), 1),
+            "latest_mean_cpl": round(float(latest["mean"]), 1),
+            "latest_min_cpl": round(float(latest["min"]), 1),
+            "latest_max_cpl": round(float(latest["max"]), 1),
+            "latest_window_days": int(len(recent)),
+            "latest_window_delta_cpl": round(latest_delta, 1),
+            "trend_label": trend_label,
+            "finding": (
+                f"{state} rows are aggregated by {date_basis}; latest median is "
+                f"{float(latest['median']):.1f} cpl and the latest {len(recent)} "
+                f"scrape-day move is {latest_delta:+.1f} cpl."
+            ),
+        }
+    except Exception as e:
+        logger.debug("Live collection profile failed: %s", e)
+        return {"available": False, "reason": "profile_failed"}
+
+
+@lru_cache(maxsize=1)
+def _historical_validation_summary() -> dict:
+    """Backtest a transparent daily-cycle baseline on the clean Brisbane history."""
+    if not os.path.exists(CLEAN_HISTORY_FILE):
+        return {"available": False, "reason": "clean_history_missing"}
+
+    try:
+        df = pd.read_csv(CLEAN_HISTORY_FILE, usecols=["price_cpl", "reported_at"])
+        df["date"] = pd.to_datetime(df["reported_at"], errors="coerce")
+        df["price_cpl"] = pd.to_numeric(df["price_cpl"], errors="coerce")
+        df = df.dropna(subset=["date", "price_cpl"])
+        df = df[(df["price_cpl"] > 100) & (df["price_cpl"] < 300)]
+        daily = (
+            df.groupby(df["date"].dt.normalize())["price_cpl"]
+            .median()
+            .reset_index()
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+        if len(daily) < 75:
+            return {"available": False, "reason": "insufficient_clean_history"}
+
+        prices = daily["price_cpl"].to_numpy(dtype=float)
+        rows = []
+        for idx in range(35, len(prices) - 1):
+            current = prices[idx]
+            window = prices[max(0, idx - 44): idx + 1]
+            recent = prices[max(0, idx - 7): idx + 1]
+            diffs = np.diff(recent)
+            median_drift = float(np.median(diffs)) if len(diffs) else 0.0
+            position = (current - float(np.min(window))) / max(1.0, float(np.max(window) - np.min(window)))
+
+            delta = median_drift
+            if position < 0.18 and idx >= 4 and current - prices[idx - 3] >= -1.0:
+                delta = max(delta, 5.0)
+            elif position > 0.80:
+                delta = min(delta, -2.0)
+            delta = float(np.clip(delta, -8.0, 22.0))
+            rows.append({
+                "predicted": current + delta,
+                "naive": current,
+                "actual": prices[idx + 1],
+                "actual_delta": prices[idx + 1] - current,
+            })
+
+        result = pd.DataFrame(rows).tail(60)
+        if result.empty:
+            return {"available": False, "reason": "no_validation_window"}
+
+        error = result["predicted"] - result["actual"]
+        naive_error = result["naive"] - result["actual"]
+        hike_days = int((result["actual_delta"] > 5.0).sum())
+        return {
+            "available": True,
+            "window_days": int(len(result)),
+            "history_days": int(len(daily)),
+            "start_date": daily["date"].iloc[-len(result)].strftime("%Y-%m-%d"),
+            "end_date": daily["date"].iloc[-1].strftime("%Y-%m-%d"),
+            "cycle_baseline_mae_cpl": round(float(error.abs().mean()), 2),
+            "naive_mae_cpl": round(float(naive_error.abs().mean()), 2),
+            "within_5c_percent": round(float((error.abs() <= 5.0).mean() * 100), 1),
+            "hike_days": hike_days,
+            "note": "Price-level forecasts are usually tighter than exact restoration-day timing.",
+        }
+    except Exception as e:
+        logger.debug("Historical validation failed: %s", e)
+        return {"available": False, "reason": "validation_failed"}
+
+
+def _build_prediction_method(evidence: dict, daily_df: pd.DataFrame | None, live_df: pd.DataFrame | None) -> dict:
+    status = evidence.get("market_status", {})
+    ticker = status.get("ticker", {})
+    cycle = status.get("cycle", {}) or {}
+    collection = _profile_live_collection(evidence.get("state", config.DEFAULT_STATE))
+    validation = _historical_validation_summary()
+
+    current_price = _safe_float(status.get("current_median"), None)
+    if current_price is None and collection.get("available"):
+        current_price = _safe_float(collection.get("latest_median_cpl"), None)
+    current_tgp = _safe_float(ticker.get("tgp"), None)
+    spread = round(current_price - current_tgp, 1) if current_price is not None and current_tgp is not None else None
+
+    restore_prob = None
+    probabilities = cycle.get("probabilities") if isinstance(cycle, dict) else None
+    if isinstance(probabilities, dict):
+        restore_prob = _safe_float(probabilities.get("RESTORATION"), None)
+
+    data_days = None
+    if daily_df is not None and not daily_df.empty:
+        data_days = int(len(daily_df))
+
+    forecast_mode = "Hybrid ML + calibrated cycle physics" if MODEL_LOADED and (data_days or 0) >= 45 else "Calibrated cycle physics fallback"
+    if MODEL_LOADED and (data_days or 0) < 45:
+        history_note = "ML model is loaded, but the current daily series is shorter than the 45-day lag window."
+    elif MODEL_LOADED:
+        history_note = "ML model has enough lag history for recursive short-range forecasting."
+    else:
+        history_note = "ML model is unavailable, so the physics fallback owns the forecast."
+
+    return clean_nan({
+        "summary": (
+            "The price forecast uses live QLD station medians for the current market state, "
+            "cycle position for restoration risk, and TGP/import-parity data as the wholesale floor."
+        ),
+        "forecast_mode": forecast_mode,
+        "history_note": history_note,
+        "live_collection": collection,
+        "validation": validation,
+        "signals": [
+            {
+                "label": "Live collection",
+                "value": f"{collection.get('usable_rows', 0):,} rows" if collection.get("available") else "Unavailable",
+                "detail": collection.get("finding", "Live collection could not be profiled."),
+            },
+            {
+                "label": "Timestamp basis",
+                "value": collection.get("date_basis", "--"),
+                "detail": "scraped_at is the market observation time; reported_at is a station update timestamp.",
+            },
+            {
+                "label": "Retail/TGP spread",
+                "value": f"{spread:+.1f} cpl" if spread is not None else "--",
+                "detail": f"Retail median {current_price:.1f} cpl vs TGP {current_tgp:.1f} cpl." if current_price and current_tgp else "Spread unavailable.",
+            },
+            {
+                "label": "Cycle state",
+                "value": str(cycle.get("market_phase") or cycle.get("phase") or "UNKNOWN"),
+                "detail": f"Restore probability {restore_prob * 100:.0f}%." if restore_prob is not None else "Cycle probability unavailable.",
+            },
+            {
+                "label": "TGP anchor",
+                "value": str(ticker.get("tgp_anchor_reason") or "source_tgp"),
+                "detail": "Raw TGP is used unless it is invalid, an emergency fallback, or contradicts observed retail prices.",
+            },
+            {
+                "label": "Forecast mode",
+                "value": forecast_mode,
+                "detail": history_note,
+            },
+        ],
+        "formula_steps": [
+            "Daily retail input = state-filtered median(price_cpl) grouped by scraped_at day for live collections.",
+            "Cycle features = lag prices + 7/14/28/42 day movement + peak/trough distance + restoration probability.",
+            "ML delta = XGBoost regressor(delta_cpl) with XGBoost hike probability added as a feature.",
+            "Cycle physics = if retail margin approaches the calibrated floor above TGP, apply a restoration spike; otherwise decay by the calibrated undercut rate.",
+            "Final day-n price = ML_delta weight * ML path + cycle weight * physics path, with ML weight fading from 70% to 10% across 14 days.",
+            "Uncertainty band = forecast +/- 1.8 * sqrt(day_n), with the low bound clamped to the effective TGP anchor.",
+            "TGP model = live AIP/Viva TGP when available; import-parity explains movement from Brent, AUD/USD, freight, excise and GST.",
+        ],
+        "research_sources": PREDICTION_RESEARCH_SOURCES,
+    })
 
 
 def _build_analyst_notes(evidence: dict) -> list[dict]:
@@ -1204,6 +1459,7 @@ def _build_technical_summary(state: str = "QLD") -> dict:
         "data_quality": health,
         "analyst_notes": evidence.get("analyst_notes", []),
         "source_cards": _advanced_source_cards(evidence),
+        "prediction_method": _build_prediction_method(evidence, _get_daily_data(state), load_live_data_latest(state=state)),
     })
 
 

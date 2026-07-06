@@ -26,6 +26,17 @@ class DeepCycleModel:
     - Confidence intervals (low/high bounds)
     - Hike probabilities and cycle regime tags
     """
+    MIN_ML_HISTORY_DAYS = 45
+    CITY_TO_STATE = {
+        "brisbane": "QLD",
+        "sydney": "NSW",
+        "melbourne": "VIC",
+        "adelaide": "SA",
+        "perth": "WA",
+        "canberra": "ACT",
+        "hobart": "TAS",
+        "darwin": "NT",
+    }
     
     def __init__(self, model_dir='models/'):
         self.model_dir = model_dir
@@ -57,6 +68,43 @@ class DeepCycleModel:
         self.tgp_proxy_col = 'tgp_proxy_14d'
         self.loaded = False
         self.detector = CycleDetector()
+
+    @staticmethod
+    def _select_date_column(df):
+        """Pick the observation date without mistaking station-report time for scrape time."""
+        for candidate in ["date", "day", "scraped_at", "timestamp", "reported_at"]:
+            if candidate in df.columns:
+                return candidate
+        return next((c for c in df.columns if "date" in c or "time" in c), None)
+
+    def _prepare_daily_prices(self, df, city_name=None):
+        """Normalize raw station rows or daily rows into daily median prices."""
+        df = df.copy()
+        df.columns = [c.lower().strip() for c in df.columns]
+
+        if "price_cpl" not in df.columns:
+            raise ValueError("price_cpl column is required")
+
+        if city_name and "state" in df.columns:
+            state = self.CITY_TO_STATE.get(str(city_name).lower())
+            if state:
+                df = df[df["state"].astype(str).str.upper() == state].copy()
+
+        date_col = self._select_date_column(df)
+        if not date_col:
+            raise ValueError("No date/timestamp column found")
+
+        df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+        df["price_cpl"] = pd.to_numeric(df["price_cpl"], errors="coerce")
+        df = df.dropna(subset=["date", "price_cpl"])
+        df = df[(df["price_cpl"] > 100) & (df["price_cpl"] < 300)]
+
+        if df.empty:
+            return pd.DataFrame(columns=["date", "price_cpl"])
+
+        df_daily = df.groupby(df["date"].dt.floor("D"))["price_cpl"].median().reset_index()
+        df_daily.columns = ["date", "price_cpl"]
+        return df_daily.sort_values("date").reset_index(drop=True)
 
     def _feature_engineering(self, df):
         """Build lag and rolling indicators for the regression models."""
@@ -111,22 +159,13 @@ class DeepCycleModel:
         """Train classifier and regressor from clean historical daily prices."""
         logger.info("🚀 Training hybrid model for %s...", city_name)
         df = pd.read_csv(csv_path)
-        
-        # Column cleanup
-        df.columns = [c.lower().strip() for c in df.columns]
-        
-        # Date column resolving
-        date_candidates = ['reported_at', 'scraped_at', 'date', 'timestamp']
-        date_col = next((c for c in date_candidates if c in df.columns), None)
-        if not date_col:
-            date_col = next((c for c in df.columns if 'date' in c or 'time' in c), 'date')
-            
-        df['date'] = pd.to_datetime(df[date_col])
-        df = df.sort_values('date').reset_index(drop=True)
-        
-        # Group to daily median prices
-        df_daily = df.groupby(df['date'].dt.date)['price_cpl'].median().reset_index()
-        df_daily['date'] = pd.to_datetime(df_daily['date'])
+        df_daily = self._prepare_daily_prices(df, city_name=city_name)
+
+        if len(df_daily) < self.MIN_ML_HISTORY_DAYS:
+            logger.warning(
+                "Training data has only %d daily observations; model accuracy will be limited.",
+                len(df_daily),
+            )
         
         # Feature Engineering
         df_feats = self._feature_engineering(df_daily)
@@ -260,23 +299,23 @@ class DeepCycleModel:
         Ensemble prediction blending recursive XGBoost (short range)
         and calibrated Physical model (long range) to prevent compounding errors.
         """
-        # Standarize Date
-        history_df = history_df.copy()
-        if 'reported_at' in history_df.columns:
-            history_df['date'] = pd.to_datetime(history_df['reported_at'])
-        else:
-            history_df['date'] = pd.to_datetime(history_df['date'])
-            
-        # Group and drop duplicates
-        history_df = history_df.groupby(history_df['date'].dt.date)['price_cpl'].median().reset_index()
-        history_df['date'] = pd.to_datetime(history_df['date'])
-        history_df = history_df.sort_values('date').reset_index(drop=True)
+        history_df = self._prepare_daily_prices(history_df)
+        if history_df.empty:
+            return pd.DataFrame(columns=[
+                'date',
+                'predicted_price',
+                'predicted_low',
+                'predicted_high',
+                'hike_probability',
+                'trend',
+                'regime',
+            ])
         
         # 1. Run physical model to get baseline
         phys_df = self.predict_horizon_physical(history_df, days=days, tgp=tgp)
         
-        # If ML model isn't loaded, return physical predictions directly with uncertainty bands
-        if not self.loaded:
+        # If ML model isn't loaded or the lag history is too short, use the transparent fallback.
+        if not self.loaded or len(history_df) < self.MIN_ML_HISTORY_DAYS:
             phys_df['predicted_low'] = (phys_df['predicted_price'] - 1.5 * np.sqrt(np.arange(1, days + 1))).round(2)
             phys_df['predicted_high'] = (phys_df['predicted_price'] + 1.5 * np.sqrt(np.arange(1, days + 1))).round(2)
             
