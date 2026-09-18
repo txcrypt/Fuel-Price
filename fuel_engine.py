@@ -1,185 +1,99 @@
-import requests
-import pandas as pd
-import numpy as np
+"""Fetch real Brisbane unleaded 91 prices from the Queensland fuel API."""
 from datetime import datetime
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import requests
 import config
+from api_evidence import read_json, write_json
+
 
 class FuelEngine:
-    def __init__(self, token=None, state="QLD"):
-        self.token = token if token else config.FUEL_API_TOKEN
-        self.state = state
-        self.state_id = config.STATES.get(self.state, config.STATES["QLD"])["id"]
-        self.base_url = "https://fppdirectapi-prod.fuelpricesqld.com.au"
-        self.headers = {
-            "Authorization": f"FPDAPI SubscriberToken={self.token}",
-            "Content-Type": "application/json"
-        }
-        self.RIVER_LAT = config.STATES.get(self.state, config.STATES["QLD"])["center"][0]
-        self.BOUNDS = config.BOUNDS
+    base_url = 'https://fppdirectapi-prod.fuelpricesqld.com.au'
 
-    def fetch_sites(self):
-        """Get static site data (Location, Name, Brand)"""
+    endpoints = {
+        'sites':('/Subscriber/GetFullSiteDetails', 'S'),
+        'prices':('/Price/GetSitesPrices', 'SitePrices'),
+        'brands':('/Subscriber/GetCountryBrands', 'Brands'),
+        'fuels':('/Subscriber/GetCountryFuelTypes', 'Fuels'),
+        'regions':('/Subscriber/GetCountryGeographicRegions', 'GeographicRegions'),
+    }
+
+    def __init__(self, token=None, cache_dir=None):
+        self.token = config.FUEL_API_TOKEN if token is None else token
+        self.cache_dir = Path(cache_dir or config.BASE_DIR / '.local' / 'qld-api')
+        self.last_evidence = None
+
+    def _get(self, endpoint, key):
         if not self.token:
-            print("Fuel API token missing; skipping QLD site fetch")
-            return pd.DataFrame()
+            raise RuntimeError('FUEL_API_TOKEN is missing. Add it to the local .env file.')
         try:
-            endpoint = f"{self.base_url}/Subscriber/GetFullSiteDetails"
-            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.state_id}
-            
-            r = requests.get(endpoint, headers=self.headers, params=params, timeout=30)
-            r.raise_for_status()
-            
-            df = pd.DataFrame(r.json().get("S", []))
-            if df.empty: return df
-            
-            # Rename to friendly columns
-            df = df.rename(columns={
-                "S": "site_id", 
-                "N": "name", 
-                "Lat": "latitude", 
-                "Lng": "longitude", 
-                "B": "brand_id",
-                "P": "postcode",
-                "GPI": "google_place_id",  
-                "M": "metadata_updated_at" 
-            })
-            return df[['site_id', 'name', 'brand_id', 'latitude', 'longitude', 'postcode', 'google_place_id']]
-        except Exception as e:
-            print(f"❌ Site Fetch Error: {e}")
-            return pd.DataFrame()
+            response = requests.get(
+                self.base_url + endpoint,
+                headers={'Authorization': f'FPDAPI SubscriberToken={self.token}'},
+                params={'countryId':21, **({'geoRegionLevel':3,'geoRegionId':1}
+                        if endpoint.endswith(('GetFullSiteDetails','GetSitesPrices')) else {})},
+                timeout=(10, 30),
+            )
+            response.raise_for_status()
+            data = response.json().get(key)
+        except requests.HTTPError as exc:
+            raise RuntimeError(f'Queensland API returned HTTP {exc.response.status_code}.') from None
+        except (requests.RequestException, ValueError):
+            raise RuntimeError('Queensland API could not be reached or returned invalid JSON.') from None
+        if not isinstance(data, list) or not data:
+            raise RuntimeError(f'Queensland API returned no {key} records.')
+        return data
 
-    def fetch_prices(self):
-        """Get live prices for Unleaded 91 (ID 2)"""
-        if not self.token:
-            print("Fuel API token missing; skipping QLD price fetch")
-            return pd.DataFrame()
+    def _cached(self, name):
+        path = self.cache_dir / f'{name}.json'
+        cached = read_json(path)
+        ttl = 60 if name=='prices' else 86400
+        if cached:
+            age = (datetime.now()-datetime.fromisoformat(cached['retrieved_at'])).total_seconds()
+            if 0 <= age < ttl:
+                return {**cached, 'status':'cached', 'error':None}
         try:
-            endpoint = f"{self.base_url}/Price/GetSitesPrices"
-            params = {"countryId": 21, "geoRegionLevel": 3, "geoRegionId": self.state_id}
-            
-            r = requests.get(endpoint, headers=self.headers, params=params, timeout=30)
-            r.raise_for_status()
-            
-            data = r.json().get("SitePrices", [])
-            if not data: return pd.DataFrame()
-            
-            df = pd.DataFrame(data)
-            
-            # FILTER: Only keep Unleaded 91 (FuelId == 2)
-            df = df[df['FuelId'] == 2].copy()
-            
-            # CLEAN: Normalize Price (1799 -> 179.9)
-            if 'Price' in df.columns:
-                df['price_cpl'] = df['Price'] / 10.0
-                
-            # CLEAN: Remove outliers (e.g. 999.9 or 0)
-            df = df[(df['price_cpl'] > 100) & (df['price_cpl'] < 300)]
-            
-            df = df.rename(columns={"SiteId": "site_id", "TransactionDateUtc": "reported_at"})
-            return df[['site_id', 'price_cpl', 'reported_at']]
-            
-        except Exception as e:
-            print(f"❌ Price Fetch Error: {e}")
-            return pd.DataFrame()
-
-    def get_wa_market_snapshot(self):
-        """Fetches and parses Western Australia fuel price data from FuelWatch RSS feed."""
-        import xml.etree.ElementTree as ET
-        import hashlib
-        
-        url = "https://www.fuelwatch.wa.gov.au/fuelwatch/fuelWatchRSS?Product=1"
-        try:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            r = requests.get(url, headers=headers, timeout=20)
-            if r.status_code != 200:
-                return None
-            
-            root = ET.fromstring(r.content)
-            items = root.findall('.//item')
-            
-            records = []
-            for idx, item in enumerate(items):
-                price_text = item.find('price').text if item.find('price') is not None else "0"
-                try:
-                    price = float(price_text)
-                except:
-                    price = 0.0
-                if price <= 0: continue
-                
-                name = item.find('trading-name').text if item.find('trading-name') is not None else "Station"
-                brand = item.find('brand').text if item.find('brand') is not None else "Independent"
-                suburb = item.find('location').text if item.find('location') is not None else "Unknown"
-                address = item.find('address').text if item.find('address') is not None else ""
-                
-                lat_text = item.find('latitude').text if item.find('latitude') is not None else "0"
-                lng_text = item.find('longitude').text if item.find('longitude') is not None else "0"
-                try:
-                    lat = float(lat_text)
-                    lng = float(lng_text)
-                except:
-                    lat, lng = 0.0, 0.0
-                
-                date_str = item.find('date').text if item.find('date') is not None else ""
-                
-                # Create a stable site_id from name and address
-                site_id = "wa_" + hashlib.md5(f"{name}_{address}".encode('utf-8')).hexdigest()[:8]
-                
-                # Split North/South using Perth Swan River center (-31.95)
-                region = 'North' if lat > -31.95 else 'South'
-                
-                records.append({
-                    'site_id': site_id,
-                    'price_cpl': price,
-                    'reported_at': f"{date_str}T00:00:00" if date_str else datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
-                    'latitude': lat,
-                    'longitude': lng,
-                    'name': name,
-                    'brand_id': 0,
-                    'brand': brand,
-                    'postcode': "",
-                    'google_place_id': "",
-                    'region': region,
-                    'scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'state': 'WA',
-                    'suburb': suburb.title()
-                })
-                
-            return pd.DataFrame(records)
-        except Exception as e:
-            print(f"❌ WA Fetch Error: {e}")
-            return None
+            result = {'data':self._get(*self.endpoints[name]),
+                      'retrieved_at':datetime.now().isoformat(timespec='seconds')}
+            write_json(path, result)
+            return {**result, 'status':'fresh', 'error':None}
+        except (RuntimeError, OSError) as exc:
+            if name=='prices' or (name=='sites' and not cached):
+                raise
+            return {**(cached or {'data':[], 'retrieved_at':None}),
+                    'status':'stale' if cached else 'unavailable', 'error':str(exc)}
 
     def get_market_snapshot(self):
-        """Orchestrates the full pull and merge"""
-        if self.state == "WA":
-            return self.get_wa_market_snapshot()
-            
-        sites = self.fetch_sites()
-        prices = self.fetch_prices()
-        
-        if sites.empty or prices.empty:
-            return None
-            
-        # Segment by state bounds if QLD (Brisbane specific legacy), else use all
-        if self.state == "QLD":
-            state_sites = sites[
-                (sites['latitude'] > self.BOUNDS['lat_min']) & 
-                (sites['latitude'] < self.BOUNDS['lat_max']) & 
-                (sites['longitude'] > self.BOUNDS['lng_min'])
-            ].copy()
-        else:
-            state_sites = sites.copy()
-        
-        # Apply North/South Logic
-        state_sites['region'] = np.where(
-            state_sites['latitude'] > self.RIVER_LAT, 'North', 'South'
-        )
-        
-        # Merge
-        merged = pd.merge(prices, state_sites, on='site_id', how='inner')
-        
-        # Add Timestamp and state
-        merged['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        merged['state'] = self.state
-        
-        return merged
+        responses = {name:self._cached(name) for name in self.endpoints}
+        self.last_evidence = {name:response['data'] for name,response in responses.items()}
+        self.last_evidence.update(retrieved_at=responses['prices']['retrieved_at'],
+            references={name:{k:v for k,v in response.items() if k!='data'} for name,response in responses.items()})
+        sites = pd.DataFrame(responses['sites']['data']).rename(columns={
+            'S': 'site_id', 'N': 'name', 'Lat': 'latitude', 'Lng': 'longitude',
+            'B': 'brand_id', 'P': 'postcode',
+        })
+        prices = pd.DataFrame(responses['prices']['data'])
+        # Validate after choosing the latest report: unavailable must not resurrect an older price.
+        prices['report_time'] = pd.to_datetime(prices.TransactionDateUtc, format='mixed', utc=True, errors='coerce')
+        prices = prices.sort_values('report_time', na_position='first').drop_duplicates(['SiteId','FuelId'], keep='last')
+        prices = prices.loc[prices['FuelId'] == 2].rename(columns={
+            'SiteId': 'site_id', 'TransactionDateUtc': 'reported_at',
+        }).copy()
+        prices['price_cpl'] = pd.to_numeric(prices['Price'], errors='coerce') / 10
+        prices = prices.loc[prices.price_cpl.between(80, 350)]
+        b = config.BOUNDS
+        sites = sites.loc[
+            sites.latitude.between(b['lat_min'], b['lat_max']) &
+            sites.longitude.between(b['lng_min'], b['lng_max'])
+        ]
+        df = prices[['site_id', 'price_cpl', 'reported_at']].merge(
+            sites[['site_id', 'name', 'latitude', 'longitude', 'brand_id', 'postcode']],
+            on='site_id', how='inner',
+        ).drop_duplicates('site_id')
+        if df.empty:
+            raise RuntimeError('Queensland API returned no valid Brisbane U91 prices.')
+        df['region'] = np.where(df.latitude > -27.470, 'North', 'South')
+        df['state'] = 'QLD'
+        df['scraped_at'] = responses['prices']['retrieved_at'].replace('T',' ')
+        return df

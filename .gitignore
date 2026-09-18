@@ -46,3 +46,8 @@ venv.bak/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Local server logs, state and temporary atomic writes
+.local/
+collector_status.json
+*.tmp

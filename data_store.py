@@ -13,6 +13,7 @@ predictions      Model output archive
 import os
 import sqlite3
 import logging
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -51,11 +52,16 @@ class FuelDataStore:
         self.db_path = db_path or _DEFAULT_DB_PATH
         self._ensure_schema()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
@@ -230,9 +236,12 @@ class FuelDataStore:
         )
 
         sql = """
-            INSERT OR IGNORE INTO daily_stats
+            INSERT INTO daily_stats
                 (date, state, median_price, mean_price, min_price, max_price, count)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(date, state) DO UPDATE SET
+                median_price=excluded.median_price, mean_price=excluded.mean_price,
+                min_price=excluded.min_price, max_price=excluded.max_price, count=excluded.count
         """
         with self._connect() as conn:
             conn.execute(sql, row)
