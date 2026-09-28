@@ -107,7 +107,7 @@ class SourceTests(unittest.TestCase):
         def fetch(endpoint,key):
             return raw['prices'] if 'GetSitesPrices' in endpoint else self.fetch(endpoint,key)
         with patch.object(engine,'_get',side_effect=fetch):
-            with self.assertRaisesRegex(RuntimeError,'no valid Brisbane'):
+            with self.assertRaisesRegex(RuntimeError,'no valid Queensland'):
                 engine.get_market_snapshot()
 
     def test_utc_report_without_suffix_is_not_treated_as_brisbane_time(self):

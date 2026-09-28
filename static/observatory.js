@@ -13,7 +13,7 @@ const stamp = value => {
 const date = (value, time = false) => Number.isFinite(stamp(value)) ? new Intl.DateTimeFormat('en-AU', {timeZone:'Australia/Brisbane', day:'2-digit', month:'short', year:'numeric', ...(time ? {hour:'2-digit', minute:'2-digit', hour12:false} : {})}).format(stamp(value)) : '—';
 const ageHours = s => Math.max(0, (Date.now() - stamp(s.reported_at)) / 3600000);
 const ageText = s => {const h = ageHours(s); return !Number.isFinite(h) ? 'Unknown' : h < 24 ? `${num(h)} h` : `${num(h / 24)} d`;};
-let data, evidence, selected, series = 'daily', map, layer, rawOffset = 0, rawTotal = 0, stationRequest = 0, rawRequest = 0, loading = false, firstFit = false;
+let data, evidence, selected, series = 'daily', map, layer, rawOffset = 0, rawTotal = 0, stationRequest = 0, rawRequest = 0, loading = false;
 let roadRouter, devicePosition;
 let changes = new Map(), markers = new Map();
 const metric = (label, value, unit, note, tone='') => `<article class="metric"><div class="metric-label">${label}</div><div class="metric-value ${tone}">${value}<small>${unit}</small></div><p class="metric-note">${esc(note)}</p></article>`;
@@ -22,7 +22,7 @@ const quantile = (values, q) => {if (!values.length) return null; const i = (val
 function bars(items) {const max = Math.max(1, ...items.map(i => i[1])); return items.map(([label, count, color]) => `<div class="bar-row"><span>${esc(label)}</span><div class="bar"><i style="width:${100*count/max}%;background:${color || 'var(--cyan)'}"></i></div><span>${count}</span></div>`).join('');}
 function renderMetrics() {
   const s = data.summary, values = data.stations.map(s => s.price_cpl).sort((a,b)=>a-b);
-  $('metrics').innerHTML = metric('MARKET MEDIAN',num(s.median),'c/L','Equal weight per station','cyan') + metric('LOW / HIGH',`${num(s.minimum)} <small>/ ${num(s.maximum)}</small>`,'','Observed metro range') + metric('PRICE SPREAD',num(s.maximum == null ? null : s.maximum-s.minimum),'c/L',`$${num((s.maximum-s.minimum)*.5,2)} range on 50 L`,'amber') + metric('LIVE STATIONS',num(s.station_count,0),'sites',`Matched comparison: ${changes.size}`) + metric('OBSERVED HISTORY',num(data.coverage.days,0),'days',`${data.coverage.missing_days} unobserved days in span`) + metric('SOURCE RECORDS',num(evidence.audit.rows,0),'rows',`${num(evidence.audit.brisbane_rows,0)} Brisbane rows`);
+  $('metrics').innerHTML = metric('MARKET MEDIAN',num(s.median),'c/L','Equal weight per station','cyan') + metric('LOW / HIGH',`${num(s.minimum)} <small>/ ${num(s.maximum)}</small>`,'','Observed range in the analysis area') + metric('PRICE SPREAD',num(s.maximum == null ? null : s.maximum-s.minimum),'c/L',`$${num((s.maximum-s.minimum)*.5,2)} range on 50 L`,'amber') + metric('LIVE STATIONS',num(s.station_count,0),'sites',`Matched comparison: ${changes.size}`) + metric('OBSERVED HISTORY',num(data.coverage.days,0),'days',`${data.coverage.missing_days} unobserved days in span`) + metric('SOURCE RECORDS',num(evidence.audit.rows,0),'rows',`${num(evidence.audit.in_area_rows,0)} in-area rows`);
   const low = Math.floor((s.minimum || 80) / 10) * 10, high = Math.ceil((s.maximum || 90) / 10) * 10;
   const bins = []; for (let p = low; p <= high; p += 10) {const count=values.filter(v=>v>=p && v<p+10).length; if (count || p < high) bins.push([`${p}–${p+10}`,count,p+10 <= s.median ? 'var(--cyan)' : 'var(--amber)']);}
   $('distribution').innerHTML = bars(bins);
@@ -32,16 +32,22 @@ function renderMetrics() {
   $('comparison').textContent = `Live vs CSV capture ${date(evidence.previous_capture,true)}. Only ${changes.size} matched stations; this is not a daily change.`;
   $('report-age').innerHTML = bars([['< 24 h',data.stations.filter(s=>ageHours(s)<24).length],['1–7 d',data.stations.filter(s=>ageHours(s)>=24 && ageHours(s)<168).length,'var(--amber)'],['> 7 d',data.stations.filter(s=>ageHours(s)>=168).length,'var(--red)'],['Unknown',data.stations.filter(s=>!Number.isFinite(ageHours(s))).length,'#71899c']]);
 }
+// Backend price flags (local_data.price_flag), marked wherever prices are listed.
+const FLAGS={suspect:'<span class="price-flag" title="Far below every other station and below wholesale cost: probably an entry error. Check before driving there.">⚠ check</span>',stale:'<span class="price-flag" title="This station has not reported a price for over a month; it may have changed.">old report</span>'};
 function filtered() {const q=$('search').value.trim().toLowerCase(); return data.stations.filter(s=>`${s.name} ${s.site_id} ${s.region}`.toLowerCase().includes(q));}
 function color(s) {
   const mode=$('map-mode').value;
+  if(s.flag&&mode!=='age')return '#71899c';   // Stale or suspect price: grey in the price views, never "cheap".
   if(mode==='change') {const c=changes.get(String(s.site_id))?.change; return c==null?'#71899c':c<0?'#58dac7':c>0?'#f67e83':'#91a2b2';}
+  // Stations already 20 c/L or more above the median: the restored group a citywide jump spreads from.
+  if(mode==='restored')return s.price_cpl>=data.summary.median+20?'#f67e83':'#4b5d6c';
   if(mode==='age') {const a=ageHours(s);return !Number.isFinite(a)?'#71899c':a<24?'#58dac7':a<168?'#eab466':'#f67e83';}
   const v=data.stations.map(s=>s.price_cpl).sort((a,b)=>a-b);return s.price_cpl<=quantile(v,.25)?'#58dac7':s.price_cpl>=quantile(v,.75)?'#f67e83':'#eab466';
 }
 function initMap() {
   if (!window.L) {$('map').textContent='Map library unavailable. Station records remain available in the ledger.';return;}
-  map=L.map('map',{preferCanvas:true,scrollWheelZoom:false}).setView([-27.47,153.03],10);
+  map=L.map('map',{preferCanvas:true,scrollWheelZoom:false});
+  if(window.FuelMap)FuelMap.enhance(map,{search:$('search')});else map.setView([-27.47,153.03],10);
   const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
   tiles.on('tileerror',()=>{$('map-legend').textContent='Basemap unavailable · station coordinates still shown';});
   layer=L.layerGroup().addTo(map);
@@ -58,20 +64,19 @@ function drawMap() {
     marker.bindTooltip(`${esc(s.name || s.site_id)} · ${num(s.price_cpl)} c/L`).on('click',()=>inspect(String(s.site_id)));markers.set(String(s.site_id),marker);
   });
   $('map-count').textContent=`${markers.size} / ${data.stations.length} SITES`;
-  $('map-legend').textContent = {price:'CYAN ≤ P25 · AMBER middle · RED ≥ P75',change:'CYAN fell · RED rose · GREY flat / unmatched',age:'CYAN < 24 h · AMBER 1–7 d · RED > 7 d'}[$('map-mode').value];
-  if(!firstFit&&markers.size){fitMap();firstFit=true;}
+  $('map-legend').textContent = {price:'CYAN ≤ P25 · AMBER middle · RED ≥ P75 · GREY old / suspect price',change:'CYAN fell · RED rose · GREY flat / unmatched / flagged',age:'CYAN < 24 h · AMBER 1–7 d · RED > 7 d',restored:'RED ≥ median + 20 c/L (already restored) · GREY below'}[$('map-mode').value];
 }
 function fitMap(){if(map&&markers.size)map.fitBounds(L.latLngBounds([...markers.values()].map(m=>m.getLatLng())),{padding:[24,24],maxZoom:12});}
 function renderLedger(){
   const stations=filtered(), mode=$('sort').value;
   stations.sort((a,b)=>mode==='price-desc'?b.price_cpl-a.price_cpl:mode==='change'?Math.abs(changes.get(String(b.site_id))?.change||0)-Math.abs(changes.get(String(a.site_id))?.change||0):mode==='age'?(ageHours(b)||0)-(ageHours(a)||0):mode==='name'?String(a.name).localeCompare(String(b.name)):a.price_cpl-b.price_cpl);
   $('ledger-count').textContent=`${stations.length} VISIBLE / ALL ROWS SCROLLABLE`;
-  $('station-rows').innerHTML=stations.map(s=>{const c=changes.get(String(s.site_id))?.change;return `<tr><td><button class="station-select" data-site="${esc(s.site_id)}">${esc(s.name || 'Unnamed station')}<small>${esc(s.site_id)}</small></button></td><td>${esc(s.region)}</td><td class="cyan">${num(s.price_cpl)}</td><td class="${c>0?'red':c<0?'cyan':''}">${signed(c)}</td><td>${signed(s.price_cpl-data.summary.median)}</td><td>${ageText(s)}</td><td>${date(s.reported_at,true)}</td></tr>`;}).join('');
+  $('station-rows').innerHTML=stations.map(s=>{const c=changes.get(String(s.site_id))?.change;return `<tr><td><button class="station-select" data-site="${esc(s.site_id)}">${esc(s.name || 'Unnamed station')} ${FLAGS[s.flag]||''}<small>${esc(s.site_id)}</small></button></td><td>${esc(s.region)}</td><td class="cyan">${num(s.price_cpl)}</td><td class="${c>0?'red':c<0?'cyan':''}">${signed(c)}</td><td>${signed(s.price_cpl-data.summary.median)}</td><td>${ageText(s)}</td><td>${date(s.reported_at,true)}</td></tr>`;}).join('');
 }
 async function inspect(id){
   selected=id;const s=data.stations.find(s=>String(s.site_id)===id);if(!s)return;
   const request=++stationRequest, c=changes.get(id)?.change;
-  $('inspector').innerHTML=`<div><p class="kicker">SITE ${esc(id)} / ${esc(s.region)}</p><h3 class="station-title">${esc(s.name||'Unnamed station')}</h3><div class="station-price">${num(s.price_cpl)} <small>c/L</small></div></div><dl class="station-facts"><dt>Vs metro median</dt><dd>${signed(s.price_cpl-data.summary.median)} c/L</dd><dt>Since prior capture</dt><dd>${signed(c)} c/L</dd><dt>Price report age</dt><dd>${ageText(s)}</dd><dt>Coordinates</dt><dd>${num(s.latitude,4)}, ${num(s.longitude,4)}</dd></dl><div class="mini-chart" id="station-chart"></div><p class="muted" id="station-evidence">Loading capture history…</p><div class="actions"><button id="inspect-raw">Inspect source rows</button><a href="/planner#buying-plan">Buying lab ↗</a><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.latitude+','+s.longitude)}">Directions ↗</a></div>`;
+  $('inspector').innerHTML=`<div><p class="kicker">SITE ${esc(id)} / ${esc(s.region)}</p><h3 class="station-title">${esc(s.name||'Unnamed station')}</h3><div class="station-price">${num(s.price_cpl)} <small>c/L</small> ${FLAGS[s.flag]||''}</div></div><dl class="station-facts"><dt>Vs metro median</dt><dd>${signed(s.price_cpl-data.summary.median)} c/L</dd><dt>Since prior capture</dt><dd>${signed(c)} c/L</dd><dt>Price report age</dt><dd>${ageText(s)}</dd><dt>Coordinates</dt><dd>${num(s.latitude,4)}, ${num(s.longitude,4)}</dd></dl><div class="mini-chart" id="station-chart"></div><p class="muted" id="station-evidence">Loading capture history…</p><div class="actions"><button id="inspect-raw">Inspect source rows</button><a href="/planner#buying-plan">Buying lab ↗</a><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.latitude+','+s.longitude)}">Directions ↗</a></div>`;
   $('inspect-raw').onclick=()=>{$('raw-source').value='live';$('raw-state').value='QLD';$('raw-site').value=id;rawOffset=0;loadRows();$('raw').scrollIntoView({behavior:'smooth'});};
   $('inspector').querySelector('a[href="/planner#buying-plan"]').href=`/planner?station=${encodeURIComponent(id)}#buying-plan`;
   window.FuelSources?.inspect(id);
@@ -130,7 +135,7 @@ function renderCalendar(){
 function renderEvidence(){
   const h=data.health,a=evidence.audit,f=data.forecast;
   $('pipeline').innerHTML=[['QLD API',h.api],['CSV APPEND',h.csv],['SQLITE',h.database]].map(([k,v])=>`<div><small>${k}</small><b class="${['connected','recording','up_to_date'].includes(v)?'cyan':'amber'}">${esc(v)}</b></div>`).join('');
-  const audit=[['Active source',a.source||'No collection file'],['All source rows',num(a.rows,0)],['States',Object.entries(a.states||{}).map(([s,n])=>`${s} ${num(n,0)}`).join(' / ')],['Brisbane rows / excluded',`${num(a.brisbane_rows,0)} / ${num(a.excluded_rows,0)}`],['Distinct station report events',num(a.unique_reports,0)],['CSV capture days / batches',`${num(a.capture_days,0)} / ${num(a.captures,0)}`],['Invalid capture / report dates',`${num(a.invalid_capture_dates,0)} / ${num(a.invalid_report_dates,0)}`],['Legacy report archive rows',num(a.archive_rows,0)],['CSV file size',`${num((a.bytes||0)/1048576,2)} MB`],['Last CSV append',date(h.last_csv_write,true)],['Last API success',date(h.last_api_success,true)],['Next API attempt',date(h.next_refresh,true)],['API / CSV interval',`${h.refresh_seconds/60} / ${h.csv_interval_seconds/60} minutes`],['Database observations',num(data.files.database_rows,0)]];
+  const audit=[['Active source',a.source||'No collection file'],['All source rows',num(a.rows,0)],['States',Object.entries(a.states||{}).map(([s,n])=>`${s} ${num(n,0)}`).join(' / ')],['In-area rows / excluded',`${num(a.in_area_rows,0)} / ${num(a.excluded_rows,0)}`],['Distinct station report events',num(a.unique_reports,0)],['CSV capture days / batches',`${num(a.capture_days,0)} / ${num(a.captures,0)}`],['Invalid capture / report dates',`${num(a.invalid_capture_dates,0)} / ${num(a.invalid_report_dates,0)}`],['Legacy report archive rows',num(a.archive_rows,0)],['CSV file size',`${num((a.bytes||0)/1048576,2)} MB`],['Last CSV append',date(h.last_csv_write,true)],['Last API success',date(h.last_api_success,true)],['Next API attempt',date(h.next_refresh,true)],['API / CSV interval',`${h.refresh_seconds/60} / ${h.csv_interval_seconds/60} minutes`],['Database observations',num(data.files.database_rows,0)]];
   $('audit').innerHTML=audit.map(([k,v])=>`<span>${esc(k)}</span><b>${esc(v)}</b>`).join('');
   $('model-details').innerHTML=`<div class="model-heading"><b>${esc(f.model||'No model')}</b><span class="tag ${f.status==='ready'?'':'warn'}">${esc(f.status).toUpperCase()}</span></div><p>${esc(f.reason)}</p><div class="audit"><span>Continuous recent history</span><b>${f.recent_consecutive_days||0} days</b><span>Selection / held-out origins</span><b>${f.selection_origins||0} / ${f.validation_origins||0}</b><span>Forward predictions saved / scored</span><b>${data.prediction_log.saved} / ${data.prediction_log.scored}</b><span>Forward MAE</span><b>${num(data.prediction_log.mae,2)} c/L</b></div><p class="muted">Training uses observed daily prices only. Repeated CSV rows and retrospective report dates do not create missing market observations. A flat persistence baseline is a reference, not evidence that prices will stay flat.</p><div class="table-scroll model-scores"><table><thead><tr><th>Candidate</th><th>Selection MAE</th><th>Held-out MAE</th></tr></thead><tbody>${(f.scores||[]).map(s=>`<tr><td>${esc(s.name)}${s.selected?' *':''}</td><td>${num(s.selection_mae,2)}</td><td>${num(s.mae,2)}</td></tr>`).join('')}</tbody></table></div><p class="muted">MAE in c/L · unavailable scores remain blank (—). ${esc(f.band_label||'')}</p><div class="actions"><a href="/api/forecast" target="_blank" rel="noopener">Forecast JSON ↗</a><a href="/planner#buying-plan">Stress-test a purchase ↗</a></div>`;
 }
@@ -151,7 +156,7 @@ async function load(){
     $('snapshot-time').textContent=`SNAPSHOT ${date(data.latest,true)} AEST · AGE ${num(data.health.snapshot_age_minutes)} MIN`;
     $('notice').textContent=data.health.error?`COLLECTOR ERROR / ${data.health.error}`:data.health.collecting?'COLLECTOR RUNNING / saved observations remain visible':!data.health.fresh?'STALE SNAPSHOT / prices are saved observations; inspect collector health below.':`COVERAGE / ${data.coverage.days} observed days. ${data.coverage.missing_days} missing days in the historical span. ${data.forecast.status==='ready'?'Model validation available.':'Forecast validation insufficient; baseline hidden by default.'}`;
     $('refresh').disabled=data.health.collecting;
-    if(changed){renderMetrics();drawMap();renderLedger();drawHistory();renderCalendar();if(selected)inspect(selected);else if(data.stations.length)inspect(String(data.stations[0].site_id));}
+    if(changed){window.FuelBrief?.update(data);renderMetrics();drawMap();renderLedger();drawHistory();renderCalendar();if(selected)inspect(selected);else if(data.stations.length)inspect(String(data.stations[0].site_id));}
     renderEvidence();
   }catch(e){$('connection').textContent='● CONNECTION ERROR';$('connection').className='tag warn';$('notice').textContent=`Could not update the console: ${e.message}. Previously displayed values may be stale.`;}
   finally{loading=false;}

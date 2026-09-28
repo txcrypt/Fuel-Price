@@ -29,12 +29,12 @@ class ObservatoryTests(unittest.TestCase):
                 dict(base, site_id='1', price_cpl=160, reported_at='2026-09-15T15:00:00.000+00:00', scraped_at='2026-09-17 13:00:00'),
                 dict(base, site_id='2', price_cpl=200, reported_at='2026-09-16T01:00:00.12Z', scraped_at='2026-09-17 13:00:00'),
                 dict(base, site_id='3', price_cpl=250, state='WA'),
-                dict(base, site_id='4', latitude=-28.5)]
+                dict(base, site_id='4', latitude=-35.0)]   # outside Queensland entirely
         self.write_rows(rows)
         self.data.snapshot.write_text(pd.DataFrame(rows[:3]).to_csv(index=False))
         result = self.observatory.overview()
         self.assertEqual(result['audit']['rows'], 5)
-        self.assertEqual(result['audit']['brisbane_rows'], 3)
+        self.assertEqual(result['audit']['in_area_rows'], 3)
         self.assertEqual(result['audit']['excluded_rows'], 2)
         self.assertEqual(result['audit']['unique_reports'], 2)
         self.assertEqual(result['audit']['invalid_report_dates'], 0)
@@ -44,6 +44,18 @@ class ObservatoryTests(unittest.TestCase):
         self.assertEqual(len(self.observatory.station('1')['observations']), 2)
         self.assertEqual(self.observatory.rows(state='WA')['total'], 1)
         self.assertEqual(self.observatory.rows(offset=1, limit=1)['rows'][0]['site_id'], '3')
+
+    def test_regional_queensland_is_collected_not_just_brisbane(self):
+        """Cairns and Townsville were silently dropped while BOUNDS was Brisbane-only."""
+        base = snapshot().iloc[0].to_dict()
+        self.write_rows([dict(base, site_id='cairns', price_cpl=225.5, latitude=-16.92, longitude=145.77),
+                         dict(base, site_id='townsville', price_cpl=225.7, latitude=-19.26, longitude=146.82),
+                         dict(base, site_id='mtisa', price_cpl=239.9, latitude=-20.73, longitude=139.49),
+                         dict(base, site_id='sydney', price_cpl=200.0, latitude=-33.87, longitude=151.21)])
+        audit = self.observatory.overview()['audit']
+        self.assertEqual(audit['in_area_rows'], 3)
+        self.assertEqual(audit['excluded_rows'], 1)
+        self.assertEqual(len(self.observatory.station('cairns')['observations']), 1)
 
     def test_movement_is_matched_against_earlier_capture(self):
         base = snapshot().iloc[0].to_dict()
@@ -83,7 +95,7 @@ class ObservatoryTests(unittest.TestCase):
                 self.data.refresh()
                 self.assertIn('Fuel Observatory', client.get('/').text)
                 self.assertEqual(client.get('/planner').status_code, 200)
-                self.assertEqual(client.get('/api/observatory').json()['audit']['brisbane_rows'], 1)
+                self.assertEqual(client.get('/api/observatory').json()['audit']['in_area_rows'], 1)
                 self.assertEqual(client.get('/api/observatory/station/123').json()['rows'], 1)
                 self.assertEqual(client.get('/api/observatory/rows?site_id=123').json()['total'], 1)
                 self.assertEqual(client.get('/api/observatory/rows?limit=1000').status_code, 422)

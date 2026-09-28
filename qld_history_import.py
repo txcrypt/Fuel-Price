@@ -101,7 +101,9 @@ def read_events(path, fuel_type=FUEL_TYPE, chunksize=200_000):
     Kept rows are Brisbane-bounds QLD reports of *fuel_type* with either a sane
     price or the publisher's explicit unavailability sentinel.
     """
-    bounds, frames = config.BOUNDS, []
+    # The analysis area, not the collection area: this backfill feeds the daily history
+    # and the forecast, which must stay one comparable series. See config.ANALYSIS_BOUNDS.
+    bounds, frames = config.ANALYSIS_BOUNDS, []
     counts = {'rows_read': 0, 'rows_kept': 0, 'rows_unavailable': 0}
     # dtype=str keeps SiteId exactly as published; numbers are converted below.
     # The context manager matters on Windows: an open handle blocks the caller's unlink.

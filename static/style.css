@@ -647,3 +647,16 @@ h4 {
     gap:8px;
   }
 }
+/* Planner price labels: zero-size markers, text centred above the station dot. */
+.price-label span {
+  position:absolute;
+  transform:translate(-50%,-160%);
+  padding:1px 4px;
+  border:1px solid #24313e;
+  border-radius:3px;
+  background:#0b141d;
+  color:#dce6ed;
+  font:11px Consolas,'Cascadia Code',monospace;
+  white-space:nowrap;
+  pointer-events:none;
+}

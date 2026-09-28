@@ -188,6 +188,9 @@ main {
 .metric {
   padding:16px 18px;
   border-right:1px solid var(--line);
+  /* Grid items default to min-width:auto, so a long station name pushed its column off a phone screen. */
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 .metric:last-child {
   border:0;
@@ -865,4 +868,117 @@ pre {overflow:auto;max-height:240px;font:10px/1.6 var(--mono);background:#090e15
   .model-heading b {
     font-size:16px;
   }
+}
+.news-grid {
+  display:grid;
+  grid-template-columns:minmax(0,2fr) minmax(0,1fr);
+  gap:1px;
+  background:var(--line);
+}
+.news-grid>* {
+  padding:16px 20px;
+  background:var(--panel);
+}
+.news-topics {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:10px;
+}
+.news-topics button[aria-pressed=true] {
+  border-color:var(--cyan);
+  color:var(--cyan);
+}
+.news-list,.news-warnings {
+  margin:0;
+  padding:0;
+  list-style:none;
+  max-height:420px;
+  overflow:auto;
+}
+.news-list li,.news-warnings li {
+  padding:8px 0;
+  border-bottom:1px solid var(--line);
+}
+.news-list small {
+  display:block;
+  color:var(--muted);
+  font:11px var(--mono);
+  margin-top:3px;
+}
+.news-grid aside .kicker+p,.news-grid aside ul+.kicker {
+  margin-top:14px;
+}
+.news-note {
+  padding:0 20px 12px;
+}
+@media (max-width:760px) {
+  .news-grid {
+    grid-template-columns:1fr;
+  }
+}
+.brief {
+  margin:0 0 16px;
+}
+.brief-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  border:1px solid var(--line);
+  border-width:1px 0 0 1px;
+  background:var(--panel);
+}
+.brief-cell {
+  border:1px solid var(--line);
+  border-width:0 1px 1px 0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:12px 14px;
+  background:var(--panel);
+}
+.brief-cell small {
+  color:var(--muted);
+  font:10px var(--mono);
+  letter-spacing:.06em;
+}
+.brief-cell b {
+  font:600 20px var(--mono);
+}
+.brief-cell b small {
+  font-size:11px;
+}
+.brief-cell span {
+  color:var(--muted);
+  font-size:11.5px;
+  line-height:1.35;
+}
+.brief-cell.up b {
+  color:var(--red);
+}
+.brief-cell.down b {
+  color:var(--cyan);
+}
+.price-flag {
+  display:inline-block;
+  margin-left:4px;
+  padding:0 5px;
+  border:1px solid var(--amber);
+  border-radius:3px;
+  color:var(--amber);
+  font:10px var(--mono);
+  white-space:nowrap;
+  cursor:help;
+}
+.brief-cell b .grade {
+  display:inline-block;
+  margin-right:10px;
+  font:12px var(--mono);
+  color:var(--muted);
+}
+.brief-cell b .grade b {
+  font-size:15px;
+  color:var(--text);
+}
+.brief-cell.wide {
+  grid-column:span 2;
 }

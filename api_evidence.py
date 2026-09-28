@@ -32,12 +32,15 @@ def price_status(value):
     return 'available' if 800 <= price <= 3500 else 'outside_analysis_range'
 
 
-def metro_site(site):
+def _within(site, b):
     try:
-        b = config.BOUNDS
         return b['lat_min'] <= float(site['Lat']) <= b['lat_max'] and b['lng_min'] <= float(site['Lng']) <= b['lng_max']
     except (KeyError, TypeError, ValueError):
         return False
+
+
+def metro_site(site):
+    return _within(site, config.BOUNDS)
 
 
 class ApiEvidence:
@@ -61,6 +64,21 @@ class ApiEvidence:
                 ON CONFLICT(site_id, fuel_id, reported_at, raw_price)
                 DO UPDATE SET last_seen=excluded.last_seen''', rows)
         write_json(self.path, evidence)
+
+    def grades(self, bounds):
+        """Median current price per fuel grade inside *bounds*, from the latest full API capture."""
+        raw = read_json(self.path)
+        if not raw:
+            return []
+        inside = {str(s['S']) for s in raw.get('sites', []) if _within(s, bounds)}
+        names = {str(r['FuelId']): r['Name'] for r in raw.get('fuels', [])}
+        by_fuel = {}
+        for p in raw.get('prices', []):
+            if str(p.get('SiteId')) in inside and price_status(p.get('Price')) == 'available':
+                by_fuel.setdefault(p['FuelId'], []).append(float(p['Price']) / 10)
+        return sorted(({'fuel_id': fuel, 'fuel': names.get(str(fuel), f'Fuel {fuel}'), 'stations': len(values),
+                        'median': round(float(pd.Series(values).median()), 1)}
+                       for fuel, values in by_fuel.items()), key=lambda g: -g['stations'])
 
     def payload(self):
         raw = read_json(self.path)

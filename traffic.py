@@ -408,3 +408,31 @@ class TrafficFeed:
     def raw(self):
         with self.lock:
             return {'retrieved_at':self.state.get('retrieved_at'),'error':self.state.get('error'),'feed':self.state.get('feed')}
+
+
+CAMERAS_URL = 'https://api.qldtraffic.qld.gov.au/v1/webcams'
+CAMERA_HOST = 'https://cameras.qldtraffic.qld.gov.au/'
+_cameras = {'at': None, 'items': []}
+
+
+def cameras(now=None, key=None):
+    """Official TMR road cameras (still images refreshed by the provider). The list barely
+    changes, so it is fetched at most hourly and the last good list is kept on failure."""
+    now = now or datetime.now(timezone.utc)
+    if _cameras['at'] and now - _cameras['at'] < timedelta(hours=1):
+        return _cameras['items']
+    _cameras['at'] = now
+    try:
+        response = requests.get(CAMERAS_URL, params={'apikey': key or config.QLD_TRAFFIC_API_KEY}, timeout=(8, 20))
+        response.raise_for_status()
+        items = []
+        for feature in response.json().get('features', []):
+            p, (lng, lat) = feature['properties'], feature['geometry']['coordinates'][:2]
+            # Only ever hand the browser an image from the provider's own camera host.
+            if str(p.get('image_url', '')).startswith(CAMERA_HOST):
+                items.append({'id': p.get('id'), 'lat': float(lat), 'lng': float(lng), 'image_url': p['image_url'],
+                              'description': str(p.get('description') or ''), 'direction': str(p.get('direction') or '')})
+        _cameras['items'] = items
+    except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return _cameras['items']

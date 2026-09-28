@@ -174,6 +174,8 @@ def build_forecast(daily, today=None, reported=None):
     return {'status': 'stale' if stale else 'ready' if enough else 'limited', 'reason': reason,
             'model': MODELS[chosen], 'model_id': chosen, 'as_of': latest.strftime('%Y-%m-%d'),
             'points': [] if stale else points, 'scores': scores,
+            'paths': {} if stale else {model: [round(predict(series, latest, h, model), 1) for h in range(1, 8)]
+                                       for model in MODELS},
             'validation_origins': len(validation_indices) if enough else 0,
             'selection_origins': split if enough else 0, 'recent_consecutive_days': current_run,
             'validation_start': origins[validation_indices[0]].strftime('%Y-%m-%d') if enough else None,

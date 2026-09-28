@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import Mock, patch
 import requests
+import config
 from traffic import (TrafficFeed, metro_feature, timing, route_disruptions, corridor_distance,
                      HISTORY_LIMIT, INTERVAL, CORRIDOR_M, NEARBY_M)
 
@@ -37,6 +38,7 @@ class TrafficTests(TestCase):
         result.json.return_value={'type':'FeatureCollection','features':features,'published':NOW.isoformat(),'rights':{'owner':'TMR'}}
         return result
 
+    @patch.dict('config.BOUNDS', config.BRISBANE_BOUNDS, clear=True)
     def test_geometries_and_crossing_region(self):
         self.assertTrue(metro_feature(feature([[152,-27.4],[154,-27.4]])))
         self.assertFalse(metro_feature(feature([151,-25],'Point')))
@@ -51,6 +53,7 @@ class TrafficTests(TestCase):
         self.assertEqual(timing({},NOW),'unknown')
 
     @patch('traffic.requests.get')
+    @patch.dict('config.BOUNDS', config.BRISBANE_BOUNDS, clear=True)
     def test_success_cache_restart_and_raw_preservation(self,get):
         items=[feature([153,-27.4],'Point',additional_field='retained'),feature([151,-25],'Point')]
         get.return_value=self.response(items)
@@ -286,8 +289,25 @@ class CorridorFeedTests(TestCase):
         self.assertEqual(result['headline'],'No reported event touches this route line.')
 
     @patch('traffic.requests.get')
+    @patch.dict('config.BOUNDS', config.BRISBANE_BOUNDS, clear=True)
     def test_a_route_leaving_the_analysis_area_says_where_it_stopped_looking(self,get):
         get.return_value=self.response([])
         result=self.check(route=[[153.02,-27.47],[153.90,-27.47]])
         self.assertTrue(result['route_outside_area'])
         self.assertIn('outside it and was not checked there',' '.join(result['notes']))
+
+
+class CameraTests(TestCase):
+    def test_provider_images_only_hourly_cache_and_keeps_last_good_list(self):
+        import traffic
+        traffic._cameras.update(at=None, items=[])
+        point = {'coordinates': [153.0, -27.5]}
+        good = {'geometry': point, 'properties': {'id': 1, 'image_url': traffic.CAMERA_HOST + 'a.jpg', 'description': 'A'}}
+        foreign = {'geometry': point, 'properties': {'id': 2, 'image_url': 'https://elsewhere.example/x.jpg'}}
+        with patch('traffic.requests.get') as get:
+            get.return_value.json.return_value = {'features': [good, foreign]}
+            self.assertEqual([c['id'] for c in traffic.cameras(NOW)], [1])
+            traffic.cameras(NOW + timedelta(minutes=30))
+            self.assertEqual(get.call_count, 1)
+            get.side_effect = requests.ConnectionError
+            self.assertEqual(len(traffic.cameras(NOW + timedelta(hours=2))), 1)

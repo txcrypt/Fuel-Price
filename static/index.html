@@ -9,8 +9,8 @@
   <link rel="stylesheet" href="/static/road-routing.css">
   <link rel="stylesheet" href="/static/traffic.css">
   <script src="/static/vendor/leaflet/leaflet.js" defer></script>
-  <script src="/static/device-location.js" defer></script><script src="/static/road-routing.js" defer></script><script src="/static/traffic.js" defer></script>
-  <script src="/static/decisions.js" defer></script><script src="/static/app.js" defer></script>
+  <script src="/static/map-extras.js" defer></script><script src="/static/device-location.js" defer></script><script src="/static/road-routing.js" defer></script><script src="/static/traffic.js" defer></script>
+  <script src="/static/decisions.js" defer></script><script src="/static/news.js" defer></script><script src="/static/brief.js" defer></script><script src="/static/app.js" defer></script>
 </head>
 <body>
 <header class="masthead"><a class="identity" href="/"><span class="sigil">⌖</span><span>FUEL OBSERVATORY<small>BUYING WORKSPACE / BRISBANE / U91</small></span></a><div class="header-tools"><span id="connection" class="tag">CONNECTING</span><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh prices</button><a href="/" class="button">Live field ↗</a></div></header>
@@ -38,7 +38,7 @@
       </div>
       <p class="muted map-instructions" id="map-instructions">Pick a station to use its price in your plan. Set a starting point to compare nearby stations; distance is straight-line, not a driving route.</p>
       <div id="fuel-map" aria-label="Interactive map of Brisbane U91 station prices"></div>
-      <div class="map-footer"><span id="tile-status">Street map: OpenStreetMap · internet required. Station prices are also available in the list.</span><span>CYAN below median · AMBER at or above</span></div>
+      <div class="map-footer"><span id="tile-status">Street map: OpenStreetMap · internet required. Station prices are also available in the list.</span><span>CYAN below median · AMBER at or above · GREY old or suspect price</span></div>
     </article>
     <aside class="panel inspector"><div class="panel-head"><h2>Your next stop</h2><span class="index">02.B</span></div>
       <div class="panel-body" id="station-detail"><p class="kicker">YOUR NEXT STOP</p><h3>Select a station</h3><p class="muted">Tap a price on the map or select a station from the nearby list.</p><p class="muted">Cyan markers are below the Brisbane median. Amber markers are at or above it.</p></div></aside>

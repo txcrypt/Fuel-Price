@@ -107,6 +107,8 @@ be compared against these saved forecasts rather than just an in-sample fit.
 - `fuel_engine.py`: Queensland API requests and Brisbane U91 filtering.
 - `local_data.py`: collection, CSV writes, data health, observed history.
 - `forecasting.py`: transparent models and chronological validation.
+- `public_feeds.py`: news headlines, BOM warnings and QFD bushfires (display only, cached).
+- `traffic.py`: QLDTraffic events and the road-camera list.
 - `data_store.py`: SQLite persistence; retains compatibility with existing tables.
 - `static/`: responsive dashboard, no frontend build or CDN dependency.
 
@@ -114,7 +116,8 @@ API reference: http://127.0.0.1:8000/docs
 
 `GET /api/dashboard`, `/api/health`, `/api/stations`, `/api/forecast`,
 `/api/export/history`, `/api/export/snapshot`; `POST /api/refresh` and
-`POST /api/buying-plan`.
+`POST /api/buying-plan`. Map and news context: `GET /api/cameras`, `/api/bushfires`,
+`/api/news`.
 
 ## Verification
 
@@ -162,6 +165,15 @@ capacity affects the volume that can be postponed and the dollar saving.
 The seven-day comparison only suggests a wait date when supported by validated
 recent data and the historical-error stress check. Manual scenarios are clearly
 labelled and are not extended to other dates.
+
+Both maps: pinch or Ctrl+scroll to zoom (plain scrolling still scrolls the page);
+press Enter in a map search box to jump to an Australian place; the top-right menu
+switches between stations, 📷 road cameras (shown from street zoom, or all of them in
+*Cameras only*), 🔥 bushfire incidents and 🌧 rain radar.
+
+**Forward test.** Every forecasting method's seven-day path is saved daily
+(`forward_predictions` table) and graded only against days this app collected.
+The scoreboard appears under *A forecast has to earn its place*.
 
 See [fuel hub ideas](docs/fuel-hub-roadmap.md) for the next features and the
 mapping library/tile references.

@@ -15,7 +15,8 @@ from buying_plan import BuyingProfile, compare_horizons
 from observatory import Observatory
 from fuel_engine import FuelEngine
 from routing import RoadRouter, RankRequest, RouteRequest, RoutingError
-from traffic import TrafficFeed, RouteCorridor
+from traffic import TrafficFeed, RouteCorridor, cameras
+import public_feeds
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -138,6 +139,21 @@ def traffic(request: Request):
 def traffic_route(corridor: RouteCorridor, request: Request):
     """Events touching a route corridor. Reporting only: it never adjusts a route or a cost."""
     return request.app.state.traffic.disruptions(corridor.model_dump())
+
+
+@app.get('/api/cameras')
+def traffic_cameras():
+    return {'cameras': cameras(), 'source': 'QLDTraffic / Department of Transport and Main Roads'}
+
+
+@app.get('/api/news')
+def energy_news():
+    return {**public_feeds.news(), 'warnings': public_feeds.warnings()}
+
+
+@app.get('/api/bushfires')
+def bushfire_incidents():
+    return public_feeds.bushfires()
 
 
 @app.get('/api/traffic/raw')

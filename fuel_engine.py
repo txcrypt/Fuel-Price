@@ -83,7 +83,7 @@ class FuelEngine:
             references={name:{k:v for k,v in response.items() if k!='data'} for name,response in responses.items()})
         sites = pd.DataFrame(responses['sites']['data']).rename(columns={
             'S': 'site_id', 'N': 'name', 'Lat': 'latitude', 'Lng': 'longitude',
-            'B': 'brand_id', 'P': 'postcode',
+            'B': 'brand_id', 'P': 'postcode', 'G2': 'region_id',
         })
         prices = pd.DataFrame(responses['prices']['data'])
         # Validate after choosing the latest report: unavailable must not resurrect an older price.
@@ -99,13 +99,20 @@ class FuelEngine:
             sites.latitude.between(b['lat_min'], b['lat_max']) &
             sites.longitude.between(b['lng_min'], b['lng_max'])
         ]
+        columns = ['site_id', 'name', 'latitude', 'longitude', 'brand_id', 'postcode']
+        if 'region_id' in sites:
+            columns.append('region_id')
         df = prices[['site_id', 'price_cpl', 'reported_at']].merge(
-            sites[['site_id', 'name', 'latitude', 'longitude', 'brand_id', 'postcode']],
-            on='site_id', how='inner',
+            sites[columns], on='site_id', how='inner',
         ).drop_duplicates('site_id')
         if df.empty:
-            raise RuntimeError('Queensland API returned no valid Brisbane U91 prices.')
-        df['region'] = np.where(df.latitude > -27.470, 'North', 'South')
+            raise RuntimeError('Queensland API returned no valid Queensland U91 prices.')
+        # The publisher's own level-2 region name (Brisbane, Cairns, Townsville, ...).
+        # A latitude split cannot label a state; an unmapped id stays explicitly unknown.
+        names = {r.get('GeoRegionId'): r.get('Name') for r in responses['regions']['data']
+                 if r.get('GeoRegionLevel') == 2}
+        df['region'] = (df.region_id.map(names).fillna('Unknown region')
+                        if 'region_id' in df else 'Unknown region')
         df['state'] = 'QLD'
         df['scraped_at'] = responses['prices']['retrieved_at'].replace('T',' ')
         return df

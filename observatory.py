@@ -53,7 +53,7 @@ class Observatory:
             self._load()
             frame = self.frame
             if frame.empty:
-                return {'audit': {'rows': len(self.raw), 'brisbane_rows': 0}, 'captures': [], 'events': [], 'archive_events': [], 'calendar': [], 'changes': [], 'previous_capture': None}
+                return {'audit': {'rows': len(self.raw), 'in_area_rows': 0}, 'captures': [], 'events': [], 'archive_events': [], 'calendar': [], 'changes': [], 'previous_capture': None}
             captures = frame.dropna(subset=['capture_time']).sort_values('capture_time').drop_duplicates(['capture_time', 'site_id'], keep='last')
             series = captures.groupby('capture_time').agg(price=('price_cpl', 'median'), minimum=('price_cpl', 'min'), maximum=('price_cpl', 'max'), stations=('site_id', 'nunique')).reset_index().rename(columns={'capture_time': 'date'})
             calendar = captures.assign(date=captures.capture_time.dt.strftime('%Y-%m-%d')).groupby('date').agg(rows=('site_id', 'size'), stations=('site_id', 'nunique'), captures=('capture_time', 'nunique')).reset_index()
@@ -70,11 +70,11 @@ class Observatory:
                     changes.append({'site_id': sid, 'before': before, 'change': round(station['price_cpl'] - before, 1)})
             return {'audit': {'source': self.data.collection.name, 'rows': len(self.raw),
                     'states': {str(k): int(v) for k, v in self.raw.state.value_counts(dropna=False).items()},
-                    'brisbane_rows': len(frame), 'excluded_rows': len(self.raw) - len(frame),
+                    'in_area_rows': len(frame), 'excluded_rows': len(self.raw) - len(frame),
                     'stations': int(frame.site_id.nunique()), 'capture_days': len(calendar), 'captures': len(series),
                     'unique_reports': len(frame.dropna(subset=['report_time']).drop_duplicates(['site_id', 'report_time', 'price_cpl'])),
                     'invalid_capture_dates': int(frame.capture_time.isna().sum()), 'invalid_report_dates': int(frame.report_time.isna().sum()),
-                    'archive_rows': len(self.archive_raw), 'archive_brisbane_rows': len(self.archive), 'bytes': self.data.collection.stat().st_size},
+                    'archive_rows': len(self.archive_raw), 'archive_in_area_rows': len(self.archive), 'bytes': self.data.collection.stat().st_size},
                     'captures': records(series), 'events': self.event_series(frame),
                     'archive_events': self.event_series(self.archive), 'calendar': records(calendar),
                     'previous_capture': str(previous_time) if previous_time is not None else None, 'changes': changes}

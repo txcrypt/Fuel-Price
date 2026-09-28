@@ -279,3 +279,62 @@ class ForecastTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RestorationSignalTests(unittest.TestCase):
+    def test_share_levels_and_stale_reports(self):
+        from local_data import restoration_signal
+        now = pd.Timestamp('2026-09-28T00:00:00Z')
+        fresh, stale = '2026-09-27T00:00:00Z', '2026-09-01T00:00:00Z'
+        frame = lambda prices, when=fresh: pd.DataFrame({'price_cpl': prices, 'reported_at': when})  # noqa: E731
+        self.assertEqual(restoration_signal(frame([170.0] * 100), now)['level'], 'quiet')
+        self.assertEqual(restoration_signal(frame([170.0] * 85 + [195.0] * 15), now)['level'], 'building')
+        self.assertEqual(restoration_signal(frame([170.0] * 60 + [195.0] * 40), now)['level'], 'imminent')
+        # Reports older than the 14-day expiry are left out, as in the backtest.
+        self.assertIsNone(restoration_signal(frame([170.0] * 100, stale), now))
+
+
+class ForwardTestTests(unittest.TestCase):
+    def test_every_model_logged_and_scored_on_collected_days_only(self):
+        with tempfile.TemporaryDirectory() as root:
+            data = LocalData(root, FakeEngine())
+            today = datetime.now().strftime('%Y-%m-%d')
+            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            points = [{'date': (datetime.now() + timedelta(days=h)).strftime('%Y-%m-%d')} for h in range(1, 8)]
+            paths = {'persistence': [180.0] * 7, 'damped_trend': [181.0] * 7}
+            data._prediction_log({'as_of': today, 'model_id': 'persistence', 'points': [{**p, 'price': 180.0} for p in points],
+                                  'paths': paths}, pd.DataFrame({'day': [], 'price_cpl': []}))
+            with data.db._connect() as connection:
+                self.assertEqual(connection.execute('SELECT COUNT(*) FROM forward_predictions').fetchone()[0], 14)
+                # Two matured predictions for yesterday: one collected actual scores them both.
+                connection.executemany('INSERT INTO forward_predictions VALUES (?, ?, ?, ?)',
+                                       [('2000-01-01', yesterday, 'persistence', 180.0), ('2000-01-01', yesterday, 'damped_trend', 184.0)])
+            daily = pd.DataFrame({'day': [pd.Timestamp(yesterday)], 'price_cpl': [181.0]})
+            log = data._prediction_log({'as_of': 'not today', 'points': []}, daily)
+            self.assertEqual([(f['model'], f['mae']) for f in log['forward']], [('persistence', 1.0), ('damped_trend', 3.0)])
+
+
+class PriceFlagTests(unittest.TestCase):
+    def test_flags(self):
+        from local_data import price_flag
+        now = pd.Timestamp('2026-09-28', tz='UTC')
+        fresh, old = now - pd.Timedelta(days=1), now - pd.Timedelta(days=90)
+        self.assertEqual(price_flag(99.9, fresh, 238.9, now), 'suspect')
+        self.assertEqual(price_flag(174.9, old, 238.9, now), 'stale')
+        self.assertIsNone(price_flag(340.0, fresh, 238.9, now))    # Remote islands are dear, not wrong.
+        self.assertIsNone(price_flag(230.0, pd.NaT, 238.9, now))
+
+
+class GradeTests(unittest.TestCase):
+    def test_grade_medians_inside_bounds_skip_unavailable(self):
+        from api_evidence import ApiEvidence, write_json
+        from data_store import FuelDataStore
+        with tempfile.TemporaryDirectory() as root:
+            evidence = ApiEvidence(root, FuelDataStore(str(Path(root) / 'db.sqlite')))
+            write_json(evidence.path, {'fuels': [{'FuelId': 3, 'Name': 'Diesel'}],
+                                       'sites': [{'S': 1, 'Lat': -27.4, 'Lng': 153.0}, {'S': 2, 'Lat': -27.5, 'Lng': 153.1},
+                                                 {'S': 3, 'Lat': -16.9, 'Lng': 145.7}],     # Cairns: outside
+                                       'prices': [{'SiteId': 1, 'FuelId': 3, 'Price': 2800}, {'SiteId': 2, 'FuelId': 3, 'Price': 2900},
+                                                  {'SiteId': 2, 'FuelId': 3, 'Price': 9999}, {'SiteId': 3, 'FuelId': 3, 'Price': 1000}]})
+            self.assertEqual(evidence.grades(config.BRISBANE_BOUNDS),
+                             [{'fuel_id': 3, 'fuel': 'Diesel', 'stations': 2, 'median': 285.0}])

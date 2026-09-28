@@ -3,7 +3,11 @@ const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num = value => value == null ? '—' : Number(value).toFixed(1);
 const count = value => Number(value || 0).toLocaleString('en-AU');
-const stamp = value => value ? new Date(value.replace(' ', 'T') + (/[Z+]/.test(value) ? '' : '+10:00')).toLocaleString('en-AU', {timeZone:'Australia/Brisbane', day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Not yet';
+const stamp = value => { if(!value)return 'Not yet'; const d=new Date(value.replace(' ', 'T') + (/[Z+]/.test(value) ? '' : '+10:00'));
+  return d.toLocaleString('en-AU', {timeZone:'Australia/Brisbane', day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',...(d.getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{})}); };
+// Backend price flags, shown wherever prices are ranked. See local_data.price_flag.
+const FLAGS = {suspect:'<span class="price-flag" title="Far below every other station and below wholesale cost: probably an entry error. Check before driving there.">⚠ check</span>',stale:'<span class="price-flag" title="This station has not reported a price for over a month; it may have changed.">old report</span>'};
+const flagged = s => FLAGS[s.flag] || '';
 const dayLabel = value => new Date(value + 'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',day:'numeric',month:'short'});
 let data = null, range = 90, limit = 10, loading = false;
 function text(id, value) { $(id).textContent = value; }
@@ -46,8 +50,9 @@ function drawChart() {
 function renderStations() {
   if(!data)return;
   const query=$('search').value.toLowerCase().trim();
-  const stations=data.stations.filter(s=>`${s.name||s.site_id} ${s.region}`.toLowerCase().includes(query));
-  $('station-rows').innerHTML=stations.slice(0,limit).map(s=>`<tr><td>${esc(s.name||`Station ${s.site_id}`)}</td><td><span class="area-tag">${esc(s.region||'Brisbane')}</span></td><td>${num(s.price_cpl)}</td><td class="quiet">${esc(stamp(s.reported_at ? s.reported_at.replace(/Z$/,'')+'Z' : null))}</td></tr>`).join('') || '<tr><td colspan="4">No matching stations.</td></tr>';
+  const stations=data.stations.filter(s=>`${s.name||s.site_id} ${s.region}`.toLowerCase().includes(query))
+    .sort((a,b)=>!!a.flag-!!b.flag);   // Flagged prices rank last; stable, so price order is otherwise kept.
+  $('station-rows').innerHTML=stations.slice(0,limit).map(s=>`<tr><td>${esc(s.name||`Station ${s.site_id}`)} ${flagged(s)}</td><td><span class="area-tag">${esc(s.region||'Brisbane')}</span></td><td>${num(s.price_cpl)}</td><td class="quiet">${esc(stamp(s.reported_at ? s.reported_at.replace(/Z$/,'')+'Z' : null))}</td></tr>`).join('') || '<tr><td colspan="4">No matching stations.</td></tr>';
   text('station-result',`Showing ${Math.min(limit,stations.length)} of ${count(stations.length)} stations · lowest price first`);
   $('show-more').hidden=limit>=stations.length;
 }
@@ -59,11 +64,14 @@ function render() {
   if(h.error)issues.push(h.error);
   if(!h.fresh)issues.push('Prices are out of date. Showing the last saved observations.');
   if(f.status==='limited')issues.push('Forecast is a baseline: not enough continuous history for reliable model validation yet.');
+  const r=data.restoration;
+  if(r&&r.level!=='quiet')issues.push(`Price jump warning: ${Math.round(r.restored_share*100)}% of stations are already 20 c/L or more above the median. ${r.message} Buying sooner is likely cheaper.`);
   $('notice').className='notice'+(h.error?' error':issues.length?'':' hidden');text('notice',issues.join(' '));
   text('median',num(s.median));text('minimum',num(s.minimum));text('stations-count',count(s.station_count));
-  text('cheapest-name',data.stations[0]?.name||'No current station data');text('price-age',`${h.fresh?'Observed':'Last observed'} ${stamp(data.latest)}`);
+  text('cheapest-name',s.cheapest_name||'No current station data');text('price-age',`${h.fresh?'Observed':'Last observed'} ${stamp(data.latest)}`);
   const end=f.points.at(-1);text('week-price',num(end?.price));text('forecast-label',f.status==='limited'?'BASELINE':'FORECAST');
-  text('week-note',end?`${dayLabel(end.date)} · ${f.model}`:'Fresh observations needed');
+  text('week-note',(end?`${dayLabel(end.date)} · ${f.model}`:'Fresh observations needed')+(r?` · Jump signal ${Math.round(r.restored_share*100)}% (${r.level})`:''));
+  if(r)$('week-note').title=r.basis;
   badge('model-status',f.status==='ready'?'Backtested':f.status==='limited'?'Limited history':'Awaiting fresh data',f.status==='ready'?'':'warn');
   text('forecast-reason',f.reason);text('model-name',f.model||'Not available');
   const chosen=f.scores.find(m=>m.selected);text('model-error',chosen?.mae!=null?`${chosen.mae.toFixed(2)} c/L`:'Not enough data');
@@ -81,8 +89,14 @@ function render() {
   $('model-rows').innerHTML=f.scores.map(m=>`<tr class="${m.selected?'chosen':''}"><td>${esc(m.name)}${m.selected?' · current':''}</td><td>${m.mae==null?'Not yet validated':m.mae.toFixed(2)+' c/L'}</td></tr>`).join('');
   text('validation-note',f.validation_origins?`${f.validation_origins} held-out forecast origins (${f.validation_start} to ${f.validation_end}). MAE averages errors across days 1–7; overlapping origins are not independent trials.`:'Validation needs continuous stretches of observations. An untested model is not presented as more accurate.');
   const log=data.prediction_log;text('prediction-log',`${log.saved} forward predictions saved locally. ${log.scored?`${log.scored} scored · ${log.mae} c/L average error.`:'Actual errors will appear after target dates have passed.'}`);
+  // Forward test: every method's path is saved daily and graded only on days this app collected.
+  const fwd=log.forward||[];
+  $('prediction-log').insertAdjacentHTML('beforeend',fwd.length
+    ?`<br><b>Forward test${log.forward_since?` since ${esc(dayLabel(log.forward_since))}`:''}</b>, lower is better: ${fwd.map(f=>`${esc(f.name)} ${f.mae.toFixed(2)} c/L (${f.scored})`).join(' · ')}. Counts are predictions graded; they overlap, so they are not independent trials.`
+    :`<br><b>Forward test${log.forward_since?` started ${esc(dayLabel(log.forward_since))}`:' starts today'}</b>: every method's 7-day path is saved daily and graded once those days are collected.`);
   drawChart();renderStations();
   window.FuelDecisions?.update(data);
+  window.FuelBrief?.update(data);
 }
 async function load() {
   if(loading)return;loading=true;

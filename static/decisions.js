@@ -7,6 +7,7 @@
     {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]
   ));
   const money = value => value == null ? '—' : '$' + Number(value).toFixed(2);
+  const FLAGS = {suspect:'<span class="price-flag" title="Far below every other station and below wholesale cost: probably an entry error. Check before driving there.">⚠ check</span>',stale:'<span class="price-flag" title="This station has not reported a price for over a month; it may have changed.">old report</span>'};
   const fixed = value => value == null ? '—' : Number(value).toFixed(1);
   const read = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -17,7 +18,9 @@
   };
   const savedFavourites = read('fuel.favourites', []);
   const favourites = new Set(Array.isArray(savedFavourites) ? savedFavourites.map(String) : []);
-  let dashboard, map, markerLayer, originMarker, origin = null, choosingOrigin = false;
+  const MAX_LABELS = 80;
+  const markers = new Map();
+  let dashboard, map, markerLayer, labelLayer, originMarker, origin = null, choosingOrigin = false;
   let selectedId = '', version = '', dirty = false, requestNumber = 0;
   let detourEdited = false;
   let deviceTracker, roadRouter, deviceFix, deviceOrigin=false, adopted=null, adoptedNote=null;
@@ -84,7 +87,8 @@
       byId('fuel-map').textContent = 'Map library could not load. Use the station list below.';
       return;
     }
-    map = L.map('fuel-map', {scrollWheelZoom: false}).setView([-27.47, 153.02], 10);
+    map = L.map('fuel-map', {scrollWheelZoom: false, preferCanvas: true});
+    if (window.FuelMap) FuelMap.enhance(map, {search: byId('map-search')}); else map.setView([-27.47, 153.02], 10);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
@@ -92,6 +96,7 @@
       byId('tile-status').textContent = 'Some street tiles could not load. Price markers and the station list still work; check your internet connection.';
     }).addTo(map);
     markerLayer = L.layerGroup().addTo(map);
+    labelLayer = L.layerGroup().addTo(map);
     deviceTracker=window.FuelLocation?.attach(map,{container:byId('fuel-map').parentElement,
       onPosition(position) {
         deviceFix=position;
@@ -100,7 +105,7 @@
           origin=[position.latitude,position.longitude];
           if(originMarker){originMarker.remove();originMarker=null;}
         } else if(deviceOrigin) {origin=null;deviceOrigin=false;}
-        drawStations();renderSelected();
+        drawStations(Number(byId('map-radius').value) > 0);renderSelected();  // Position only changes the set under a radius filter.
       },
     });
     window.FuelTraffic?.attach(map,{container:byId('fuel-map').parentElement});
@@ -111,7 +116,7 @@
       // taking any more. Remove them rather than let them quietly price the wrong trip.
       onInvalidate(){if(adopted)clearAdopted('Route inputs changed, so the adopted extra travel was removed. Calculate and adopt again.');},
     });
-    map.on('zoomend', drawStations);
+    map.on('moveend', () => { drawLabels(); drawNearby(); });
     map.on('click', event => {
       if (!choosingOrigin) return;
       deviceTracker?.stop();
@@ -143,30 +148,73 @@
     });
   }
 
-  function drawStations() {
+  // Canvas markers keyed by site, so a selection restyles two markers instead of rebuilding
+  // ~1,600 (a rebuild also destroyed the popup the click had just opened).
+  function styleMarker(marker, id) {
+    const selected = id === selectedId;
+    marker.setRadius(selected ? 10 : 6);
+    marker.setStyle({color: selected ? '#dce6ed' : '#0b141d', weight: selected ? 3 : 1.3});
+    if (selected) marker.bringToFront();
+  }
+
+  // Permanent price labels only for stations in view, cheapest first, capped: labelling every
+  // station in Queensland at street zoom froze the page for seconds.
+  function drawLabels() {
+    if (!labelLayer) return;
+    labelLayer.clearLayers();
+    if (map.getZoom() < 12) return;
+    const view = map.getBounds().pad(.1);
+    let shown = 0;
+    for (const marker of markers.values()) {
+      if (shown >= MAX_LABELS) break;
+      if (!view.contains(marker.getLatLng())) continue;
+      // A zero-size divIcon: unlike a tooltip it never measures itself, so no layout per label.
+      L.marker(marker.getLatLng(), {interactive: false, keyboard: false,
+        icon: L.divIcon({className: 'price-label', iconSize: [0, 0], html: `<span>${fixed(marker.station.price_cpl)}</span>`})}).addTo(labelLayer);
+      shown++;
+    }
+  }
+
+  function drawStations(rebuild = true) {
     if (!dashboard) return;
     const stations = matchingStations();
     byId('map-count').textContent = `${stations.length} matching stations`;
-    byId('nearby-title').textContent = byId('map-filter').value === 'favourites' ? 'Your favourite stations' : 'Lowest matching prices';
     byId('origin-label').textContent = origin ? 'Distances from your chosen point · straight-line' : 'No starting point set';
-    if (markerLayer) {
-      markerLayer.clearLayers();
+    if (markerLayer && rebuild) {
+      markerLayer.clearLayers(); markers.clear();
       for (const station of stations) {
-        const selected = String(station.site_id) === selectedId;
-        const cheap = station.price_cpl < dashboard.summary.median;
+        const id = String(station.site_id);
         const marker = L.circleMarker([station.latitude, station.longitude], {
-          radius: selected ? 10 : 6, color: selected ? '#dce6ed' : '#0b141d', weight: selected ? 3 : 1.3,
-          fillColor: cheap ? '#58dac7' : '#eab466', fillOpacity: .92,
+          // Flagged prices (stale or suspect) are grey: an entry error must not look like a bargain.
+          fillColor: station.flag ? '#71899c' : station.price_cpl < dashboard.summary.median ? '#58dac7' : '#eab466', fillOpacity: .92,
         }).addTo(markerLayer);
-        marker.bindTooltip(map.getZoom() >= 12 ? `${fixed(station.price_cpl)}` : `${fixed(station.price_cpl)} c/L · ${escape(station.name)}`, {permanent: map.getZoom() >= 12, direction: 'top'});
-        marker.bindPopup(`<strong>${escape(station.name)}</strong><p>${fixed(station.price_cpl)} c/L · U91</p><p>Selected for your buying planner below.</p>`);
+        marker.station = station;
+        styleMarker(marker, id);
+        marker.bindTooltip(`${fixed(station.price_cpl)} c/L · ${escape(station.name)}`, {direction: 'top'});
+        marker.bindPopup(`<strong>${escape(station.name)}</strong><p>${fixed(station.price_cpl)} c/L · U91 ${FLAGS[station.flag] || ''}</p><p>Selected for your buying planner below.</p>`);
         marker.on('click', () => selectStation(station.site_id, false));
+        markers.set(id, marker);
       }
+      drawLabels();
+    } else {
+      for (const [id, marker] of markers) styleMarker(marker, id);
     }
+    drawNearby(stations);
+  }
+
+  // With no starting point the list follows the map, so it shows local prices rather than the
+  // cheapest station anywhere in Queensland (collection covers the whole state).
+  function drawNearby(stations = matchingStations()) {
+    if (!dashboard) return;
+    const favouritesOnly = byId('map-filter').value === 'favourites';
+    const view = map && !origin && !favouritesOnly ? map.getBounds() : null;
+    if (view) stations = stations.filter(s => view.contains([s.latitude, s.longitude]));
+    if (!favouritesOnly) stations = [...stations].sort((a, b) => !!a.flag - !!b.flag || a.price_cpl - b.price_cpl);
+    byId('nearby-title').textContent = favouritesOnly ? 'Your favourite stations' : origin ? 'Lowest matching prices' : 'Lowest prices on this map';
     byId('nearby-list').innerHTML = stations.slice(0, 8).map(station => {
       const km = origin ? distance(origin, [station.latitude, station.longitude]) : null;
       return `<button type="button" class="nearby-station ${String(station.site_id) === selectedId ? 'chosen' : ''}" data-station="${escape(station.site_id)}">
-        <span>${favourites.has(String(station.site_id)) ? '★ ' : ''}${escape(station.name)}</span>
+        <span>${favourites.has(String(station.site_id)) ? '★ ' : ''}${escape(station.name)} ${FLAGS[station.flag] || ''}</span>
         <strong>${fixed(station.price_cpl)} <small>c/L</small></strong>
         <small>${km == null ? escape(station.region) : km.toFixed(1) + ' km straight-line'}</small></button>`;
     }).join('') || '<p class="method-note">No matching stations. Widen the radius or change the filter. Select a station and save it to build your favourites.</p>';
@@ -202,7 +250,7 @@
     if (!station) return;
     form.elements.station_id.value = selectedId;
     if (map && moveMap) map.setView([station.latitude, station.longitude], 13);
-    renderSelected(); drawStations();
+    renderSelected(); drawStations(false);
     byId('detour-cheap').value = station.price_cpl;
     detourEdited = true;
     calculateDetour();
@@ -291,7 +339,7 @@
   });
   form.elements.station_id.addEventListener('change', () => {
     selectedId = form.elements.station_id.value;
-    renderSelected(); drawStations();
+    renderSelected(); drawStations(false);
   });
   byId('scenario-clear').addEventListener('click', () => { form.elements.scenario_change_cpl.value = ''; compare(); });
   byId('profile-reset').addEventListener('click', () => {
