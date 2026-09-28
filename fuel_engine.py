@@ -8,6 +8,14 @@ import config
 from api_evidence import read_json, write_json
 
 
+class FetchError(RuntimeError):
+    """Upstream failure carrying a stable category instead of a scraped message."""
+
+    def __init__(self, message, category):
+        super().__init__(message)
+        self.category = category
+
+
 class FuelEngine:
     base_url = 'https://fppdirectapi-prod.fuelpricesqld.com.au'
 
@@ -26,7 +34,7 @@ class FuelEngine:
 
     def _get(self, endpoint, key):
         if not self.token:
-            raise RuntimeError('FUEL_API_TOKEN is missing. Add it to the local .env file.')
+            raise FetchError('FUEL_API_TOKEN is missing. Add it to the local .env file.', 'not_configured')
         try:
             response = requests.get(
                 self.base_url + endpoint,
@@ -38,11 +46,15 @@ class FuelEngine:
             response.raise_for_status()
             data = response.json().get(key)
         except requests.HTTPError as exc:
-            raise RuntimeError(f'Queensland API returned HTTP {exc.response.status_code}.') from None
-        except (requests.RequestException, ValueError):
-            raise RuntimeError('Queensland API could not be reached or returned invalid JSON.') from None
+            raise FetchError(f'Queensland API returned HTTP {exc.response.status_code}.',
+                             f'http_{exc.response.status_code}') from None
+        # ValueError first: requests' JSONDecodeError is both a ValueError and a RequestException.
+        except ValueError:
+            raise FetchError('Queensland API could not be reached or returned invalid JSON.', 'parse') from None
+        except requests.RequestException:
+            raise FetchError('Queensland API could not be reached or returned invalid JSON.', 'network') from None
         if not isinstance(data, list) or not data:
-            raise RuntimeError(f'Queensland API returned no {key} records.')
+            raise FetchError(f'Queensland API returned no {key} records.', 'empty')
         return data
 
     def _cached(self, name):

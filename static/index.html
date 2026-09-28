@@ -2,53 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#153e36"><title>Brisbane Fuel · Local</title>
+  <meta name="theme-color" content="#090e15"><title>Buying workspace / Fuel Observatory</title>
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/static/observatory.css">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/road-routing.css">
+  <link rel="stylesheet" href="/static/traffic.css">
   <script src="/static/vendor/leaflet/leaflet.js" defer></script>
   <script src="/static/device-location.js" defer></script><script src="/static/road-routing.js" defer></script><script src="/static/traffic.js" defer></script>
   <script src="/static/decisions.js" defer></script><script src="/static/app.js" defer></script>
-<link rel="stylesheet" href="/static/road-routing.css">
-<link rel="stylesheet" href="/static/traffic.css">
 </head>
 <body>
-<aside class="sidebar">
-  <a class="brand" href="#overview"><span class="brand-icon">f.</span><span>fuel<span class="brand-sub">LOCAL OBSERVATORY</span></span></a>
-  <div class="sidebar-label"><a href="/">← Fuel Observatory</a></div>
-  <nav aria-label="Main navigation"><a href="#overview" class="active"><span>◉</span> Overview</a><a href="#station-map"><span>⌖</span> Station map</a><a href="#buying-plan"><span>◷</span> Buying planner</a><a href="#collection"><span>▤</span> Data collection</a><a href="#models"><span>⌁</span> Forecast method</a></nav>
-  <div class="sidebar-bottom"><span class="local-dot"></span> Runs on your computer<p>Brisbane · Queensland<br>Unleaded 91 only</p><span class="version">LOCAL / 05</span></div>
-</aside>
+<header class="masthead"><a class="identity" href="/"><span class="sigil">⌖</span><span>FUEL OBSERVATORY<small>BUYING WORKSPACE / BRISBANE / U91</small></span></a><div class="header-tools"><span id="connection" class="tag">CONNECTING</span><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh prices</button><a href="/" class="button">Live field ↗</a></div></header>
+<nav class="nav" aria-label="Buying workspace sections"><a href="#overview" class="active">01 Market</a><a href="#station-map">02 Station field</a><a href="#buying-plan">03 Buying plan</a><a href="#detour-check">04 Detour economics</a><a href="#history">05 Price history</a><a href="#collection">06 Collection</a><a href="#ledger">07 Station ledger</a><a href="#models">08 Forecast method</a></nav>
 <main id="overview">
-  <header><div class="breadcrumb">YOUR MARKET <span>/</span> <b>Brisbane, QLD</b></div><span class="pill" id="connection">Connecting…</span></header>
-  <section class="heading"><div><div class="eyebrow">BRISBANE FUEL MONITOR</div><h1>Make your next fill count.</h1><p>Find a better station. Work out how much to buy. Know when waiting pays.</p></div><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh prices</button></section>
-  <div class="quick-links"><a href="#station-map">Explore the map ↓</a><a href="#buying-plan">Plan a purchase ↓</a><a href="#collection">Check recording ↓</a></div>
+  <div class="statusline"><span><i class="dot"></i> BRISBANE METRO <b>27.47° S / 153.03° E</b></span><span>UNLEADED 91 ONLY · RUNS ON YOUR COMPUTER · LOCAL / 05</span></div>
   <div id="notice" class="notice" role="status">Loading your local price history…</div>
-  <section class="metrics" aria-label="Current market prices">
-    <article class="metric"><div class="label">MARKET MEDIAN <span>U91</span></div><div class="metric-value"><strong id="median">—</strong><small>c/L</small></div><p id="price-age">Checking latest observation</p></article>
-    <article class="metric"><div class="label">LOWEST OBSERVED</div><div class="metric-value"><strong id="minimum">—</strong><small>c/L</small></div><p id="cheapest-name">—</p></article>
-    <article class="metric"><div class="label">IN 7 DAYS <span id="forecast-label">FORECAST</span></div><div class="metric-value"><strong id="week-price">—</strong><small>c/L</small></div><p id="week-note">Waiting for the forecast</p></article>
-    <article class="metric"><div class="label">STATIONS TRACKED</div><div class="metric-value"><strong id="stations-count">—</strong><small>sites</small></div><p>Brisbane metro · North + South</p></article>
+  <section class="heading"><div><p class="kicker">BRISBANE FUEL MONITOR</p><h1>Make your next fill count.</h1><p class="muted">Find a better station. Work out how much to buy. Know when waiting pays.</p></div><p class="quick-links"><a href="#station-map">Explore the map ↓</a><a href="#buying-plan">Plan a purchase ↓</a><a href="#collection">Check recording ↓</a></p></section>
+  <section class="metrics metrics-4" aria-label="Current market prices">
+    <article class="metric"><div class="metric-label">MARKET MEDIAN <span>U91</span></div><div class="metric-value"><strong id="median">—</strong><small>c/L</small></div><p class="metric-note" id="price-age">Checking latest observation</p></article>
+    <article class="metric"><div class="metric-label">LOWEST OBSERVED</div><div class="metric-value"><strong id="minimum">—</strong><small>c/L</small></div><p class="metric-note" id="cheapest-name">—</p></article>
+    <article class="metric"><div class="metric-label">IN 7 DAYS <span id="forecast-label">FORECAST</span></div><div class="metric-value"><strong id="week-price">—</strong><small>c/L</small></div><p class="metric-note" id="week-note">Waiting for the forecast</p></article>
+    <article class="metric"><div class="metric-label">STATIONS TRACKED</div><div class="metric-value"><strong id="stations-count">—</strong><small>sites</small></div><p class="metric-note">Brisbane metro · North + South</p></article>
   </section>
 
-  <section class="panel map-section" id="station-map">
-    <div class="panel-head"><div><div class="eyebrow">WHERE TO BUY</div><h2>A lower price, close to your day.</h2></div><span class="pill" id="map-count">Loading stations</span></div>
-    <div class="map-toolbar">
-      <label class="search"><span aria-hidden="true">⌕</span><input type="search" id="map-search" placeholder="Station or suburb in its name…" aria-label="Search map stations"></label>
-      <label>Show <select id="map-filter"><option value="all">All stations</option><option value="cheap">Below market median</option><option value="favourites">My favourites</option></select></label>
-      <label>Radius <select id="map-radius"><option value="0">Whole metro</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option></select></label>
-      <button class="secondary" id="map-origin" type="button">Set starting point</button>
-      <button class="secondary" id="map-reset" type="button">Reset map</button>
-    </div>
-    <p class="quiet" id="map-instructions">Pick a station to use its price in your plan. Set a starting point to compare nearby stations; distance is straight-line, not a driving route.</p>
-    <div class="map-layout"><div><div id="fuel-map" aria-label="Interactive map of Brisbane U91 station prices"></div><p id="tile-status" class="quiet">Street map: OpenStreetMap · internet required. Station prices are also available in the list.</p></div>
-      <aside class="station-detail" id="station-detail"><div class="eyebrow">YOUR NEXT STOP</div><h3>Select a station</h3><p>Tap a price on the map or select a station from the nearby list.</p><p>Green markers are below the Brisbane median. Gold markers are at or above it.</p></aside></div>
-    <div class="nearby-head"><h3 id="nearby-title">Lowest prices on this map</h3><span class="quiet" id="origin-label">No starting point set</span></div>
-    <div class="nearby-list" id="nearby-list"></div>
-    <p class="quiet">Favourites and vehicle settings stay in this browser. A cheap station can be a poor deal if the detour costs more than you save.</p>
+  <section id="station-map" class="plan-field">
+    <article class="panel map-panel">
+      <div class="panel-head"><h2>Where to buy · a lower price close to your day</h2><span class="index" id="map-count">Loading stations</span></div>
+      <div class="map-tools">
+        <label class="search"><span aria-hidden="true">⌕</span><input type="search" id="map-search" placeholder="Station or suburb in its name…" aria-label="Search map stations"></label>
+        <label>Show <select id="map-filter"><option value="all">All stations</option><option value="cheap">Below market median</option><option value="favourites">My favourites</option></select></label>
+        <label>Radius <select id="map-radius"><option value="0">Whole metro</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option></select></label>
+        <button class="secondary" id="map-origin" type="button" aria-pressed="false">Set starting point</button>
+        <button class="secondary" id="map-reset" type="button">Reset map</button>
+      </div>
+      <p class="muted map-instructions" id="map-instructions">Pick a station to use its price in your plan. Set a starting point to compare nearby stations; distance is straight-line, not a driving route.</p>
+      <div id="fuel-map" aria-label="Interactive map of Brisbane U91 station prices"></div>
+      <div class="map-footer"><span id="tile-status">Street map: OpenStreetMap · internet required. Station prices are also available in the list.</span><span>CYAN below median · AMBER at or above</span></div>
+    </article>
+    <aside class="panel inspector"><div class="panel-head"><h2>Your next stop</h2><span class="index">02.B</span></div>
+      <div class="panel-body" id="station-detail"><p class="kicker">YOUR NEXT STOP</p><h3>Select a station</h3><p class="muted">Tap a price on the map or select a station from the nearby list.</p><p class="muted">Cyan markers are below the Brisbane median. Amber markers are at or above it.</p></div></aside>
   </section>
+  <section class="panel" id="nearby">
+    <div class="panel-head"><h2 id="nearby-title">Lowest prices on this map</h2><span class="index" id="origin-label">No starting point set</span></div>
+    <div class="nearby-list" id="nearby-list"></div>
+    <p class="muted nearby-foot">Favourites and vehicle settings stay in this browser. A cheap station can be a poor deal if the detour costs more than you save.</p>
+  </section>
+
   <section class="panel planner" id="buying-plan">
-    <div class="panel-head"><div><div class="eyebrow">HOW MUCH, AND WHEN</div><h2>Fill now, or bridge to a better price?</h2></div><span class="pill">Same driving · same ending fuel</span></div>
-    <p class="planner-intro">Every 10 c/L drop saves $1 for each 10 L you postpone, before extra travel. Your fuel remaining and driving determine the smallest top-up; your tank size determines how many litres you can defer.</p>
+    <div class="panel-head"><h2>Fill now, or bridge to a better price?</h2><span class="tag dim">SAME DRIVING · SAME ENDING FUEL</span></div>
+    <div class="panel-body">
+    <p class="muted planner-intro">Every 10 c/L drop saves $1 for each 10 L you postpone, before extra travel. Your fuel remaining and driving determine the smallest top-up; your tank size determines how many litres you can defer.</p>
     <div class="planner-layout"><form id="plan-form">
       <p class="method-note" id="profile-note">Example profile: 50 L tank, 10 L remaining, 35 km/day, 8 L/100 km. Adjust these before using the result.</p>
       <label class="wide-field">Price to use <select id="plan-station" name="station_id"><option value="">Brisbane market median</option></select></label>
@@ -60,7 +64,7 @@
         <label>Keep in reserve <span>L</span><input name="reserve_l" type="number" min="0" max="50" step="0.1" value="5" required></label>
         <label>Compare buying again in <span>days</span><input name="wait_days" type="number" min="1" max="7" step="1" value="3" required></label>
       </div>
-      <details><summary>Travel costs, discount & budget</summary><div class="form-grid">
+      <details><summary>Travel costs, discount &amp; budget</summary><div class="form-grid">
         <label>Extra travel if waiting <span>km total</span><input name="extra_km" type="number" min="0" max="300" step="0.1" value="0" required></label>
         <label>Extra time if waiting <span>minutes</span><input name="extra_minutes" type="number" min="0" max="300" value="0" required></label>
         <label>Value of your time <span>$/hour</span><input name="hourly_value" type="number" min="0" max="200" step="1" value="0" required></label>
@@ -71,32 +75,61 @@
       <div class="plan-actions"><button type="submit" class="primary">Compare my options</button><button type="button" class="secondary" id="profile-reset">Reset examples</button></div>
       <p id="plan-error" role="alert" class="notice error" hidden></p>
     </form>
-    <div class="plan-result" id="plan-result" aria-live="polite"><div class="eyebrow">YOUR BUYING PLAN</div><h3>Start with your driving needs.</h3><p>Compare your options to see a minimum top-up, the cost of waiting and a break-even future price.</p></div></div>
+    <div class="plan-result" id="plan-result" aria-live="polite"><p class="kicker">YOUR BUYING PLAN</p><h3>Start with your driving needs.</h3><p class="muted">Compare your options to see a minimum top-up, the cost of waiting and a break-even future price.</p></div></div>
+    </div>
   </section>
-  <section class="panel detour-section" id="detour-check"><div class="panel-head"><div><div class="eyebrow">A CHEAPER SIGN IS ONLY HALF THE STORY</div><h2>Is the detour worth it?</h2></div></div>
-    <div class="detour-inputs"><label>Usual station <span>c/L</span><input id="detour-usual" type="number" min="1" step="0.1" value="225.9"></label><label>Alternative station <span>c/L</span><input id="detour-cheap" type="number" min="1" step="0.1" value="215.9"></label><label>Purchase <span>L</span><input id="detour-litres" type="number" min="0.1" step="0.1" value="40"></label><label>Extra driving <span>km total</span><input id="detour-km" type="number" min="0" step="0.1" value="5"></label></div>
-    <div class="detour-result" id="detour-result" role="status"></div><p class="quiet">Uses your planner's L/100 km. Fuel-only comparison; your time and any tolls are additional costs. Enter the extra driving distance, not straight-line map distance.</p>
+
+  <section class="panel detour-section" id="detour-check">
+    <div class="panel-head"><h2>Is the detour worth it?</h2><span class="index">A CHEAPER SIGN IS ONLY HALF THE STORY</span></div>
+    <div class="panel-body">
+      <div class="detour-inputs"><label>Usual station <span>c/L</span><input id="detour-usual" type="number" min="1" step="0.1" value="225.9"></label><label>Alternative station <span>c/L</span><input id="detour-cheap" type="number" min="1" step="0.1" value="215.9"></label><label>Purchase <span>L</span><input id="detour-litres" type="number" min="0.1" step="0.1" value="40"></label><label>Extra driving <span>km total</span><input id="detour-km" type="number" min="0" step="0.1" value="5"></label></div>
+      <div class="detour-result" id="detour-result" role="status"></div>
+      <p class="quiet">Uses your planner's L/100 km. Fuel-only comparison; your time and any tolls are additional costs. Enter the extra driving distance, not straight-line map distance.</p>
+    </div>
   </section>
 
   <div class="chart-layout">
-    <section class="panel chart-panel"><div class="panel-head"><div><div class="eyebrow">THE PRICE PICTURE</div><h2>History & the week ahead</h2></div><div class="segmented" aria-label="History range"><button data-range="30">30D</button><button data-range="90" class="selected">90D</button><button data-range="all">All</button></div></div>
-      <div class="legend"><span><i class="actual"></i>Recorded median</span><span><i class="predicted"></i>Forecast</span><span id="band-legend"><i class="band"></i>Historical error range</span></div>
-      <div id="chart" role="img" aria-label="Daily median fuel prices and seven-day forecast"></div><p class="chart-caption" id="chart-caption">Only recorded days appear. Gaps are never filled with invented prices.</p>
-      <div id="forecast-days" class="forecast-days"></div>
+    <section class="panel chart-panel" id="history"><div class="panel-head"><h2>History &amp; the week ahead</h2><div class="tabs" role="group" aria-label="History range"><button type="button" data-range="30">30D</button><button type="button" data-range="90" class="selected">90D</button><button type="button" data-range="all">All</button></div></div>
+      <div class="panel-body">
+        <p class="legend"><span><i class="actual"></i>Recorded median</span><span><i class="predicted"></i>Forecast</span><span id="band-legend"><i class="band"></i>Historical error range</span></p>
+        <div id="chart" role="img" aria-label="Daily median fuel prices and seven-day forecast"></div><p class="quiet chart-caption" id="chart-caption">Only recorded days appear. Gaps are never filled with invented prices.</p>
+        <div id="forecast-days" class="forecast-days"></div>
+      </div>
     </section>
-    <section class="panel outlook"><div class="eyebrow">FORECAST CHECK</div><h2>Evidence before confidence.</h2><span class="pill warning" id="model-status">Checking history</span><p id="forecast-reason">Evaluating the observations available on this computer.</p><div class="outlook-row"><span>Current method</span><strong id="model-name">—</strong></div><div class="outlook-row"><span>Held-out error</span><strong id="model-error">—</strong></div><div class="outlook-row"><span>Recent continuous data</span><strong id="continuous-days">—</strong></div><a class="text-link" href="#models">See how it is measured <span>↗</span></a></section>
+    <section class="panel outlook"><div class="panel-head"><h2>Forecast check</h2><span class="index">EVIDENCE BEFORE CONFIDENCE</span></div>
+      <div class="panel-body"><span class="tag warn" id="model-status">Checking history</span><p class="muted" id="forecast-reason">Evaluating the observations available on this computer.</p>
+        <div class="audit"><span>Current method</span><b id="model-name">—</b><span>Held-out error</span><b id="model-error">—</b><span>Recent continuous data</span><b id="continuous-days">—</b></div>
+        <p class="actions"><a class="text-link" href="#models">See how it is measured ↗</a></p></div>
+    </section>
   </div>
-  <section class="panel collection" id="collection"><div class="panel-head"><div><div class="eyebrow">FOLLOW THE DATA</div><h2>Is everything still recording?</h2></div><span class="quiet">Times shown in Brisbane time</span></div>
+
+  <section class="panel collection" id="collection"><div class="panel-head"><h2>Is everything still recording?</h2><span class="index">FOLLOW THE DATA · BRISBANE TIME</span></div>
+    <div class="panel-body">
     <div class="health-grid">
-      <article><div class="health-title"><span>01 / QUEENSLAND API</span><span id="api-dot" class="status-dot"></span></div><h3 id="api-status">Not checked</h3><p id="api-detail">Waiting for the first request</p><dl><dt>Last successful fetch</dt><dd id="api-last">—</dd><dt>Next scheduled refresh</dt><dd id="api-next">—</dd></dl></article>
-      <article><div class="health-title"><span>02 / CSV HISTORY</span><span id="csv-dot" class="status-dot"></span></div><h3 id="csv-status">Checking file</h3><p id="csv-detail">Hourly append · original history retained</p><dl><dt>Last Brisbane record</dt><dd id="csv-last">—</dd><dt>Total archived rows</dt><dd id="csv-rows">—</dd></dl><a href="/api/export/history" class="text-link">Download history CSV ↓</a></article>
-      <article><div class="health-title"><span>03 / LOCAL DATABASE</span><span id="db-dot" class="status-dot"></span></div><h3 id="db-status">Checking database</h3><p id="db-detail">SQLite · a snapshot every refresh</p><dl><dt>Latest Brisbane snapshot</dt><dd id="db-last">—</dd><dt>Brisbane price records</dt><dd id="db-rows">—</dd></dl><a href="/api/export/snapshot" class="text-link">Download latest snapshot ↓</a></article>
-    </div><div class="collection-foot"><span class="local-dot"></span><span>Collection runs while the local server is running and this computer is awake. API refresh: 30 min · CSV append: 1 hour.</span></div>
+      <article><div class="health-title"><span>01 / QUEENSLAND API</span><span id="api-dot" class="status-dot"></span></div><h3 id="api-status">Not checked</h3><p class="muted" id="api-detail">Waiting for the first request</p><dl class="station-facts"><dt>Last successful fetch</dt><dd id="api-last">—</dd><dt>Next scheduled refresh</dt><dd id="api-next">—</dd></dl></article>
+      <article><div class="health-title"><span>02 / CSV HISTORY</span><span id="csv-dot" class="status-dot"></span></div><h3 id="csv-status">Checking file</h3><p class="muted" id="csv-detail">Hourly append · original history retained</p><dl class="station-facts"><dt>Last Brisbane record</dt><dd id="csv-last">—</dd><dt>Total archived rows</dt><dd id="csv-rows">—</dd></dl><p class="actions"><a href="/api/export/history">Download history CSV ↓</a></p></article>
+      <article><div class="health-title"><span>03 / LOCAL DATABASE</span><span id="db-dot" class="status-dot"></span></div><h3 id="db-status">Checking database</h3><p class="muted" id="db-detail">SQLite · a snapshot every refresh</p><dl class="station-facts"><dt>Latest Brisbane snapshot</dt><dd id="db-last">—</dd><dt>Brisbane price records</dt><dd id="db-rows">—</dd></dl><p class="actions"><a href="/api/export/snapshot">Download latest snapshot ↓</a></p></article>
+    </div>
+    <p class="collection-foot"><span class="dot"></span>Collection runs while the local server is running and this computer is awake. API refresh: 30 min · CSV append: 1 hour.</p>
+    </div>
   </section>
-  <section class="panel station-panel"><div class="panel-head"><div><div class="eyebrow">AT THE PUMP</div><h2>Find a lower price</h2></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search stations…" aria-label="Search stations"></label></div>
-    <div class="table-wrap"><table><thead><tr><th>Station</th><th>Area</th><th>Price <small>c/L ↑</small></th><th>Last price report</th></tr></thead><tbody id="station-rows"></tbody></table></div><div class="table-footer"><span id="station-result">—</span><button id="show-more" class="secondary">Show more</button></div>
+
+  <section class="panel station-panel" id="ledger"><div class="panel-head"><h2>At the pump · find a lower price</h2><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search stations…" aria-label="Search stations"></label></div>
+    <div class="table-scroll"><table><thead><tr><th>Station</th><th>Area</th><th>Price <small>c/L ↑</small></th><th>Last price report</th></tr></thead><tbody id="station-rows"></tbody></table></div>
+    <div class="pagination"><span id="station-result">—</span><button id="show-more" class="secondary" type="button">Show more</button></div>
   </section>
-  <section class="panel models" id="models"><div class="panel-head"><div><div class="eyebrow">OPEN NOTEBOOK</div><h2>A forecast has to earn its place.</h2></div><span class="pill">7-day horizon</span></div><div class="model-layout"><div><p>We compare today’s price, a damped trend, a weekly pattern, and similar historical weeks. Models only see observations available before each forecast.</p><p>The method is selected on earlier dates, then measured on later dates with a seven-day gap between sets. The target is the median of each station’s last observed U91 price for that day.</p><div id="coverage" class="method-note">Checking coverage…</div><p class="quiet">Older price-change records without collection timestamps are excluded from training. Missing days remain missing.</p></div><div><table class="score-table"><thead><tr><th>Method</th><th>Held-out MAE</th></tr></thead><tbody id="model-rows"></tbody></table><p id="validation-note" class="quiet"></p><p id="prediction-log" class="method-note"></p></div></div></section>
-  <footer><span class="footer-brand">fuel / local</span><span>Real observations. Visible uncertainty.</span><a href="/docs" target="_blank" rel="noopener">API reference ↗</a></footer>
+
+  <section class="panel models" id="models"><div class="panel-head"><h2>A forecast has to earn its place.</h2><span class="index">OPEN NOTEBOOK · 7-DAY HORIZON</span></div>
+    <div class="panel-body"><div class="model-layout"><div>
+      <p class="muted">We compare today’s price, a damped trend, a weekly pattern, and similar historical weeks. Models only see observations available before each forecast.</p>
+      <p class="muted">The method is selected on earlier dates, then measured on later dates with a seven-day gap between sets. The target is the median of each station’s last observed U91 price for that day.</p>
+      <div id="coverage" class="method-note">Checking coverage…</div>
+      <p class="quiet">Older price-change records without collection timestamps are excluded from training. Missing days remain missing.</p>
+    </div><div>
+      <table class="score-table"><thead><tr><th>Method</th><th>Held-out MAE</th></tr></thead><tbody id="model-rows"></tbody></table>
+      <p id="validation-note" class="quiet"></p><p id="prediction-log" class="method-note"></p>
+    </div></div></div>
+  </section>
+  <footer>LOCAL OBSERVATORY / BUYING WORKSPACE <span>Real observations. Visible uncertainty.</span><a href="/docs" target="_blank" rel="noopener">API reference ↗</a></footer>
 </main>
 </body></html>

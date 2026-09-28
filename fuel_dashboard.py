@@ -14,8 +14,8 @@ from local_data import LocalData
 from buying_plan import BuyingProfile, compare_horizons
 from observatory import Observatory
 from fuel_engine import FuelEngine
-from routing import RoadRouter, RouteRequest, RoutingError
-from traffic import TrafficFeed
+from routing import RoadRouter, RankRequest, RouteRequest, RoutingError
+from traffic import TrafficFeed, RouteCorridor
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
@@ -134,6 +134,12 @@ def traffic(request: Request):
     return request.app.state.traffic.payload()
 
 
+@app.post('/api/traffic/route')
+def traffic_route(corridor: RouteCorridor, request: Request):
+    """Events touching a route corridor. Reporting only: it never adjusts a route or a cost."""
+    return request.app.state.traffic.disruptions(corridor.model_dump())
+
+
 @app.get('/api/traffic/raw')
 def traffic_raw(request: Request):
     return request.app.state.traffic.raw()
@@ -143,6 +149,14 @@ def traffic_raw(request: Request):
 def route_compare(profile: RouteRequest, request: Request):
     try:
         return request.app.state.router.compare(profile, request.app.state.data.dashboard())
+    except RoutingError as exc:
+        raise HTTPException(exc.status,str(exc)) from None
+
+
+@app.post('/api/routing/rank')
+def route_rank(profile: RankRequest, request: Request):
+    try:
+        return request.app.state.router.rank(profile, request.app.state.data.dashboard())
     except RoutingError as exc:
         raise HTTPException(exc.status,str(exc)) from None
 
@@ -183,6 +197,11 @@ def observatory(request: Request):
 @app.get('/api/observatory/station/{site_id}')
 def station_evidence(site_id: str, request: Request):
     return request.app.state.observatory.station(site_id)
+
+
+@app.get('/api/observatory/coverage')
+def observatory_coverage(request: Request):
+    return request.app.state.observatory.coverage()
 
 
 @app.get('/api/observatory/rows')

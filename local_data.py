@@ -10,8 +10,9 @@ from pathlib import Path
 import pandas as pd
 import config
 from data_store import FuelDataStore
-from fuel_engine import FuelEngine
+from fuel_engine import FetchError, FuelEngine
 from forecasting import build_forecast
+from qld_history_import import reported_series
 from api_evidence import ApiEvidence
 from context_sources import ContextSources
 
@@ -54,12 +55,15 @@ class LocalData:
         self.data_lock = threading.RLock()
         self.status = {'api': 'not_checked', 'csv': 'not_checked', 'database': 'not_checked',
                        'snapshot': 'not_checked', 'last_attempt': None, 'last_success': None,
-                       'last_csv_write': None, 'last_csv_rows': 0, 'next_refresh': None, 'error': None}
+                       'last_csv_write': None, 'last_csv_rows': 0, 'next_refresh': None, 'error': None,
+                       'last_database_write': None, 'last_snapshot_write': None, 'last_api_evidence_write': None,
+                       'consecutive_failures': 0, 'failure_category': None, 'outage_started': None, 'outages': []}
         if self.status_path.exists():
             try:
                 self.status.update(json.loads(self.status_path.read_text(encoding='utf-8')))
             except (ValueError, OSError):
                 log.warning('Previous collector status could not be read.')
+        self._record_startup_gap()
         # Persisted success is history, not proof that this process has checked the API.
         self.status.update(api='not_checked', csv='not_checked', database='not_checked',
                            snapshot='not_checked', next_refresh=None, error=None)
@@ -70,6 +74,42 @@ class LocalData:
             connection.execute('''CREATE TABLE IF NOT EXISTS local_forecasts (
                 issued_date TEXT, target_date TEXT, model TEXT, price REAL,
                 PRIMARY KEY(issued_date, target_date))''')
+
+    def _record_startup_gap(self):
+        """A collection window missed while asleep/stopped is recorded, never back-filled."""
+        due = self.status.get('next_refresh') or self.status.get('last_success')
+        started = self.status.get('outage_started') or self.status.get('last_success') or due
+        if not due:
+            return
+        now = datetime.now()
+        try:
+            gap = (now - datetime.fromisoformat(due)).total_seconds()
+            began = datetime.fromisoformat(started)
+        except (TypeError, ValueError):
+            return
+        if gap <= 1.5 * config.REFRESH_SECONDS:
+            return
+        outages = list(self.status.get('outages') or [])
+        outages.append({'started': began.isoformat(timespec='seconds'),
+                        'ended': now.isoformat(timespec='seconds'),
+                        'duration_minutes': round((now - began).total_seconds() / 60, 1),
+                        'category': self.status.get('failure_category') or 'not_running'})
+        self.status['outages'] = outages[-20:]
+
+    def _schedule_next(self, succeeded):
+        now = datetime.now()
+        if succeeded:
+            self.status.update(consecutive_failures=0, failure_category=None, outage_started=None)
+            delay = config.REFRESH_SECONDS
+        else:
+            count = (self.status.get('consecutive_failures') or 0) + 1
+            self.status['consecutive_failures'] = count
+            if not self.status.get('outage_started'):
+                self.status['outage_started'] = (self.status.get('last_success')
+                                                 or now.isoformat(timespec='seconds'))
+            # Floor of 60s: the upstream price cache has a 60s TTL, so a faster retry only re-serves it.
+            delay = max(60, min(config.REFRESH_SECONDS, 60 * 2 ** (count - 1)))
+        self.status['next_refresh'] = (now + timedelta(seconds=delay)).isoformat(timespec='seconds')
 
     def _csv_info(self):
         if not self.collection.exists():
@@ -104,46 +144,53 @@ class LocalData:
     def refresh(self):
         if not self.lock.acquire(blocking=False):
             return False
+        succeeded = False
         try:
             self.status.update(last_attempt=datetime.now().isoformat(timespec='seconds'),
                                api='checking', error=None, csv='not_checked', database='not_checked', snapshot='not_checked', api_evidence='not_checked')
             try:
                 frame = self.engine.get_market_snapshot()
                 if frame is None or frame.empty:
-                    raise ValueError('API returned no usable prices.')
+                    raise FetchError('API returned no usable prices.', 'empty')
                 self.status.update(api='connected', last_api_success=str(frame.scraped_at.max()), api_rows=len(frame))
             except Exception as exc:
-                self.status.update(api='error', error=str(exc))
+                self.status.update(api='error', error=str(exc),
+                                   failure_category=getattr(exc, 'category', 'unknown'))
                 log.warning('Collection failed: %s', exc)
                 return False
             with self.data_lock:
                 failures = []
+                written = datetime.now().isoformat(timespec='seconds')
                 for stage in ['database', 'snapshot', 'csv', 'api_evidence']:
                     try:
                         if stage == 'database':
                             inserted = self.db.save_snapshot(frame)
                             self.db.save_daily_stats(datetime.now().date(), 'QLD', frame.price_cpl)
-                            self.status.update(database='recording', database_rows_inserted=inserted)
+                            self.status.update(database='recording', database_rows_inserted=inserted,
+                                               last_database_write=written)
                         elif stage == 'snapshot':
                             temporary = self.snapshot.with_suffix('.tmp')
                             frame.to_csv(temporary, index=False)
                             os.replace(temporary, self.snapshot)
-                            self.status['snapshot'] = 'recording'
+                            self.status.update(snapshot='recording', last_snapshot_write=written)
                         elif stage == 'csv':
                             self._append(frame)
                         elif getattr(self.engine, 'last_evidence', None):
                             self.api_evidence.save(self.engine.last_evidence)
-                            self.status['api_evidence'] = 'recording'
+                            self.status.update(api_evidence='recording', last_api_evidence_write=written)
                     except Exception as exc:
                         self.status[stage] = 'error'
                         failures.append(f'{stage}: {exc}')
                         log.exception('Write failed: %s', stage)
                 self.status['error'] = '; '.join(failures) or None
-                if not failures:
+                if failures:
+                    self.status['failure_category'] = 'write'
+                else:
                     self.status['last_success'] = datetime.now().isoformat(timespec='seconds')
-                return not failures
+                succeeded = not failures
+                return succeeded
         finally:
-            self.status['next_refresh'] = (datetime.now() + timedelta(seconds=config.REFRESH_SECONDS)).isoformat(timespec='seconds')
+            self._schedule_next(succeeded)
             try:
                 atomic_json(self.status_path, self.status)
             except OSError:
@@ -167,6 +214,15 @@ class LocalData:
         frame = frame.sort_values('scraped_at').drop_duplicates(['day', 'site_id'], keep='last')
         daily = frame.groupby('day').agg(price_cpl=('price_cpl', 'median'), stations=('site_id', 'nunique')).reset_index()
         return daily
+
+    def _reported(self):
+        """The official backfill, if any was imported. Empty until it is, and never
+        an observation this app collected — see forecasting.merge_history."""
+        try:
+            return reported_series(self.db)
+        except Exception:
+            log.exception('Reported backfill could not be read; forecasting on collected days only.')
+            return None
 
     def _latest(self):
         candidates = [brisbane(self.db.get_latest_snapshot('QLD'))]
@@ -200,7 +256,7 @@ class LocalData:
             if self.cached is None:
                 daily = self._history()
                 live = self._latest()
-                forecast = build_forecast(daily)
+                forecast = build_forecast(daily, reported=self._reported())
                 prediction_log = self._prediction_log(forecast, daily)
                 with self.db._connect() as connection:
                     db_rows = connection.execute("SELECT COUNT(*) FROM snapshots WHERE state='QLD'").fetchone()[0]

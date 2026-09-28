@@ -7,7 +7,7 @@ const stamp = value => value ? new Date(value.replace(' ', 'T') + (/[Z+]/.test(v
 const dayLabel = value => new Date(value + 'T12:00:00+10:00').toLocaleDateString('en-AU',{timeZone:'Australia/Brisbane',day:'numeric',month:'short'});
 let data = null, range = 90, limit = 10, loading = false;
 function text(id, value) { $(id).textContent = value; }
-function badge(id, value, style='') { text(id,value); $(id).className = 'pill ' + style; }
+function badge(id, value, style='') { text(id,value); $(id).className = 'tag ' + style; }
 function dot(id, good, bad=false) { $(id).className = 'status-dot ' + (good ? 'good' : bad ? 'bad' : ''); }
 
 function drawChart() {
@@ -23,22 +23,22 @@ function drawChart() {
   const values=all.flatMap(d=>[d.price,d.low,d.high]).filter(v=>v!=null);
   const low=Math.floor((Math.min(...values)-5)/10)*10, high=Math.ceil((Math.max(...values)+5)/10)*10;
   const x=d=>L+(ts(d)-first)/(last-first)*(W-L-R), y=v=>T+(high-v)/(high-low)*(H-T-B);
-  let svg=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><text x="${L}" y="10" fill="#81907e" font-size="9">c/L</text>`;
-  for(let i=0;i<=4;i++){const value=low+(high-low)*i/4;svg+=`<line x1="${L}" x2="${W-R}" y1="${y(value)}" y2="${y(value)}" stroke="#e9ede3"/><text x="${L-9}" y="${y(value)+3}" text-anchor="end" fill="#87917f" font-size="9">${value.toFixed(0)}</text>`;}
-  for(let i=0;i<=4;i++){const d=new Date(first+(last-first)*i/4).toISOString().slice(0,10);svg+=`<text x="${x(d)}" y="${H-7}" text-anchor="middle" fill="#87917f" font-size="9">${dayLabel(d)}</text>`;}
+  let svg=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><text x="${L}" y="10" fill="#92a5b7" font-size="9">c/L</text>`;
+  for(let i=0;i<=4;i++){const value=low+(high-low)*i/4;svg+=`<line x1="${L}" x2="${W-R}" y1="${y(value)}" y2="${y(value)}" stroke="#24313e"/><text x="${L-9}" y="${y(value)+3}" text-anchor="end" fill="#92a5b7" font-size="9">${value.toFixed(0)}</text>`;}
+  for(let i=0;i<=4;i++){const d=new Date(first+(last-first)*i/4).toISOString().slice(0,10);svg+=`<text x="${x(d)}" y="${H-7}" text-anchor="middle" fill="#92a5b7" font-size="9">${dayLabel(d)}</text>`;}
   let segments=[],segment=[];
   history.forEach((d,i)=>{if(i && ts(d.date)-ts(history[i-1].date)>86400000){segments.push(segment);segment=[];}segment.push(d);});
   if(segment.length)segments.push(segment);
-  segments.forEach(s=>{svg+=`<polyline points="${s.map(d=>`${x(d.date)},${y(d.price)}`).join(' ')}" fill="none" stroke="#347359" stroke-width="2.5" stroke-linejoin="round"/>`;});
-  history.forEach(d=>{svg+=`<circle cx="${x(d.date)}" cy="${y(d.price)}" r="3" fill="#347359"><title>${d.date}: ${num(d.price)} c/L · ${d.stations} stations</title></circle>`;});
+  segments.forEach(s=>{svg+=`<polyline points="${s.map(d=>`${x(d.date)},${y(d.price)}`).join(' ')}" fill="none" stroke="#58dac7" stroke-width="2.5" stroke-linejoin="round"/>`;});
+  history.forEach(d=>{svg+=`<circle cx="${x(d.date)}" cy="${y(d.price)}" r="3" fill="#58dac7"><title>${d.date}: ${num(d.price)} c/L · ${d.stations} stations</title></circle>`;});
   if(forecast.length){
     const valid=forecast.filter(d=>d.low!=null);
-    if(valid.length)svg+=`<polygon points="${[...valid.map(d=>`${x(d.date)},${y(d.low)}`),...valid.slice().reverse().map(d=>`${x(d.date)},${y(d.high)}`)].join(' ')}" fill="#eee0bf" opacity=".6"/>`;
+    if(valid.length)svg+=`<polygon points="${[...valid.map(d=>`${x(d.date)},${y(d.low)}`),...valid.slice().reverse().map(d=>`${x(d.date)},${y(d.high)}`)].join(' ')}" fill="#eab466" opacity=".22"/>`;
     const line=history.length ? [history.at(-1),...forecast] : forecast;
-    svg+=`<polyline points="${line.map(d=>`${x(d.date)},${y(d.price)}`).join(' ')}" fill="none" stroke="#b18a42" stroke-width="2.5" stroke-dasharray="5 4"/>`;
-    forecast.forEach(d=>{svg+=`<circle cx="${x(d.date)}" cy="${y(d.price)}" r="3" fill="#b18a42"><title>${d.date}: forecast ${num(d.price)} c/L</title></circle>`;});
+    svg+=`<polyline points="${line.map(d=>`${x(d.date)},${y(d.price)}`).join(' ')}" fill="none" stroke="#eab466" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+    forecast.forEach(d=>{svg+=`<circle cx="${x(d.date)}" cy="${y(d.price)}" r="3" fill="#eab466"><title>${d.date}: forecast ${num(d.price)} c/L</title></circle>`;});
   }
-  if(segments.length>1)svg+=`<text x="${W/2}" y="${T+14}" text-anchor="middle" fill="#919987" font-size="10">Collection gaps are left blank</text>`;
+  if(segments.length>1)svg+=`<text x="${W/2}" y="${T+14}" text-anchor="middle" fill="#92a5b7" font-size="10">Collection gaps are left blank</text>`;
   $('chart').innerHTML=svg+'</svg>';
   $('band-legend').hidden=!forecast.some(d=>d.low!=null);
   $('chart').setAttribute('aria-label', `${history.length} recorded days. ${forecast.length ? `Seven-day forecast ${num(forecast.at(-1).price)} cents per litre.` : 'No current forecast.'} Collection gaps are left blank.`);
@@ -53,7 +53,7 @@ function renderStations() {
 }
 function render() {
   const h=data.health,f=data.forecast,s=data.summary,c=data.coverage;
-  badge('connection',h.collecting?'Refreshing prices':h.fresh?'Fresh observations':'Saved observations',h.fresh?'good':'warning');
+  badge('connection',h.collecting?'Refreshing prices':h.fresh?'Fresh observations':'Saved observations',h.fresh?'':'warn');
   $('refresh').disabled=h.collecting;
   const issues=[];
   if(h.error)issues.push(h.error);
@@ -64,7 +64,7 @@ function render() {
   text('cheapest-name',data.stations[0]?.name||'No current station data');text('price-age',`${h.fresh?'Observed':'Last observed'} ${stamp(data.latest)}`);
   const end=f.points.at(-1);text('week-price',num(end?.price));text('forecast-label',f.status==='limited'?'BASELINE':'FORECAST');
   text('week-note',end?`${dayLabel(end.date)} · ${f.model}`:'Fresh observations needed');
-  badge('model-status',f.status==='ready'?'Backtested':f.status==='limited'?'Limited history':'Awaiting fresh data',f.status==='ready'?'good':'warning');
+  badge('model-status',f.status==='ready'?'Backtested':f.status==='limited'?'Limited history':'Awaiting fresh data',f.status==='ready'?'':'warn');
   text('forecast-reason',f.reason);text('model-name',f.model||'Not available');
   const chosen=f.scores.find(m=>m.selected);text('model-error',chosen?.mae!=null?`${chosen.mae.toFixed(2)} c/L`:'Not enough data');
   text('continuous-days',`${f.recent_consecutive_days||0} ${f.recent_consecutive_days===1?'day':'days'}`);

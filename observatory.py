@@ -3,6 +3,7 @@ import json
 import threading
 import pandas as pd
 from local_data import brisbane
+import qld_history_import
 
 
 def records(frame):
@@ -90,6 +91,11 @@ class Observatory:
             return {'site_id': site_id, 'rows': len(station),
                     'observations': records(observations[['capture_time', 'price_cpl']].rename(columns={'capture_time': 'date', 'price_cpl': 'price'})),
                     'reports': records(reports[['report_time', 'price_cpl']].rename(columns={'report_time': 'date', 'price_cpl': 'price'}))}
+
+    def coverage(self):
+        """Backfilled reported-event coverage. Retrospective; never a local capture."""
+        with self.data.data_lock:
+            return qld_history_import.coverage(self.data.db)
 
     def rows(self, source='live', site_id='', state='', offset=0, limit=50):
         with self.data.data_lock, self.lock:

@@ -1,1 +1,15 @@
 .traffic-panel{margin:12px;padding:12px;border:1px solid #64828d66;border-radius:5px;font-size:12px;line-height:1.5;min-width:0}.traffic-panel>summary{cursor:pointer;font-weight:650;letter-spacing:.04em}.traffic-panel p{margin:9px 0;opacity:.85}.traffic-controls{display:flex;gap:10px;flex-wrap:wrap}.traffic-controls label{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.traffic-controls input{width:auto}.traffic-controls select{padding:5px;font:inherit}.traffic-events{max-height:390px;overflow:auto;overscroll-behavior:contain}.traffic-events article{border-top:1px solid #64828d44;padding:10px 0}.traffic-events button{font:inherit;text-align:left;cursor:pointer;white-space:normal}.traffic-panel pre,.leaflet-popup-content pre{font-size:10px;max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.traffic-recurrence{white-space:pre-line}.traffic-links{display:flex;gap:15px;flex-wrap:wrap}.traffic-rights{font-size:10px}.traffic-note{font-size:11px}@media(max-width:550px){.traffic-panel{margin:8px}}
+.traffic-bars{margin:10px 0}.traffic-bar{display:grid;grid-template-columns:minmax(70px,32%) 1fr 30px;align-items:center;gap:7px;font-size:10px;overflow-wrap:anywhere;margin:5px 0}.traffic-track{display:block;height:9px;background:#7f97a626}.traffic-bar i{display:block;height:100%;min-width:2px}.traffic-bar b{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}.traffic-panel .traffic-bar-head{font-size:10px;margin:12px 0 5px;opacity:.75}
+/* Map badges. A 0x0 marker div with an absolutely centred pill, so the label can grow at high zoom. */
+.traffic-pin{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;padding:2px 5px;border-radius:9px;background:var(--pin);color:#fff;font:700 10px/1.3 system-ui,"Segoe UI",sans-serif;letter-spacing:.04em;white-space:nowrap;box-shadow:0 0 0 1.5px #fff,0 1px 3px #00000066;cursor:pointer;pointer-events:auto}
+.traffic-pin b{min-width:15px;text-align:center}
+.traffic-pin i{display:none;font-style:normal;font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.traffic-labels .traffic-pin i,.traffic-pin-on i{display:inline-block}
+.traffic-pin-later{background:repeating-linear-gradient(135deg,var(--pin) 0 5px,#ffffff66 5px 10px)}
+.traffic-pin-on{box-shadow:0 0 0 2px #1b2733,0 0 0 5px var(--pin),0 2px 7px #00000077}
+.traffic-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:9px 0;font-size:10px;align-items:center}
+.traffic-legend span{display:flex;align-items:center;gap:5px}
+.traffic-legend i{width:16px;height:8px;border-radius:2px;display:inline-block}
+.traffic-legend .traffic-legend-dash{border-top:3px dashed currentColor;height:0;opacity:.7}
+.traffic-legend .traffic-legend-note{flex:1 1 100%;display:block;opacity:.75;font-size:10px}
+.traffic-availability{margin:10px 0}.traffic-uptime{display:flex;gap:1px;height:16px;align-items:stretch}.traffic-uptime i{flex:1 1 0;min-width:1px;border-radius:1px}.traffic-age-chart svg{width:100%;height:auto;font-size:9px;fill:#8aa0ae}

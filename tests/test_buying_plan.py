@@ -87,10 +87,28 @@ class BuyingPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compare_plan(BuyingProfile(station_id='unknown'), market())
 
-    def test_forecast_only_helps_when_worse_price_still_saves(self):
+    def validated_market(self):
         data = deepcopy(market())
         data['forecast'].update(status='ready', recent_consecutive_days=30,
-            scores=[{'id': 'trend', 'selected': True, 'mae': 2}, {'id': 'persistence', 'mae': 5}])
+            scores=[{'id': 'trend', 'selected': True, 'mae': 2, 'horizon_mae': [1.] * 7},
+                    {'id': 'persistence', 'mae': 5, 'horizon_mae': [4.] * 7}])
+        return data
+
+    def test_a_model_that_loses_at_the_chosen_horizon_is_not_validated(self):
+        data = self.validated_market()
+        # Wins on average and at day 1, loses at day 3 — the wait being priced.
+        data['forecast']['scores'][0]['horizon_mae'] = [1., 2., 9., 9., 9., 9., 9.]
+        data['forecast']['points'][0]['high'] = 195
+        result = compare_plan(BuyingProfile(station_id='one', wait_days=3), data, date(2026, 9, 16))
+        self.assertEqual(result['headline'], 'No reliable price signal to justify waiting')
+        self.assertEqual(result['basis'], 'Unvalidated baseline')
+        for score in data['forecast']['scores']:
+            score.pop('horizon_mae')
+        result = compare_plan(BuyingProfile(station_id='one', wait_days=3), data, date(2026, 9, 16))
+        self.assertEqual(result['basis'], 'Unvalidated baseline')
+
+    def test_forecast_only_helps_when_worse_price_still_saves(self):
+        data = self.validated_market()
         data['forecast']['points'][0]['high'] = 195
         result = compare_plan(BuyingProfile(station_id='one'), data, date(2026, 9, 16))
         self.assertEqual(result['headline'], 'A small top-up could be worth considering')

@@ -20,7 +20,45 @@
   let dashboard, map, markerLayer, originMarker, origin = null, choosingOrigin = false;
   let selectedId = '', version = '', dirty = false, requestNumber = 0;
   let detourEdited = false;
-  let deviceTracker, roadRouter, deviceFix, deviceOrigin=false;
+  let deviceTracker, roadRouter, deviceFix, deviceOrigin=false, adopted=null, adoptedNote=null;
+
+  // Extra travel adopted from a measured road route. Only distance and minutes are
+  // carried in: the server prices them from this form's consumption and time value,
+  // exactly once. Any change to the route or to these fields drops the provenance.
+  const ADOPTION_FIELDS = ['extra_km', 'extra_minutes', 'consumption', 'hourly_value', 'station_id'];
+  function showAdoption(text) {
+    if (!adoptedNote) {
+      adoptedNote = document.createElement('p');
+      adoptedNote.className = 'method-note';
+      adoptedNote.id = 'adopted-travel-note';
+      form.elements.extra_minutes.closest('label').after(adoptedNote);
+    }
+    adoptedNote.textContent = text;
+  }
+  function adoptRoute(adoption) {
+    if (!adoption?.adoptable) return;
+    // Select the routed station first: that path can itself invalidate an adoption.
+    if (adoption.station_id && String(adoption.station_id) !== selectedId) selectStation(adoption.station_id, false);
+    adopted = adoption;
+    form.elements.extra_km.value = adoption.extra_km;
+    form.elements.extra_minutes.value = adoption.extra_minutes;
+    if (adoption.consumption != null) form.elements.consumption.value = adoption.consumption;
+    if (adoption.hourly_value != null) form.elements.hourly_value.value = adoption.hourly_value;
+    showAdoption(adoption.basis + ' ' + adoption.applies_to + ' ' + adoption.trip);
+    compare();
+  }
+  function dropAdoption(reason) {
+    if (!adopted) return;
+    adopted = null;
+    showAdoption(reason);
+  }
+  function clearAdopted(reason) {
+    dropAdoption(reason);
+    form.elements.extra_km.value = 0;
+    form.elements.extra_minutes.value = 0;
+    dirty = true; ++requestNumber;
+    byId('plan-result').innerHTML = '<h3>The adopted route no longer applies.</h3><p>Choose “Compare my options” to recalculate without it.</p>';
+  }
   const profile = read('fuel.profile', {});
   if (profile && typeof profile === 'object') {
     for (const [name, value] of Object.entries(profile)) {
@@ -66,7 +104,13 @@
       },
     });
     window.FuelTraffic?.attach(map,{container:byId('fuel-map').parentElement});
-    roadRouter=window.FuelRouting?.attach(map,{container:byId('fuel-map').parentElement,getPosition:()=>deviceOrigin?deviceFix:origin?{latitude:origin[0],longitude:origin[1]}:null});
+    roadRouter=window.FuelRouting?.attach(map,{container:byId('fuel-map').parentElement,
+      getPosition:()=>deviceOrigin?deviceFix:origin?{latitude:origin[0],longitude:origin[1]}:null,
+      onAdopt:adoptRoute, onSelectStation:id=>selectStation(id),
+      // The route inputs changed, so the adopted numbers describe a journey nobody is
+      // taking any more. Remove them rather than let them quietly price the wrong trip.
+      onInvalidate(){if(adopted)clearAdopted('Route inputs changed, so the adopted extra travel was removed. Calculate and adopt again.');},
+    });
     map.on('zoomend', drawStations);
     map.on('click', event => {
       if (!choosingOrigin) return;
@@ -76,7 +120,7 @@
       byId('map-origin').textContent = 'Change starting point';
       byId('map-origin').setAttribute('aria-pressed', 'false');
       if (originMarker) originMarker.remove();
-      originMarker = L.circleMarker(origin, {radius: 10, color: '#233f78', fillColor: '#89b7ee', fillOpacity: 1}).addTo(map).bindTooltip('Your starting point');
+      originMarker = L.circleMarker(origin, {radius: 10, color: '#0b141d', fillColor: '#66b5ff', fillOpacity: 1}).addTo(map).bindTooltip('Your starting point');
       if (byId('map-radius').value === '0') byId('map-radius').value = '5';
       byId('map-instructions').textContent = 'Starting point set. Distances are straight-line estimates; use the detour calculator for actual extra driving.';
       drawStations();
@@ -111,8 +155,8 @@
         const selected = String(station.site_id) === selectedId;
         const cheap = station.price_cpl < dashboard.summary.median;
         const marker = L.circleMarker([station.latitude, station.longitude], {
-          radius: selected ? 10 : 6, color: selected ? '#152f5f' : '#fff', weight: selected ? 3 : 1.3,
-          fillColor: cheap ? '#2f7959' : '#b28b39', fillOpacity: .92,
+          radius: selected ? 10 : 6, color: selected ? '#dce6ed' : '#0b141d', weight: selected ? 3 : 1.3,
+          fillColor: cheap ? '#58dac7' : '#eab466', fillOpacity: .92,
         }).addTo(markerLayer);
         marker.bindTooltip(map.getZoom() >= 12 ? `${fixed(station.price_cpl)}` : `${fixed(station.price_cpl)} c/L · ${escape(station.name)}`, {permanent: map.getZoom() >= 12, direction: 'top'});
         marker.bindPopup(`<strong>${escape(station.name)}</strong><p>${fixed(station.price_cpl)} c/L · U91</p><p>Selected for your buying planner below.</p>`);
@@ -171,6 +215,7 @@
       if (name === 'station_id') inputs[name] = inputs[name] || null;
       else inputs[name] = inputs[name] === '' ? null : Number(inputs[name]);
     }
+    if (adopted) inputs.extra_travel_basis = adopted.basis;
     return inputs;
   }
 
@@ -235,9 +280,12 @@
     const button = event.target.closest('[data-wait]');
     if (button) { form.elements.wait_days.value = button.dataset.wait; compare(); }
   });
-  form.addEventListener('input', () => {
+  form.addEventListener('input', event => {
     dirty = true;
     ++requestNumber;
+    if (ADOPTION_FIELDS.includes(event.target.name)) {
+      dropAdoption('Extra travel was edited by hand, so it is no longer backed by a measured road route.');
+    }
     byId('plan-result').innerHTML = '<h3>Your inputs have changed.</h3><p>Choose “Compare my options” to update the quantities and costs.</p>';
     calculateDetour();
   });
@@ -247,6 +295,7 @@
   });
   byId('scenario-clear').addEventListener('click', () => { form.elements.scenario_change_cpl.value = ''; compare(); });
   byId('profile-reset').addEventListener('click', () => {
+    dropAdoption('Inputs were reset, so no adopted road route applies.');
     form.reset(); selectedId = ''; save('fuel.profile', {}); dirty = true;
     byId('profile-note').textContent = 'Example values restored. Adjust fuel remaining and driving before acting.';
     drawStations(); renderSelected(); calculateDetour(); compare();

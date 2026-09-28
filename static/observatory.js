@@ -82,28 +82,32 @@ async function inspect(id){
     $('station-evidence').textContent=`${history.rows||0} source rows · ${history.observations.length} captures · ${history.reports.length} distinct reports. Mini-chart shows collected prices, with gaps left open.`;
   }catch(e){if(request===stationRequest)$('station-evidence').textContent=e.message;}
 }
-function plot(element, points, {mini=false, forecast=[], events=false}={}) {
-  const valid=points.filter(p=>Number.isFinite(stamp(p.date))&&Number.isFinite(p.price));
+function plot(element, points, {mini=false, forecast=[], events=false, extra=[], span=[], unit='c/L', decimals=1, base=5, pad=2, colour='#58dac7', time=series==='captures', aria=`${events?'Station report events':'Observed prices'} in cents per litre over time`}={}) {
+  const usable=list=>list.filter(p=>Number.isFinite(stamp(p.date))&&Number.isFinite(p.price));
+  const valid=usable(points),lines=[[valid,colour],...extra.map(e=>[usable(e.points),e.colour])];
   if(!valid.length){element.innerHTML='<p class="muted">No observations in this window.</p>';return;}
-  const all=[...valid,...forecast], width=Math.max(260,element.clientWidth),height=mini?115:element.clientHeight,left=mini?30:43,right=18,top=18,bottom=mini?22:33;
-  let start=Math.min(...all.map(p=>stamp(p.date))),end=Math.max(...all.map(p=>stamp(p.date)));
+  const all=[...lines.flatMap(l=>l[0]),...forecast], width=Math.max(260,element.clientWidth),height=mini?115:element.clientHeight,left=mini?30:43,right=18,top=18,bottom=mini?22:33;
+  let start=Math.min(...span,...all.map(p=>stamp(p.date))),end=Math.max(...span,...all.map(p=>stamp(p.date)));
   if(start===end){start-=43200000;end+=43200000;}
   const prices=all.flatMap(p=>[p.price,p.low,p.high].filter(v=>v!=null&&Number.isFinite(v)));
-  const step=Math.max(5,Math.ceil((Math.max(...prices)-Math.min(...prices))/(mini?3:5)/5)*5);
-  const low=Math.floor((Math.min(...prices)-2)/step)*step,high=Math.ceil((Math.max(...prices)+2)/step)*step;
+  const step=Math.max(base,Math.ceil((Math.max(...prices)-Math.min(...prices))/(mini?3:5)/base)*base);
+  const low=Math.floor((Math.min(...prices)-pad)/step)*step,high=Math.ceil((Math.max(...prices)+pad)/step)*step,grid=Math.max(0,-Math.floor(Math.log10(step)));
   const x=t=>left+(stamp(t)-start)/(end-start)*(width-left-right),y=p=>top+(high-p)/(high-low)*(height-top-bottom);
-  let svg=`<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${events?'Station report events':'Observed prices'} in cents per litre over time">`;
-  for(let v=low;v<=high;v+=step)svg+=`<line x1="${left}" x2="${width-right}" y1="${y(v)}" y2="${y(v)}" stroke="#24333f"/><text x="${left-7}" y="${y(v)+3}" text-anchor="end">${v}</text>`;
+  let svg=`<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(aria)}">`;
+  for(let v=low;v<=high+step/1000;v+=step)svg+=`<line x1="${left}" x2="${width-right}" y1="${y(v)}" y2="${y(v)}" stroke="#24333f"/><text x="${left-7}" y="${y(v)+3}" text-anchor="end">${v.toFixed(grid)}</text>`;
   const ticks=mini?2:Math.max(2,Math.min(7,Math.floor(width/135)));
   for(let i=0;i<ticks;i++){const t=start+(end-start)*i/(ticks-1),label=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',day:'numeric',month:'short',...(end-start>180*86400000?{year:'2-digit'}:{})}).format(t);svg+=`<text x="${left+(width-left-right)*i/(ticks-1)}" y="${height-6}" text-anchor="${i===0?'start':i===ticks-1?'end':'middle'}">${esc(label)}</text>`;}
-  const segments=[];let segment=[];
-  valid.forEach((p,i)=>{if(i&&stamp(p.date)-stamp(valid[i-1].date)>1.5*86400000){segments.push(segment);segment=[];}segment.push(p);});segments.push(segment);
-  if(!events)segments.forEach(group=>{svg+=`<polyline points="${group.map(p=>`${x(p.date)},${y(p.price)}`).join(' ')}" fill="none" stroke="#58dac7" stroke-width="${mini?1.5:2}"/>`;});
-  valid.forEach(p=>{const label=`${date(p.date,series==='captures')} · ${num(p.price)} c/L${p.stations!=null?' · '+p.stations+' stations':''}`;svg+=`<circle cx="${x(p.date)}" cy="${y(p.price)}" r="${mini?2:3.5}" fill="${events?'#eab466':'#58dac7'}" ${mini?'':`tabindex="0" data-point="${esc(label)}" aria-label="${esc(label)}"`}><title>${esc(label)}</title></circle>`;});
+  lines.forEach(([list,stroke])=>{
+    const segments=[];let segment=[];
+    list.forEach((p,i)=>{if(i&&stamp(p.date)-stamp(list[i-1].date)>1.5*86400000){segments.push(segment);segment=[];}segment.push(p);});segments.push(segment);
+    if(!events)segments.forEach(group=>{svg+=`<polyline points="${group.map(p=>`${x(p.date)},${y(p.price)}`).join(' ')}" fill="none" stroke="${stroke}" stroke-width="${mini?1.5:2}"/>`;});
+    list.forEach(p=>{const label=`${p.name?p.name+' · ':''}${date(p.date,time)} · ${num(p.price,decimals)} ${unit}${p.stations!=null?' · '+p.stations+' stations':''}`;svg+=`<circle cx="${x(p.date)}" cy="${y(p.price)}" r="${mini?2:3.5}" fill="${events?'#eab466':stroke}" ${mini?'':`tabindex="0" data-point="${esc(label)}" aria-label="${esc(label)}"`}><title>${esc(label)}</title></circle>`;});
+  });
   if(forecast.length){const joined=[valid[valid.length-1],...forecast];svg+=`<polyline points="${joined.map(p=>`${x(p.date)},${y(p.price)}`).join(' ')}" fill="none" stroke="#eab466" stroke-width="2" stroke-dasharray="5 4"/>`;forecast.forEach(p=>{if(p.low!=null&&p.high!=null)svg+=`<line x1="${x(p.date)}" x2="${x(p.date)}" y1="${y(p.low)}" y2="${y(p.high)}" stroke="#eab466" stroke-opacity=".5" stroke-width="6"/>`;svg+=`<circle cx="${x(p.date)}" cy="${y(p.price)}" r="3" fill="#eab466"><title>${date(p.date)} · ${num(p.price)} c/L · ${esc(data.forecast.model)}${data.forecast.status!=='ready'?' (unvalidated baseline)':''}</title></circle>`;});}
   element.innerHTML=svg+'</svg>';
   if(!mini)element.querySelectorAll('[data-point]').forEach(p=>{const show=()=>{$('chart-readout').textContent=p.dataset.point;};p.addEventListener('pointerenter',show);p.addEventListener('focus',show);});
 }
+window.FuelPlot={plot};
 function drawHistory(){
   if(!data||!evidence)return;
   let points=series==='daily'?data.history:evidence[series];

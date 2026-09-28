@@ -4,6 +4,32 @@
   const escape = value => String(value ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const number = (value, digits=1) => value == null ? '—' : Number(value).toLocaleString('en-AU',{minimumFractionDigits:digits,maximumFractionDigits:digits});
   const signed = (value, digits=1) => value == null ? '—' : `${value>0?'+':''}${number(value,digits)}`;
+  const parse = value => Date.parse(`${value}T12:00:00+10:00`);
+  // Reuses the inline-SVG plotter exported by observatory.js. A plotting failure must never blank the panel.
+  const draw = (element, points, options) => {
+    if (!element) return;
+    if (points.length < 2) { element.innerHTML = `<p class="muted">Not enough observations yet · ${points.length} recorded. A dated line needs at least two published observations.</p>`; return; }
+    try { window.FuelPlot.plot(element, points, options); }
+    catch (error) { element.innerHTML = '<p class="muted">Chart unavailable in this browser; the dated values above remain readable.</p>'; }
+  };
+  // Own axis per series: a 1-2-5 step covering the series' own spread, so c/L, USD/AUD, USD/gal and USD/bbl never share a scale.
+  const scale = values => {
+    const high = Math.max(...values), spread = high - Math.min(...values) || Math.abs(high) / 20 || 1;
+    const decade = Math.pow(10, Math.floor(Math.log10(spread / 3)));
+    return [1, 2, 5, 10].map(f => f * decade).find(step => step >= spread / 3) || decade * 10;
+  };
+  const dated = source => (source.points || []).map(p => ({date: p.date, price: p.value}));
+  const clock = value => value ? String(value).replace('T', ' ').slice(0, 16) : '—';
+  // Context-source health is deliberately its own block: a failing wholesale or currency
+  // feed says nothing about whether the Queensland fuel collection is current.
+  const retryLine = source => {
+    if (source.status === 'connected') return `Next check: ${clock(source.next_retry_at)} AEST`;
+    const category = source.failure_category ? ` · ${escape(source.failure_category)}` : '';
+    const failures = source.consecutive_failures > 1 ? ` · ${source.consecutive_failures} consecutive failures` : '';
+    return `Next retry: ${clock(source.next_retry_at)} AEST${category}${failures}`;
+  };
+  const axis = (source, points, extra) => {const step = scale(points.map(p => p.price));
+    return {mini: true, time: false, unit: source.unit, decimals: source.decimals ?? 1, base: step, pad: step / 10, colour: source.stale ? '#eab466' : '#58dac7', ...extra};};
   let sourceData, contextData, busy=false, currentSite;
   const panel = document.createElement('section');
   panel.className = 'panel';
@@ -12,8 +38,15 @@
     <div class="panel-head"><h2>Source intelligence / API coverage</h2><span class="index">07 / EVIDENCE BEFORE INFERENCE</span></div>
     <div class="panel-body">
       <div id="source-status" class="muted" role="status">Loading upstream coverage and free public context…</div>
+      <div id="context-health" class="pipeline" role="status"></div>
+      <p id="context-health-note" class="muted"></p>
       <div id="context-cards" class="context-cards"></div>
       <p id="context-note" class="muted"></p>
+      <h3>Dated context series / shared date window</h3>
+      <div id="context-multiples" class="context-multiples"></div>
+      <p class="muted">Small multiples across one shared date range. Each source keeps its own units and its own vertical scale; unrelated units are never combined on a single axis. A line joins consecutive published observations only and breaks wherever a source did not publish, so an empty stretch means no observation, not an unchanged value. No series is plotted against retail price: these feeds remain descriptive context and no predictive relationship has been measured.</p>
+      <h3>Retail vs wholesale / same-date pairs</h3>
+      <div id="paired-charts" class="context-multiples"></div>
       <div class="table-scroll"><table><thead><tr><th>Matched date</th><th>Retail median c/L</th><th>AIP wholesale c/L</th><th>Gap c/L</th></tr></thead><tbody id="paired-context"></tbody></table></div>
       <hr><div id="api-coverage" class="pipeline"></div>
       <p class="muted">QLD API prices use 9999 for unavailable fuel. Sites with no U91 listing are a separate category. Other grades are retained for comparison; they do not enter the U91 forecast. An old report date alone does not prove a price is wrong.</p>
@@ -24,13 +57,13 @@
       <hr><h3>Free data acquisition priorities</h3><div class="table-scroll"><table><thead><tr><th>Priority / source</th><th>Useful conclusion to test</th><th>Access / integration status</th></tr></thead><tbody>
         <tr><td><a href="https://www.data.qld.gov.au/dataset/fuel-price-reporting-2026" target="_blank" rel="noopener">1. Queensland monthly history</a></td><td>Price-cycle timing and station leadership across collection gaps</td><td>Free CSV / CC BY 4.0 · Backfill not imported yet</td></tr>
         <tr><td><a href="https://aip.com.au/pricing/terminal-gate-prices" target="_blank" rel="noopener">2. AIP wholesale ULP</a></td><td>Wholesale direction and retail–wholesale gaps</td><td>Integrated public table · See live status above</td></tr>
-        <tr><td><a href="https://www.rba.gov.au/statistics/frequency/exchange-rates.html" target="_blank" rel="noopener">3. RBA AUD/USD</a></td><td>Currency contribution to imported fuel cost</td><td>Integrated public table · No key</td></tr>
+        <tr><td><a href="https://www.rba.gov.au/rss/rss-cb-exchange-rates.xml" target="_blank" rel="noopener">3. RBA AUD/USD</a></td><td>Currency contribution to imported fuel cost</td><td>Integrated official RSS-CB feed · No key · One 4.00 pm observation per publication</td></tr>
         <tr><td><a href="https://openrouteservice.org/plans/" target="_blank" rel="noopener">4. openrouteservice</a></td><td>Actual extra road distance and travel time to cheaper stations</td><td>Connected via local server key · On-demand route comparison in the map’s Road-cost lab · Provider quotas apply</td></tr>
         <tr><td><a href="https://qldtraffic.qld.gov.au/more/Developers-and-Data/index.html" target="_blank" rel="noopener">5. QLDTraffic</a></td><td>Roadworks, closures and disruption near a planned fuel stop</td><td>Integrated event overlay · Shared public key / five-minute server cache · See QLDTraffic panel for live availability</td></tr>
-        <tr><td><a href="https://www.eia.gov/opendata/documentation.php" target="_blank" rel="noopener">6. US EIA Brent</a></td><td>Broader oil-cost pressure; test lagged effects</td><td>Free API / registration key · Not connected</td></tr>
-        <tr><td><a href="https://www.energy.gov.au/energy-data/australian-petroleum-statistics" target="_blank" rel="noopener">7. Australian Petroleum Statistics</a></td><td>Stocks, imports and refinery output over longer periods</td><td>Free monthly data extracts · Not connected</td></tr>
+        <tr><td><a href="https://www.eia.gov/opendata/documentation.php" target="_blank" rel="noopener">6. US EIA spot prices</a></td><td>Refined-petrol and crude cost pressure; test lagged effects</td><td>Connected via registered key in ignored <code>.env</code> · Gulf Coast petrol + Brent, daily with publication lag · Context only, not in any model</td></tr>
       </tbody></table></div>
-      <p class="muted">The relevant refined-petrol benchmark is Singapore Mogas 95; Brent is only a broader proxy. A reliable free daily Mogas API has not been verified. Historical backfills need report-date reconstruction, coverage checks and release dates before model testing. <a href="https://www.accc.gov.au/consumers/petrol-and-fuel/what-affects-fuel-prices" target="_blank" rel="noopener">ACCC: fuel-price drivers ↗</a></p>
+      <p id="benchmark-note" class="muted"></p>
+      <p class="muted">Australian Petroleum Statistics publishes monthly documents with no API, so it is not listed as an acquisition target. Historical backfills need report-date reconstruction, coverage checks and release dates before model testing. <a href="https://www.accc.gov.au/consumers/petrol-and-fuel/what-affects-fuel-prices" target="_blank" rel="noopener">ACCC: fuel-price drivers ↗</a></p>
     </div>`;
   byId('raw').before(panel);
   const nav = document.createElement('a');
@@ -61,8 +94,36 @@
     byId('availability-exceptions').innerHTML = sourceData.sites.filter(s=>s.u91_status!=='available').map(s=>`<tr><td>${escape(s.name)}<small>${escape(s.suburb)} · ${s.site_id}</small></td><td>${escape(s.u91_status.replaceAll('_',' '))}</td><td>${escape(s.fuels.find(p=>p.fuel_id===2)?.reported_at)}</td></tr>`).join('');
     byId('api-fields').innerHTML = Object.entries(sourceData.fields).flatMap(([name,fields])=>fields.map(f=>`<tr><td>${escape(name)}</td><td>${escape(f.field)}</td><td>${f.populated} / ${f.rows}</td></tr>`)).join('');
     byId('reference-status').innerHTML = Object.entries(sourceData.references).map(([name,r])=>`<span>${escape(name)} · ${escape(r.status)}</span><b>${escape(r.retrieved_at)}${r.error?' · '+escape(r.error):''}</b>`).join('');
-    byId('context-cards').innerHTML = contextData.sources.map(s=>{const latest=s.points.at(-1);return `<article><p class="kicker">${escape(s.name)}</p><strong>${number(latest?.value,s.id==='rba'?4:1)}</strong><small>${escape(s.unit)}</small><p>${signed(s.change,s.id==='rba'?4:1)} since previous published observation</p><p class="muted">Source date: ${escape(latest?.date)} · ${escape(s.status)}${s.stale?' / STALE':''}<br>Retrieved: ${escape(s.retrieved_at)} AEST<br>${escape(s.error||s.purpose)}</p><a href="${escape(s.url)}" target="_blank" rel="noopener">${escape(s.kind)} / source ↗</a></article>`;}).join('');
-    byId('context-note').textContent = `${contextData.model_use} ${contextData.gap_note} Sources checked every ${contextData.refresh_seconds/3600} hours; failures retain visibly dated data.`;
+    const health = contextData.health || {};
+    byId('context-health').innerHTML = [
+      ['CONTEXT SOURCES CONNECTED', `${health.connected ?? '—'} / ${health.total ?? '—'}`],
+      ['FAILING', (health.failing||[]).length ? (health.failing||[]).join(', ') : 'none'],
+      ['NOT CONFIGURED', (health.not_configured||[]).length ? (health.not_configured||[]).join(', ') : 'none'],
+      ['CONNECTED BUT STALE', (health.stale||[]).length ? (health.stale||[]).join(', ') : 'none'],
+      ['NEXT PENDING RETRY', clock(health.next_retry_at)],
+    ].map(([label,value])=>`<div><small>${label}</small><b>${escape(value)}</b></div>`).join('');
+    byId('context-health-note').textContent =
+      `${health.note || ''} ${Object.entries(health.categories||{}).map(([id,c])=>`${id}: ${c}`).join(' · ')}`.trim();
+    byId('context-cards').innerHTML = contextData.sources.map(s=>{const latest=s.points.at(-1),d=s.decimals??1;return `<article><p class="kicker">${escape(s.name)}</p><strong>${number(latest?.value,d)}</strong><small>${escape(s.unit)}</small><p>${signed(s.change,d)} since previous published observation</p><div class="mini-chart" id="spark-${escape(s.id)}"></div><p class="muted">Source date: ${escape(latest?.date)} · ${escape(String(s.status).replaceAll('_',' '))}${s.stale?' / STALE':''}<br>Retrieved: ${escape(s.retrieved_at)} AEST<br>${retryLine(s)}<br>Revisions archived: ${escape(s.revisions_recorded ?? 0)}<br>${escape(s.error||s.purpose)}</p><a href="${escape(s.url)}" target="_blank" rel="noopener">${escape(s.kind)} / source ↗</a></article>`;}).join('');
+    const observed = contextData.sources.flatMap(s => (s.points||[]).map(p => p.date)).filter(Boolean).sort();
+    const span = observed.length ? [parse(observed[0]), parse(observed.at(-1))] : [];
+    byId('context-multiples').innerHTML = contextData.sources.map(s => {const n = (s.points||[]).length;
+      return `<figure><h4>${escape(s.name)}</h4><div class="mini-chart" id="multi-${escape(s.id)}"></div><figcaption>${escape(s.unit)} · ${n} observation${n===1?'':'s'}${n?' '+escape(s.points[0].date)+' → '+escape(s.points.at(-1).date):''} · ${escape(String(s.status).replaceAll('_',' '))}${s.stale?' / STALE':''} · retrieved ${escape(s.retrieved_at)} AEST</figcaption></figure>`;}).join('');
+    contextData.sources.forEach(s => {const points = dated(s);
+      draw(byId(`spark-${s.id}`), points, axis(s, points));
+      draw(byId(`multi-${s.id}`), points, axis(s, points, {span}));});
+    const paired = contextData.paired_history || [];
+    const retail = paired.map(p => ({date: p.date, price: p.retail, name: 'Retail median'}));
+    const wholesale = paired.map(p => ({date: p.date, price: p.wholesale, name: 'AIP wholesale'}));
+    const gap = paired.map(p => ({date: p.date, price: p.gap, name: 'Gap'}));
+    const range = paired.length ? ` · ${escape(paired[0].date)} → ${escape(paired.at(-1).date)}` : '';
+    byId('paired-charts').innerHTML = `<figure><h4>Retail median vs AIP wholesale</h4><div class="mini-chart" id="paired-levels"></div><figcaption>Cyan: metro retail median. Amber: AIP wholesale ULP. Both c/L including GST, on matched observation dates only · ${paired.length} matched date${paired.length===1?'':'s'}${range}.</figcaption></figure><figure><h4>Retail − wholesale gap</h4><div class="mini-chart" id="paired-gap"></div><figcaption>c/L including GST${range}. ${escape(contextData.gap_note)}</figcaption></figure>`;
+    const levels = {mini: true, time: false, unit: 'c/L', decimals: 1, base: scale(retail.concat(wholesale).map(p => p.price))};
+    draw(byId('paired-levels'), retail, {...levels, pad: levels.base/10, extra: [{points: wholesale, colour: '#eab466'}]});
+    const gapStep = scale(gap.map(p => p.price));
+    draw(byId('paired-gap'), gap, {mini: true, time: false, unit: 'c/L', decimals: 1, base: gapStep, pad: gapStep/10});
+    byId('context-note').textContent = `${contextData.model_use} ${contextData.gap_note} Sources checked every ${contextData.refresh_seconds/3600} hours; a failed source retries hourly and retains visibly dated data. ${contextData.vintage_note||''}`;
+    byId('benchmark-note').textContent = contextData.benchmark_note;
     byId('paired-context').innerHTML = contextData.paired_history.slice(-20).reverse().map(p=>`<tr><td>${p.date}</td><td>${number(p.retail)}</td><td>${number(p.wholesale)}</td><td>${signed(p.gap)}</td></tr>`).join('') || '<tr><td colspan="4">No matching observation dates yet.</td></tr>';
     if (currentSite) inspect(currentSite);
   }

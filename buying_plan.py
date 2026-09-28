@@ -20,6 +20,10 @@ class BuyingProfile(BaseModel):
     extra_km: float = Field(default=0, ge=0, le=300, allow_inf_nan=False)
     extra_minutes: float = Field(default=0, ge=0, le=300, allow_inf_nan=False)
     hourly_value: float = Field(default=0, ge=0, le=200, allow_inf_nan=False)
+    # Where extra_km / extra_minutes came from, e.g. routing.adoption()['basis'].
+    # Distances and minutes only: a routed dollar cost must never be carried in
+    # here, because this module charges the detour from the quantities itself.
+    extra_travel_basis: str | None = Field(default=None, max_length=160)
     budget_now: float | None = Field(default=None, gt=0, le=1000, allow_inf_nan=False)
     scenario_change_cpl: float | None = Field(default=None, ge=-100, le=100, allow_inf_nan=False)
 
@@ -71,9 +75,16 @@ def compare_plan(profile, dashboard, today=None):
     break_even = (fill_cost - now_cost - time_cost) / later_l * 100 if later_l > 0 else None
     selected = next((m for m in forecast.get('scores', []) if m.get('selected')), {})
     baseline = next((m for m in forecast.get('scores', []) if m.get('id') == 'persistence'), {})
+    # Beating persistence on average is not enough: the wait being priced happens at
+    # one horizon, so the model must have beaten persistence on held-out data at that
+    # horizon. A model that wins at day 1 and loses at day 7 earns nothing at day 7.
+    horizon = [selected.get('horizon_mae'), baseline.get('horizon_mae')]
+    index = profile.wait_days - 1
+    beats_at_horizon = all(isinstance(m, list) and index < len(m) for m in horizon) and horizon[0][index] < horizon[1][index]
     validated = (forecast.get('status') == 'ready' and forecast.get('recent_consecutive_days', 0) >= 7
                  and point is not None and selected.get('mae') is not None
-                 and baseline.get('mae') is not None and selected['mae'] <= baseline['mae'])
+                 and baseline.get('mae') is not None and selected['mae'] <= baseline['mae']
+                 and beats_at_horizon)
     fresh = dashboard['health']['fresh']
     budget = profile.budget_now
     bridge_budget = budget is None or now_cost <= budget
@@ -97,7 +108,7 @@ def compare_plan(profile, dashboard, today=None):
         explanation = 'This is your what-if price change, not a prediction. Compare the break-even price and a price rise before acting.'
     elif not validated:
         headline = 'No reliable price signal to justify waiting'
-        explanation = 'There is not enough validated recent history. Use the map for a lower price today; the bridge quantity is a contingency, not a buy-later recommendation.'
+        explanation = 'Either recent collected history is too thin, or the selected model has not beaten today’s price on held-out data at this horizon. Use the map for a lower price today; the bridge quantity is a contingency, not a buy-later recommendation.'
     elif saving > 0 and downside_saving is not None and downside_saving > 0 and bridge_budget:
         headline = 'A small top-up could be worth considering'
         explanation = 'The deferred plan is cheaper even at the upper historical error estimate. That range is not a guarantee; your chosen station can move differently.'
@@ -107,6 +118,10 @@ def compare_plan(profile, dashboard, today=None):
     warnings = ['Both options cover the same everyday driving and finish with the same fuel in the tank.',
                 'Extra kilometres and minutes mean additional travel compared with filling now, not the whole trip.',
                 'Station prices may move differently from the city median; discounts are assumed unchanged.']
+    if profile.extra_travel_basis:
+        warnings.insert(0, profile.extra_travel_basis)
+    elif profile.extra_km or profile.extra_minutes:
+        warnings.insert(0, 'Extra travel was typed in by hand, not measured on a road route.')
     if profile.remaining_l < profile.reserve_l:
         warnings.append('Your entered fuel is below your reserve. Arrange a refill now rather than relying on the waiting window.')
     if later_l == 0:
@@ -122,6 +137,8 @@ def compare_plan(profile, dashboard, today=None):
         'bridge_l': round(bridge_l, 2) if feasible else None, 'bridge_cost': round(now_cost, 2) if feasible else None,
         'later_l': round(later_l, 2) if feasible else None, 'later_cost': round(later_cost, 2) if feasible else None,
         'time_cost': round(time_cost, 2), 'extra_fuel_l': round(extra_l, 2),
+        'extra_km': profile.extra_km, 'extra_minutes': profile.extra_minutes,
+        'extra_travel_basis': profile.extra_travel_basis,
         'deferred_cost': round(total_cost, 2) if feasible else None, 'bridge_within_budget': bridge_budget if feasible else False,
         'saving': round(saving, 2) if feasible else None, 'end_l': round(end_l, 2) if feasible else None,
         'break_even_cpl': round(break_even, 2) if feasible and break_even is not None else None,

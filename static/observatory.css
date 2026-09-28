@@ -13,6 +13,9 @@
 * {
   box-sizing:border-box;
 }
+[hidden] {
+  display:none!important;
+}
 html {
   scroll-behavior:smooth;
   scroll-padding-top:20px;
@@ -113,6 +116,10 @@ h2 {
   color:var(--amber);
   border-color:#655034;
 }
+.tag.bad {
+  color:var(--red);
+  border-color:#6b3a3d;
+}
 .tag.dim {
   color:var(--muted);
   border-color:var(--line);
@@ -129,7 +136,7 @@ h2 {
 .nav a {
   color:var(--muted);
 }
-.nav a:hover {
+.nav a:hover,.nav a.active {
   color:var(--cyan);
 }
 #clock {
@@ -185,7 +192,7 @@ main {
 .metric:last-child {
   border:0;
 }
-.kicker,.metric-label {
+.kicker,.metric-label,.eyebrow {
   font:10px var(--mono);
   letter-spacing:1px;
   color:var(--muted);
@@ -245,7 +252,7 @@ main {
 .field-grid .panel {
   margin-bottom:16px;
 }
-.muted {
+.muted,.quiet {
   color:var(--muted);
   font-size:11px;
   line-height:1.65;
@@ -307,7 +314,7 @@ hr {
   display:flex;
   flex-direction:column;
 }
-#map {
+#map,#fuel-map {
   flex:1;
   min-height:440px;
   height:492px;
@@ -400,7 +407,7 @@ hr {
   border-color:transparent;
   color:var(--muted);
 }
-.tabs button.active {
+.tabs button.active,.tabs button.selected {
   background:#193831;
   color:var(--cyan);
   border-color:#31574f;
@@ -633,6 +640,16 @@ section {
 .context-cards small {display:block;color:var(--muted);}
 .context-cards p {margin:9px 0;}
 .context-cards a {font-size:11px;}
+.context-cards .mini-chart {margin-top:12px;}
+.context-multiples {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin:18px 0;
+}
+.context-multiples figure {margin:0;min-width:0;padding:16px;border:1px solid var(--line);background:#0d151e;}
+.context-multiples h4 {margin:0;font:11px var(--mono);color:var(--cyan);}
+.context-multiples figcaption {margin-top:10px;font:10px/1.6 var(--mono);color:var(--muted);}
 .source-columns>div {min-width:0;}
 #sources h3 {font:13px var(--mono);}
 #sources .pipeline {grid-template-columns:repeat(3,1fr);}
@@ -643,11 +660,11 @@ pre {overflow:auto;max-height:240px;font:10px/1.6 var(--mono);background:#090e15
 #station-api table td, #station-api table th {padding:6px;font-size:10px;}
 #station-api {font-size:11px;}
 @media(max-width:700px) {
-  .context-cards, .source-columns {grid-template-columns:1fr;}
+  .context-cards, .source-columns, .context-multiples {grid-template-columns:1fr;}
   #sources .pipeline {grid-template-columns:repeat(2,1fr);}
 }
 @media(min-width:1700px) {
-  #map {
+  #map,#fuel-map {
     height:540px;
   }
   .field-grid {
@@ -753,7 +770,7 @@ pre {overflow:auto;max-height:240px;font:10px/1.6 var(--mono);background:#090e15
   .inspector .panel-body {
     display:block;
   }
-  #map {
+  #map,#fuel-map {
     height:380px;
     min-height:380px;
   }

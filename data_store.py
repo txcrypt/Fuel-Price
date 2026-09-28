@@ -8,6 +8,12 @@ daily_stats      Aggregated daily prices  (UNIQUE date + state)
 tgp_history      Terminal Gate Prices      (UNIQUE date + city)
 market_data      Brent / AUD / MOGAS-95   (UNIQUE date)
 predictions      Model output archive
+
+reported_price_events  Officially published report events (retrospective backfill)
+import_sources         Provenance/checksum per imported source file
+
+The last two hold data this app did NOT observe.  They are kept strictly apart
+from ``snapshots``, which is the local collection record.
 """
 
 import os
@@ -119,6 +125,35 @@ class FuelDataStore:
                     predicted_price REAL,
                     actual_price    REAL,
                     model_version   TEXT
+                );
+
+                /* Officially published report events backfilled from data.qld.gov.au.
+                   These are NOT observations this app collected; never merge into snapshots.
+                   price_cpl = 0 means the retailer explicitly reported the grade
+                   unavailable (raw 9999). A real price is always 80-350 c/L. It is kept
+                   in the primary key rather than stored NULL because SQLite treats NULL
+                   key parts as distinct, which would break INSERT OR IGNORE idempotency. */
+                CREATE TABLE IF NOT EXISTS reported_price_events (
+                    site_id         TEXT NOT NULL,
+                    fuel_type       TEXT NOT NULL,
+                    reported_at_utc TEXT NOT NULL,
+                    price_cpl       REAL NOT NULL,
+                    source_id       TEXT NOT NULL,
+                    PRIMARY KEY (site_id, fuel_type, reported_at_utc, price_cpl)
+                );
+
+                CREATE TABLE IF NOT EXISTS import_sources (
+                    source_id        TEXT PRIMARY KEY,
+                    dataset          TEXT,
+                    resource_id      TEXT,
+                    url              TEXT,
+                    sha256           TEXT,
+                    published_at     TEXT,
+                    imported_at      TEXT,
+                    rows_read        INTEGER,
+                    rows_kept        INTEGER,
+                    rows_unavailable INTEGER,
+                    bytes            INTEGER
                 );
                 """
             )
@@ -351,6 +386,62 @@ class FuelDataStore:
         with self._connect() as conn:
             conn.execute(sql, (date_str, state, predicted_price, actual_price, model_version))
             conn.commit()
+
+    # ------------------------------------------------------------------
+    # Official reported price events (retrospective backfill — see
+    # qld_history_import.py).  Deliberately separate from ``snapshots``.
+    # ------------------------------------------------------------------
+    def save_reported_events(self, df: pd.DataFrame, source_id: str) -> int:
+        """Insert reported events idempotently.  Returns rows actually added."""
+        if df is None or df.empty:
+            return 0
+        rows = [
+            (str(r.site_id), str(r.fuel_type), str(r.reported_at_utc),
+             float(r.price_cpl), source_id)
+            for r in df.itertuples()
+        ]
+        with self._connect() as conn:
+            before = conn.execute("SELECT COUNT(*) FROM reported_price_events").fetchone()[0]
+            conn.executemany(
+                "INSERT OR IGNORE INTO reported_price_events "
+                "(site_id, fuel_type, reported_at_utc, price_cpl, source_id) "
+                "VALUES (?, ?, ?, ?, ?)",
+                rows,
+            )
+            after = conn.execute("SELECT COUNT(*) FROM reported_price_events").fetchone()[0]
+            conn.commit()
+        return after - before
+
+    def save_import_source(self, source_id: str, **fields) -> None:
+        """Record (or refresh) the provenance row for one imported source file."""
+        columns = ["dataset", "resource_id", "url", "sha256", "published_at",
+                   "imported_at", "rows_read", "rows_kept", "rows_unavailable", "bytes"]
+        names = ", ".join(["source_id"] + columns)
+        placeholders = ", ".join(["?"] * (len(columns) + 1))
+        values = [source_id] + [fields.get(c) for c in columns]
+        with self._connect() as conn:
+            conn.execute(
+                f"INSERT OR REPLACE INTO import_sources ({names}) VALUES ({placeholders})",
+                values,
+            )
+            conn.commit()
+
+    def get_reported_events(self, fuel_type: str = "Unleaded") -> pd.DataFrame:
+        """All reported events for *fuel_type*, oldest first."""
+        sql = """
+            SELECT site_id, reported_at_utc, price_cpl, source_id
+            FROM   reported_price_events
+            WHERE  fuel_type = ?
+            ORDER  BY reported_at_utc ASC
+        """
+        with self._connect() as conn:
+            return pd.read_sql_query(sql, conn, params=(fuel_type,))
+
+    def get_import_sources(self) -> pd.DataFrame:
+        with self._connect() as conn:
+            return pd.read_sql_query(
+                "SELECT * FROM import_sources ORDER BY imported_at ASC", conn
+            )
 
     # ------------------------------------------------------------------
     # Backfill from existing CSV files
