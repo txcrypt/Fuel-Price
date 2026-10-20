@@ -99,6 +99,50 @@ def positions(geometry):
     return walk(geometry.get('coordinates'))
 
 
+# Map display only: Douglas-Peucker at ~11 m keeps road lines visually identical but cuts the statewide
+# feed from ~62k to ~7k points, so /api/traffic shrinks from ~2 MB and browsers stop simplifying it
+# themselves. Route-corridor matching always uses the full geometry.
+DISPLAY_TOLERANCE_DEG = .0001
+
+
+def simplify(points, tolerance=DISPLAY_TOLERANCE_DEG):
+    if len(points) < 3:
+        return points
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack, limit = [(0, len(points) - 1)], tolerance * tolerance
+    while stack:
+        a, b = stack.pop()
+        (ax, ay), (bx, by) = points[a][:2], points[b][:2]
+        dx, dy = bx - ax, by - ay
+        length = dx * dx + dy * dy
+        worst, index = -1.0, None
+        for i in range(a + 1, b):
+            px, py = points[i][:2]
+            t = 0 if length == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length))
+            d = (ax + t * dx - px) ** 2 + (ay + t * dy - py) ** 2
+            if d > worst:
+                worst, index = d, i
+        if index is not None and worst > limit:
+            keep[index] = True
+            stack += [(a, index), (index, b)]
+    return [p for p, k in zip(points, keep) if k]
+
+
+def display_geometry(geometry):
+    def thin(c):
+        if not isinstance(c, list) or not c or not isinstance(c[0], list):
+            return c
+        return simplify(c) if isinstance(c[0][0], (int, float)) else [thin(x) for x in c]
+    if not isinstance(geometry, dict):
+        return geometry
+    if geometry.get('type') == 'GeometryCollection':
+        return {**geometry, 'geometries': [display_geometry(g) for g in geometry.get('geometries') or []]}
+    if geometry.get('type') in ('LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'):
+        return {**geometry, 'coordinates': thin(geometry.get('coordinates'))}
+    return geometry
+
+
 def metro_feature(feature):
     points=positions(feature.get('geometry'))
     if not points:
@@ -278,6 +322,26 @@ class TrafficFeed:
         self.key=config.QLD_TRAFFIC_API_KEY if key is None else key
         self.state=read_json(self.path,{})
         self.lock=threading.Lock()
+        self._shapes={}   # id(feature) -> display geometry, valid for the feed object that holds them
+        self._in_area=(None,[],0)
+
+    def _located(self, feed):
+        """(features in the area, count without usable geometry), once per feed: walking every
+        coordinate of the statewide feed on each request cost ~100 ms."""
+        if self._in_area[0] is not feed:
+            features=feed.get('features',[])
+            located=[f for f in features if positions(f.get('geometry'))]
+            self._in_area=(feed,[f for f in located if metro_feature(f)],len(features)-len(located))
+        return self._in_area[1],self._in_area[2]
+
+    def _display(self, feature):
+        feed=self.state.get('feed')
+        if self._shapes.get('feed') is not feed:
+            self._shapes={'feed':feed}
+        key=id(feature)
+        if key not in self._shapes:
+            self._shapes[key]=display_geometry(feature.get('geometry'))
+        return self._shapes[key]
 
     def refresh(self, now):
         due=timestamp(self.state.get('next_attempt_at'))
@@ -333,7 +397,8 @@ class TrafficFeed:
                         'age_seconds':round(max(0,(now-retrieved).total_seconds())) if retrieved else None})
         self.state['availability']=history[-HISTORY_LIMIT:]
 
-    def payload(self, now=None, refresh=True):
+    def payload(self, now=None, refresh=True, display=False):
+        """The feed for callers. ``display=True`` swaps in simplified geometry for maps (cached per feed)."""
         now=now or datetime.now(timezone.utc)
         with self.lock:
             if refresh:
@@ -343,14 +408,13 @@ class TrafficFeed:
             age=max(0,(now-retrieved).total_seconds()) if retrieved else None
             stale=bool(self.state.get('error')) or age is None or age>INTERVAL*2
             features=[]
-            unlocated=0
-            for feature in feed.get('features',[]):
-                if not positions(feature.get('geometry')):
-                    unlocated+=1
-                    continue
-                if metro_feature(feature):
-                    properties=feature['properties']
-                    features.append({**feature,'properties':{**properties,'_timing':timing(properties,now)}})
+            located,unlocated=self._located(feed)
+            for feature in located:
+                properties=feature['properties']
+                shaped={**feature,'properties':{**properties,'_timing':timing(properties,now)}}
+                if display:
+                    shaped['geometry']=self._display(feature)
+                features.append(shaped)
             return {'type':'FeatureCollection','features':features,
                     'status':'unavailable' if retrieved is None else 'stale' if stale else 'current',
                     'stale':stale,'retrieved_at':self.state.get('retrieved_at'),'age_seconds':age,
@@ -412,27 +476,47 @@ class TrafficFeed:
 
 CAMERAS_URL = 'https://api.qldtraffic.qld.gov.au/v1/webcams'
 CAMERA_HOST = 'https://cameras.qldtraffic.qld.gov.au/'
-_cameras = {'at': None, 'items': []}
+CAMERA_REFRESH = timedelta(hours=6)    # the list of cameras barely changes; their images refresh themselves
+CAMERA_RETRY = timedelta(minutes=5)    # after a failure; longer if the provider asks (HTTP 429 Retry-After)
+_cameras = {'items': None, 'retrieved_at': None, 'next': None, 'error': None}
 
 
-def cameras(now=None, key=None):
-    """Official TMR road cameras (still images refreshed by the provider). The list barely
-    changes, so it is fetched at most hourly and the last good list is kept on failure."""
+def parse_cameras(feed):
+    items = []
+    for feature in feed.get('features', []):
+        p, (lng, lat) = feature['properties'], feature['geometry']['coordinates'][:2]
+        # Only ever hand the browser an image from the provider's own camera host.
+        if str(p.get('image_url', '')).startswith(CAMERA_HOST):
+            items.append({'id': p.get('id'), 'lat': float(lat), 'lng': float(lng), 'image_url': p['image_url'],
+                          'description': str(p.get('description') or ''), 'direction': str(p.get('direction') or '')})
+    return items
+
+
+def cameras(now=None, key=None, path=None):
+    """Official TMR road cameras. The shared public key is often rate limited (HTTP 429), so the last
+    good list is kept on disk and served while the provider is busy; a restart no longer empties it."""
     now = now or datetime.now(timezone.utc)
-    if _cameras['at'] and now - _cameras['at'] < timedelta(hours=1):
-        return _cameras['items']
-    _cameras['at'] = now
+    path = Path(path or config.BASE_DIR / '.local' / 'traffic' / 'cameras.json')
+    if _cameras['items'] is None:
+        saved = read_json(path, {})
+        _cameras.update(items=saved.get('items') or [], retrieved_at=saved.get('retrieved_at'))
+    if _cameras['next'] and now < _cameras['next']:
+        return _cameras
     try:
         response = requests.get(CAMERAS_URL, params={'apikey': key or config.QLD_TRAFFIC_API_KEY}, timeout=(8, 20))
+        if response.status_code == 429:
+            _cameras.update(next=now + timedelta(seconds=max(retry_after(response), CAMERA_RETRY.total_seconds())),
+                            error='QLDTraffic is busy (shared key rate limit); showing the last saved camera list.')
+            return _cameras
         response.raise_for_status()
-        items = []
-        for feature in response.json().get('features', []):
-            p, (lng, lat) = feature['properties'], feature['geometry']['coordinates'][:2]
-            # Only ever hand the browser an image from the provider's own camera host.
-            if str(p.get('image_url', '')).startswith(CAMERA_HOST):
-                items.append({'id': p.get('id'), 'lat': float(lat), 'lng': float(lng), 'image_url': p['image_url'],
-                              'description': str(p.get('description') or ''), 'direction': str(p.get('direction') or '')})
-        _cameras['items'] = items
+        items = parse_cameras(response.json())
+        if not items:
+            raise ValueError('empty camera list')
+        _cameras.update(items=items, retrieved_at=now.isoformat(), next=now + CAMERA_REFRESH, error=None)
+        try:
+            write_json(path, {'retrieved_at': _cameras['retrieved_at'], 'items': items})
+        except OSError:
+            pass
     except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError):
-        pass
-    return _cameras['items']
+        _cameras.update(next=now + CAMERA_RETRY, error='QLDTraffic cameras could not be fetched; showing the last saved list.')
+    return _cameras

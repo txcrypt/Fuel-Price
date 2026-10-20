@@ -13,6 +13,7 @@ const stamp = value => {
 const date = (value, time = false) => Number.isFinite(stamp(value)) ? new Intl.DateTimeFormat('en-AU', {timeZone:'Australia/Brisbane', day:'2-digit', month:'short', year:'numeric', ...(time ? {hour:'2-digit', minute:'2-digit', hour12:false} : {})}).format(stamp(value)) : '—';
 const ageHours = s => Math.max(0, (Date.now() - stamp(s.reported_at)) / 3600000);
 const ageText = s => {const h = ageHours(s); return !Number.isFinite(h) ? 'Unknown' : h < 24 ? `${num(h)} h` : `${num(h / 24)} d`;};
+let quartiles = [], ledgerLimit = 150;   // colour cut-offs for this draw; ledger rows built so far
 let data, evidence, selected, series = 'daily', map, layer, rawOffset = 0, rawTotal = 0, stationRequest = 0, rawRequest = 0, loading = false;
 let roadRouter, devicePosition;
 let changes = new Map(), markers = new Map();
@@ -42,7 +43,7 @@ function color(s) {
   // Stations already 20 c/L or more above the median: the restored group a citywide jump spreads from.
   if(mode==='restored')return s.price_cpl>=data.summary.median+20?'#f67e83':'#4b5d6c';
   if(mode==='age') {const a=ageHours(s);return !Number.isFinite(a)?'#71899c':a<24?'#58dac7':a<168?'#eab466':'#f67e83';}
-  const v=data.stations.map(s=>s.price_cpl).sort((a,b)=>a-b);return s.price_cpl<=quantile(v,.25)?'#58dac7':s.price_cpl>=quantile(v,.75)?'#f67e83':'#eab466';
+  return s.price_cpl<=quartiles[0]?'#58dac7':s.price_cpl>=quartiles[1]?'#f67e83':'#eab466';
 }
 function initMap() {
   if (!window.L) {$('map').textContent='Map library unavailable. Station records remain available in the ledger.';return;}
@@ -59,19 +60,23 @@ function initMap() {
 function drawMap() {
   if(!map)return;
   layer.clearLayers(); markers.clear(); const stations=filtered();
+  const sorted=data.stations.map(s=>s.price_cpl).sort((a,b)=>a-b); quartiles=[quantile(sorted,.25),quantile(sorted,.75)];
   stations.forEach(s=>{if(!Number.isFinite(s.latitude)||!Number.isFinite(s.longitude))return;
     const marker=L.circleMarker([s.latitude,s.longitude],{radius:String(s.site_id)===selected?8:5,weight:String(s.site_id)===selected?2:1,color:String(s.site_id)===selected?'#fff':color(s),fillColor:color(s),fillOpacity:.85}).addTo(layer);
-    marker.bindTooltip(`${esc(s.name || s.site_id)} · ${num(s.price_cpl)} c/L`).on('click',()=>inspect(String(s.site_id)));markers.set(String(s.site_id),marker);
+    marker.station=s;   // map-extras keeps .station layers drawn last, so they get hovers and clicks
+    marker.bindTooltip(`${esc(s.name || s.site_id)} · ${num(s.price_cpl)} c/L`).on('click',()=>{window.FuelArea?.show('station');inspect(String(s.site_id));});markers.set(String(s.site_id),marker);
   });
   $('map-count').textContent=`${markers.size} / ${data.stations.length} SITES`;
   $('map-legend').textContent = {price:'CYAN ≤ P25 · AMBER middle · RED ≥ P75 · GREY old / suspect price',change:'CYAN fell · RED rose · GREY flat / unmatched / flagged',age:'CYAN < 24 h · AMBER 1–7 d · RED > 7 d',restored:'RED ≥ median + 20 c/L (already restored) · GREY below'}[$('map-mode').value];
+  window.FuelReplay?.reapply();   // an open jump replay keeps its colours through a data refresh
 }
 function fitMap(){if(map&&markers.size)map.fitBounds(L.latLngBounds([...markers.values()].map(m=>m.getLatLng())),{padding:[24,24],maxZoom:12});}
 function renderLedger(){
   const stations=filtered(), mode=$('sort').value;
   stations.sort((a,b)=>mode==='price-desc'?b.price_cpl-a.price_cpl:mode==='change'?Math.abs(changes.get(String(b.site_id))?.change||0)-Math.abs(changes.get(String(a.site_id))?.change||0):mode==='age'?(ageHours(b)||0)-(ageHours(a)||0):mode==='name'?String(a.name).localeCompare(String(b.name)):a.price_cpl-b.price_cpl);
-  $('ledger-count').textContent=`${stations.length} VISIBLE / ALL ROWS SCROLLABLE`;
-  $('station-rows').innerHTML=stations.map(s=>{const c=changes.get(String(s.site_id))?.change;return `<tr><td><button class="station-select" data-site="${esc(s.site_id)}">${esc(s.name || 'Unnamed station')} ${FLAGS[s.flag]||''}<small>${esc(s.site_id)}</small></button></td><td>${esc(s.region)}</td><td class="cyan">${num(s.price_cpl)}</td><td class="${c>0?'red':c<0?'cyan':''}">${signed(c)}</td><td>${signed(s.price_cpl-data.summary.median)}</td><td>${ageText(s)}</td><td>${date(s.reported_at,true)}</td></tr>`;}).join('');
+  $('ledger-count').textContent=`${Math.min(ledgerLimit,stations.length)} OF ${stations.length} SHOWN · SEARCH COVERS ALL`;
+  $('ledger-more').hidden=stations.length<=ledgerLimit; $('ledger-more').textContent=`Show ${Math.min(300,stations.length-ledgerLimit)} more stations`;
+  $('station-rows').innerHTML=stations.slice(0,ledgerLimit).map(s=>{const c=changes.get(String(s.site_id))?.change;return `<tr><td><button class="station-select" data-site="${esc(s.site_id)}">${esc(s.name || 'Unnamed station')} ${FLAGS[s.flag]||''}<small>${esc(s.site_id)}</small></button></td><td>${esc(s.region)}</td><td class="cyan">${num(s.price_cpl)}</td><td class="${c>0?'red':c<0?'cyan':''}">${signed(c)}</td><td>${signed(s.price_cpl-data.summary.median)}</td><td>${ageText(s)}</td><td>${date(s.reported_at,true)}</td></tr>`;}).join('');
 }
 async function inspect(id){
   selected=id;const s=data.stations.find(s=>String(s.site_id)===id);if(!s)return;
@@ -147,6 +152,7 @@ async function loadRows(){
     $('raw-count').textContent=`${rawTotal?rawOffset+1:0}–${Math.min(rawOffset+50,rawTotal)} of ${num(rawTotal,0)} rows`;$('raw-prev').disabled=rawOffset===0;$('raw-next').disabled=rawOffset+50>=rawTotal;
   }catch(e){if(req===rawRequest)$('raw-count').textContent=e.message;}
 }
+const pause=()=>new Promise(resolve=>setTimeout(resolve));
 async function load(){
   if(loading)return;loading=true;
   try {const next=await get('/api/dashboard');const changed=!data||next.latest!==data.latest||next.files.csv.bytes!==data.files.csv.bytes;
@@ -156,13 +162,15 @@ async function load(){
     $('snapshot-time').textContent=`SNAPSHOT ${date(data.latest,true)} AEST · AGE ${num(data.health.snapshot_age_minutes)} MIN`;
     $('notice').textContent=data.health.error?`COLLECTOR ERROR / ${data.health.error}`:data.health.collecting?'COLLECTOR RUNNING / saved observations remain visible':!data.health.fresh?'STALE SNAPSHOT / prices are saved observations; inspect collector health below.':`COVERAGE / ${data.coverage.days} observed days. ${data.coverage.missing_days} missing days in the historical span. ${data.forecast.status==='ready'?'Model validation available.':'Forecast validation insufficient; baseline hidden by default.'}`;
     $('refresh').disabled=data.health.collecting;
-    if(changed){window.FuelBrief?.update(data);renderMetrics();drawMap();renderLedger();drawHistory();renderCalendar();if(selected)inspect(selected);else if(data.stations.length)inspect(String(data.stations[0].site_id));}
-    renderEvidence();
+    // Yield between steps so each paints as it is ready; run together they blocked the page ~200 ms.
+    if(changed){window.FuelBrief?.update(data);window.FuelMap?.setStations?.(data.stations);renderMetrics();drawMap();await pause();renderLedger();await pause();drawHistory();renderCalendar();await pause();if(selected)inspect(selected);else if(data.stations.length)inspect(String((data.stations.find(s=>!s.flag)||data.stations[0]).site_id));/* first unflagged, not an entry error */}
+    renderEvidence();dispatchEvent(new Event('fuel:ready'));   /* lifts the start-up screen (boot.js) */
   }catch(e){$('connection').textContent='● CONNECTION ERROR';$('connection').className='tag warn';$('notice').textContent=`Could not update the console: ${e.message}. Previously displayed values may be stale.`;}
   finally{loading=false;}
 }
-$('search').addEventListener('input',()=>{if(data){drawMap();renderLedger();}});$('map-mode').onchange=()=>data&&drawMap();$('fit').onclick=fitMap;$('sort').onchange=()=>data&&renderLedger();
-$('station-rows').onclick=e=>{const b=e.target.closest('[data-site]');if(b){inspect(b.dataset.site);$('field').scrollIntoView({behavior:'smooth'});}};
+$('search').addEventListener('input',()=>{if(data){ledgerLimit=150;drawMap();renderLedger();}});
+$('ledger-more').onclick=()=>{ledgerLimit+=300;renderLedger();};$('map-mode').onchange=()=>data&&drawMap();$('fit').onclick=fitMap;$('sort').onchange=()=>data&&renderLedger();
+$('station-rows').onclick=e=>{const b=e.target.closest('[data-site]');if(b){window.FuelArea?.show('station');inspect(b.dataset.site);$('field').scrollIntoView({behavior:'smooth'});}};
 $('series-tabs').onclick=e=>{const b=e.target.closest('[data-series]');if(!b)return;series=b.dataset.series;document.querySelectorAll('[data-series]').forEach(t=>t.classList.toggle('active',t===b));drawHistory();};
 $('range').onchange=drawHistory;$('baseline').onchange=drawHistory;
 $('raw-form').onsubmit=e=>{e.preventDefault();rawOffset=0;loadRows();};$('raw-prev').onclick=()=>{rawOffset=Math.max(0,rawOffset-50);loadRows();};$('raw-next').onclick=()=>{rawOffset+=50;loadRows();};

@@ -51,3 +51,6 @@ Thumbs.db
 .local/
 collector_status.json
 *.tmp
+
+# Recorded data: too large for GitHub, copied to the VM with scp
+fuel_data.db

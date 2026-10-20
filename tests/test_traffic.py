@@ -298,16 +298,54 @@ class CorridorFeedTests(TestCase):
 
 
 class CameraTests(TestCase):
-    def test_provider_images_only_hourly_cache_and_keeps_last_good_list(self):
+    def setUp(self):
         import traffic
-        traffic._cameras.update(at=None, items=[])
+        self.traffic = traffic
+        self.dir = TemporaryDirectory(); self.addCleanup(self.dir.cleanup)
+        self.path = Path(self.dir.name) / 'cameras.json'
+        traffic._cameras.update(items=None, retrieved_at=None, next=None, error=None)
         point = {'coordinates': [153.0, -27.5]}
-        good = {'geometry': point, 'properties': {'id': 1, 'image_url': traffic.CAMERA_HOST + 'a.jpg', 'description': 'A'}}
-        foreign = {'geometry': point, 'properties': {'id': 2, 'image_url': 'https://elsewhere.example/x.jpg'}}
-        with patch('traffic.requests.get') as get:
-            get.return_value.json.return_value = {'features': [good, foreign]}
-            self.assertEqual([c['id'] for c in traffic.cameras(NOW)], [1])
-            traffic.cameras(NOW + timedelta(minutes=30))
-            self.assertEqual(get.call_count, 1)
-            get.side_effect = requests.ConnectionError
-            self.assertEqual(len(traffic.cameras(NOW + timedelta(hours=2))), 1)
+        self.feed = {'features': [{'geometry': point, 'properties': {'id': 1, 'image_url': traffic.CAMERA_HOST + 'a.jpg', 'description': 'A'}},
+                                  {'geometry': point, 'properties': {'id': 2, 'image_url': 'https://elsewhere.example/x.jpg'}}]}
+
+    def fetch(self, at, response):
+        with patch('traffic.requests.get', return_value=response) as get:
+            state = self.traffic.cameras(at, path=self.path)
+        return state, get.call_count
+
+    def ok(self):
+        return Mock(status_code=200, json=Mock(return_value=self.feed), raise_for_status=Mock())
+
+    def test_saved_list_survives_restart_and_rate_limits(self):
+        state, _ = self.fetch(NOW, self.ok())
+        self.assertEqual([c['id'] for c in state['items']], [1])          # only the provider's own image host
+        self.assertEqual(self.fetch(NOW + timedelta(hours=1), self.ok())[1], 0)   # cached between refreshes
+        # A restart (memory cleared) while the provider answers 429: the saved list is still served.
+        self.traffic._cameras.update(items=None, next=None)
+        busy = Mock(status_code=429, headers={'Retry-After': '600'})
+        state, calls = self.fetch(NOW + timedelta(hours=7), busy)
+        self.assertEqual((calls, len(state['items']), bool(state['error'])), (1, 1, True))
+        # Retry-After is honoured: no new request inside its ten minutes.
+        self.assertEqual(self.fetch(NOW + timedelta(hours=7, minutes=9), self.ok())[1], 0)
+        self.assertEqual(self.fetch(NOW + timedelta(hours=7, minutes=11), self.ok())[0]['error'], None)
+
+
+class DisplayGeometryTests(TestCase):
+    def test_simplify_drops_near_collinear_points_and_keeps_corners(self):
+        from traffic import simplify, display_geometry
+        wiggle = [[153.0 + i * 1e-5, -27.47 + ((i % 7) - 3) * 1e-6] for i in range(200)]   # sub-metre noise
+        self.assertEqual(len(simplify(wiggle)), 2)
+        corner = [[0, 0], [0.001, 0], [0.002, 0], [0.002, 0.001], [0.002, 0.002]]
+        self.assertEqual(simplify(corner), [[0, 0], [0.002, 0], [0.002, 0.002]])
+        point = {'type': 'Point', 'coordinates': [153.0, -27.4]}
+        self.assertIs(display_geometry(point), point)
+        collection = display_geometry({'type': 'GeometryCollection', 'geometries': [{'type': 'LineString', 'coordinates': wiggle}]})
+        self.assertEqual(len(collection['geometries'][0]['coordinates']), 2)
+
+    def test_route_matching_keeps_full_geometry(self):
+        with TemporaryDirectory() as directory:
+            feed = TrafficFeed(directory, key='k')
+            line = [[153.0 + i * 1e-5, -27.47] for i in range(50)]
+            feed.state = {'feed': {'type': 'FeatureCollection', 'features': [feature(line)]}, 'retrieved_at': NOW.isoformat()}
+            self.assertEqual(len(feed.payload(NOW, refresh=False)['features'][0]['geometry']['coordinates']), 50)
+            self.assertEqual(len(feed.payload(NOW, refresh=False, display=True)['features'][0]['geometry']['coordinates']), 2)

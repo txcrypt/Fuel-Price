@@ -563,6 +563,13 @@ h4 {
 .score-table tr.chosen td {
   color:var(--cyan);
 }
+/* Tables default to nowrap for the scrolling ledgers; this one has no scroll box and pushed phones sideways. */
+.score-table {
+  white-space:normal;
+}
+.score-table td,.score-table th {
+  padding:8px 10px;
+}
 
 @media(max-width:1150px) {
   .metrics-4 {

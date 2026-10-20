@@ -49,8 +49,16 @@ class Observatory:
         return records(daily.groupby('date').agg(price=('price_cpl', 'median'), stations=('site_id', 'nunique')).reset_index())
 
     def overview(self):
+        """Cached until the source files or the latest capture change: rebuilding costs ~200 ms per poll."""
         with self.data.data_lock, self.lock:
             self._load()
+            key = (self.key, self.data.dashboard()['latest'])
+            if getattr(self, '_overview', (None, None))[0] != key:
+                self._overview = (key, self._overview_build())
+            return self._overview[1]
+
+    def _overview_build(self):
+        with self.data.data_lock, self.lock:
             frame = self.frame
             if frame.empty:
                 return {'audit': {'rows': len(self.raw), 'in_area_rows': 0}, 'captures': [], 'events': [], 'archive_events': [], 'calendar': [], 'changes': [], 'previous_capture': None}

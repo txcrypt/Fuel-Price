@@ -1,23 +1,26 @@
 {
-  "name": "Brisbane Fuel AI",
-  "short_name": "Fuel AI",
-  "start_url": "/",
+  "name": "Fuel Observatory",
+  "short_name": "Fuel",
+  "start_url": "/planner",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
-  "orientation": "portrait",
+  "background_color": "#090e15",
+  "theme_color": "#090e15",
   "icons": [
     {
-      "src": "/static/icon.svg",
+      "src": "/static/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     },
     {
       "src": "/static/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }

@@ -13,11 +13,6 @@
   const CODE={Crash:'CR',Hazard:'HZ',Flooding:'FL',Roadworks:'RW',Congestion:'CG','Special event':'SE'};
   const code=t=>CODE[t]||String(t||'?').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()||'??';
   const BADGE_ZOOM=11;   // Below this only the coloured lines show; point events always carry a badge.
-  // Display only: Douglas-Peucker at ~11 m draws the same road lines from ~7k points instead of the
-  // statewide feed's ~62k, which the map otherwise re-projects on every zoom. Popups keep full detail.
-  const SIMPLIFY_DEG=.0001;
-  const thin=c=>!c.length||!Array.isArray(c[0])?c:typeof c[0][0]==='number'?L.LineUtil.simplify(c.map(p=>L.point(p[0],p[1])),SIMPLIFY_DEG).map(p=>[p.x,p.y]):c.map(thin);
-  const thinGeometry=g=>!g?g:g.geometries?{...g,geometries:g.geometries.map(thinGeometry)}:/Line|Polygon/.test(g.type)&&g.coordinates?.length?{...g,coordinates:thin(g.coordinates)}:g;
   function attach(map,{container}) {
     const panel=document.createElement('details');panel.className='traffic-panel';
     panel.innerHTML=`<summary>QLDTraffic · checking feed…</summary><p class="traffic-status" role="status"></p><div class="traffic-controls"><label><input type="checkbox" data-layer checked> Show event overlay</label><label><input type="checkbox" data-view checked> List current map area only</label><label>Event type<select data-type><option value="">All event types</option></select></label><label>Time window<select data-time><option value="current">Within dates / undated</option><option value="scheduled">Scheduled</option><option value="all">All returned events</option></select></label></div><div class="traffic-legend"></div><p class="traffic-count"></p><div class="traffic-bars"></div><div class="traffic-availability"></div><div class="traffic-events"></div><p class="traffic-note">Check the event’s dates, active hours and direction before relying on it. Events do not adjust route travel times or fuel costs, and no reported event does not establish that a road is clear.</p><p class="traffic-rights"></p><div class="traffic-links"><a href="https://qldtraffic.qld.gov.au/" target="_blank" rel="noopener">Official QLDTraffic ↗</a><a href="/api/traffic/raw" target="_blank" rel="noopener">Full cached feed & rights ↗</a></div>`;
@@ -114,8 +109,11 @@
     map.on('moveend',onMove);
     // Event details (with every raw field) are built on first open, not for every listed event on every pan.
     q('.traffic-events').addEventListener('toggle',e=>{const box=e.target;if(box.open&&box.dataset.detail&&box.children.length<2)box.insertAdjacentHTML('beforeend',details(records[Number(box.dataset.detail)].feature.properties));},true);
+    let lastLoad=0;
     async function load() {
-      if(busy||document.hidden)return;busy=true;
+      // Returning to the tab reloads, but at most every 30 s: each response is ~0.8 MB, and phones
+      // fire visibilitychange on every app switch.
+      if(busy||document.hidden||Date.now()-lastLoad<30000)return;busy=true;lastLoad=Date.now();
       try {
         const response=await fetch('/api/traffic');if(!response.ok)throw Error('Local traffic endpoint unavailable');data=await response.json();
         const previous=q('[data-type]').value;
@@ -127,7 +125,8 @@
             const p=feature.properties,c=colour(p);
             // Severity sets colour and line weight; type sets the badge code; scheduled stays dashed.
             const style={color:c,weight:LEVELS[level(p)].weight,fillColor:c,fillOpacity:p.area_alert?.06:.15,dashArray:p._timing==='scheduled'?'5 7':null};
-            const shape=L.geoJSON({...feature,geometry:thinGeometry(feature.geometry)},{style,pointToLayer:(_,latlng)=>L.circleMarker(latlng,{radius:4,color:c,fillColor:c,fillOpacity:.9})}).bindPopup(details(p),{maxWidth:350});
+            // Geometry arrives simplified for display (traffic.display_geometry); popups keep every field.
+            const shape=L.geoJSON(feature,{style,pointToLayer:(_,latlng)=>L.circleMarker(latlng,{radius:4,color:c,fillColor:c,fillOpacity:.9})}).bindPopup(()=>details(p),{maxWidth:350});   // built on open: ~450 eager popups cost ~100 ms at load
             const bounds=shape.getBounds();if(!bounds.isValid())continue;
             const record={feature,shape,style,bounds,index:records.length,point:!/Line|Polygon/.test(feature.geometry?.type||'')};
             record.badge=L.marker(bounds.getCenter(),{icon:pin(p,false),keyboard:false,riseOnHover:true})

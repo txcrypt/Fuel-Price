@@ -95,14 +95,16 @@ function render() {
     ?`<br><b>Forward test${log.forward_since?` since ${esc(dayLabel(log.forward_since))}`:''}</b>, lower is better: ${fwd.map(f=>`${esc(f.name)} ${f.mae.toFixed(2)} c/L (${f.scored})`).join(' · ')}. Counts are predictions graded; they overlap, so they are not independent trials.`
     :`<br><b>Forward test${log.forward_since?` started ${esc(dayLabel(log.forward_since))}`:' starts today'}</b>: every method's 7-day path is saved daily and graded once those days are collected.`);
   drawChart();renderStations();
-  window.FuelDecisions?.update(data);
   window.FuelBrief?.update(data);
+  window.FuelMap?.setStations?.(data.stations);
+  // The map (~1,600 canvas markers) builds in its own task, after the numbers above have painted.
+  const current=data;setTimeout(()=>{if(data===current)window.FuelDecisions?.update(current);});
 }
 async function load() {
   if(loading)return;loading=true;
   try {
     const response=await fetch('/api/dashboard',{cache:'no-store',signal:AbortSignal.timeout(45000)});
-    if(!response.ok)throw new Error('Dashboard request failed');data=await response.json();render();
+    if(!response.ok)throw new Error('Dashboard request failed');data=await response.json();render();dispatchEvent(new Event('fuel:ready'));
   } catch(error) {
     badge('connection','Local server unavailable','bad');$('notice').className='notice error';
     text('notice','Cannot reach the local server. Start it with start-local.ps1. Any prices still visible are saved observations.');

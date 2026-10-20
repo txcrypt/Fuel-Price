@@ -75,11 +75,15 @@
   nav.href = '#sources'; nav.textContent = '07 Sources';
   byId('clock').before(nav);
 
-  function inspect(id) {
+  // One station's full upstream record, fetched when inspected: the whole capture is ~2 MB.
+  async function inspect(id) {
     currentSite = id;
-    const site = sourceData?.sites.find(s => s.site_id === id);
     byId('station-api')?.remove();
-    if (!site || !byId('inspector')) return;
+    if (!sourceData || !byId('inspector')) return;
+    let site;
+    try { const r = await fetch(`/api/source-evidence/site/${encodeURIComponent(id)}`); if (r.ok) site = await r.json(); } catch { /* shown below */ }
+    if (currentSite !== id || !site) return;   // A newer selection, or no record for this site.
+    byId('station-api')?.remove();
     const box = document.createElement('div');
     box.id = 'station-api';
     box.innerHTML = `<hr><p class="kicker">UPSTREAM STATION EVIDENCE</p><p>${escape(site.brand)} · ${escape(site.suburb)} ${escape(site.postcode)}</p><p class="muted">${escape(site.address)}<br>API capture: ${escape(sourceData.retrieved_at)} AEST</p><div class="table-scroll"><table><thead><tr><th>Grade</th><th>c/L / status</th></tr></thead><tbody>${site.fuels.map(p => `<tr><td>${escape(p.fuel)}</td><td>${p.status==='available'?number(p.price_cpl):escape(p.status.replaceAll('_',' '))}</td></tr>`).join('')}</tbody></table></div><details><summary>Raw metadata & report provenance</summary><p class="muted">Site modification: ${escape(site.metadata_modified_at)} (API value). Report timestamps below are UTC.</p><pre>${escape(JSON.stringify({site:site.raw_site,prices:site.fuels},null,2))}</pre></details>`;
@@ -92,11 +96,8 @@
       ? `QLD capture: ${sourceData.retrieved_at} AEST · ${number(coverage.qld_sites,0)} sites / ${number(coverage.qld_price_rows,0)} price rows. Endpoint coverage and cache freshness are shown below.`
       : 'Extended API evidence is waiting for the next successful capture.';
     byId('api-coverage').innerHTML = [['METRO SITES',coverage.metro_sites],['AVAILABLE U91',coverage.available],['UNAVAILABLE U91',coverage.unavailable],['NO U91 LISTING',coverage.not_listed],['ALL-GRADE PRICE ROWS',coverage.metro_price_rows],['DISTINCT EVENTS SAVED',coverage.price_events_saved]].map(([label,value])=>`<div><small>${label}</small><b>${number(value,0)}</b></div>`).join('');
-    const brands = new Map();
-    sourceData.sites.forEach(s=>{const price=s.fuels.find(p=>p.fuel_id===2 && p.status==='available'); if(price){if(!brands.has(s.brand))brands.set(s.brand,[]);brands.get(s.brand).push(price.price_cpl);}});
-    const ranking = [...brands].map(([name,prices])=>{prices.sort((a,b)=>a-b);const i=Math.floor(prices.length/2);return {name,count:prices.length,median:prices.length%2?prices[i]:(prices[i-1]+prices[i])/2,min:prices[0]};}).sort((a,b)=>a.median-b.median);
-    byId('brand-comparison').innerHTML = ranking.map(b=>`<tr><td>${escape(b.name)}</td><td>${b.count}</td><td>${number(b.median)}</td><td>${number(b.min)}</td></tr>`).join('');
-    byId('availability-exceptions').innerHTML = sourceData.sites.filter(s=>s.u91_status!=='available').map(s=>`<tr><td>${escape(s.name)}<small>${escape(s.suburb)} · ${s.site_id}</small></td><td>${escape(s.u91_status.replaceAll('_',' '))}</td><td>${escape(s.fuels.find(p=>p.fuel_id===2)?.reported_at)}</td></tr>`).join('');
+    byId('brand-comparison').innerHTML = sourceData.brands.map(b=>`<tr><td>${escape(b.name)}</td><td>${b.count}</td><td>${number(b.median)}</td><td>${number(b.min)}</td></tr>`).join('');
+    byId('availability-exceptions').innerHTML = sourceData.exceptions.map(s=>`<tr><td>${escape(s.name)}<small>${escape(s.suburb)} · ${escape(s.site_id)}</small></td><td>${escape(s.status.replaceAll('_',' '))}</td><td>${escape(s.reported_at)}</td></tr>`).join('');
     byId('api-fields').innerHTML = Object.entries(sourceData.fields).flatMap(([name,fields])=>fields.map(f=>`<tr><td>${escape(name)}</td><td>${escape(f.field)}</td><td>${f.populated} / ${f.rows}</td></tr>`)).join('');
     byId('reference-status').innerHTML = Object.entries(sourceData.references).map(([name,r])=>`<span>${escape(name)} · ${escape(r.status)}</span><b>${escape(r.retrieved_at)}${r.error?' · '+escape(r.error):''}</b>`).join('');
     const health = contextData.health || {};
@@ -136,12 +137,20 @@
   async function load() {
     if (busy) return; busy=true;
     try {
-      const responses=await Promise.all(['/api/source-evidence','/api/market-context'].map(async url=>{const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}));
+      const responses=await Promise.all(['/api/source-evidence/summary','/api/market-context'].map(async url=>{const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}));
       [sourceData,contextData]=responses;
-      render();
+      if (seen) render();
     } catch (error) { byId('source-status').textContent=`Source evidence could not refresh (${error.message}). Displayed values may be stale.`; }
     finally { busy=false; }
   }
   window.FuelSources={inspect};
+  // The section sits at the bottom of the page and draws a dozen charts: data loads now, drawing
+  // waits until it is near the viewport (it was the largest blocking task during page load).
+  let seen = false;
+  new IntersectionObserver((entries, observer) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    seen = true; observer.disconnect();
+    if (sourceData && contextData) render();
+  }, {rootMargin: '600px'}).observe(panel);
   load();setInterval(load,60000);
 })();

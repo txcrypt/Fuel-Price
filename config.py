@@ -9,6 +9,10 @@ FUEL_API_TOKEN = os.getenv('FUEL_API_TOKEN', '')
 ORS_API_KEY = os.getenv('ORS_API_KEY', '')
 # Free registered key from https://www.eia.gov/opendata/ ; optional context only.
 EIA_API_KEY = os.getenv('EIA_API_KEY', '')
+# Free key from https://openchargemap.org/site/profile (sign in, then 'my apps'); EV charger map layer only.
+OCM_API_KEY = os.getenv('OCM_API_KEY', '')
+# Free key from https://aisstream.io (sign in with GitHub); live ship positions only.
+AISSTREAM_API_KEY = os.getenv('AISSTREAM_API_KEY', '')
 # TMR publishes this shared key for unregistered consumers (API specification v1.10).
 QLD_TRAFFIC_API_KEY = os.getenv('QLD_TRAFFIC_API_KEY', '3e83add325cbb69ac4d8e5bf433d770b')
 DB_FILE = BASE_DIR / 'fuel_data.db'

@@ -1,0 +1,380 @@
+{
+ "generated": "2026-10-01",
+ "attribution": "Map data (c) OpenStreetMap contributors (ODbL); Geoscience Australia National Liquid Fuel Facilities (CC BY 4.0, Commonwealth of Australia); National Pollutant Inventory facility data (DCCEEW, via data.gov.au); operator and port-authority websites as cited per site.",
+ "scope_notes": "Queensland refineries, seaboard import terminals and port terminals only. Excluded: retail sites, airport JUHI/aviation depots, LPG terminals, bitumen terminals (Puma, Pinkenba/Townsville), small distributor depots (about 50 in the GA depot layer), Quantem Pinkenba (bulk chemicals and oils; unclear whether it still handles fuel after importer Freedom Fuels left in Jan 2026), QAL South Trees wharf (industrial bunker fuel), Northern Oil Yarwun (used-oil re-refinery), and decommissioned terminals (Bundaberg/Burnett Heads, Karumba, Tropic Distributors Townsville). The closed Bulwer Island refinery is not listed separately because it is now the BP Bulwer terminal site.",
+ "sites": [
+  {
+   "name": "Ampol Lytton Refinery",
+   "operator": "Ampol",
+   "kind": "refinery",
+   "lat": -27.41333,
+   "lng": 153.15693,
+   "locality": "Lytton, Brisbane",
+   "note": "Queensland's only remaining crude oil refinery (~109,000 bbl/day), supplying petrol, diesel and jet fuel to south-east Queensland.",
+   "source_urls": [
+    "https://en.wikipedia.org/wiki/Lytton_Oil_Refinery",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q013CAL001",
+    "https://www.portbris.com.au/operations-and-trade/port-facilities/berths-and-terminals"
+   ],
+   "coordinates_source": "Centre of OSM way 613182101 \"Ampol Oil Refinery\" (Overpass). Cross-checked against GA Liquid_Fuel_Refineries (-27.41426,153.15942, ~250 m) and NPI (-27.40848,153.15408, office point ~600 m).",
+   "precision": "site"
+  },
+  {
+   "name": "Ampol Lytton Terminal",
+   "operator": "Ampol",
+   "kind": "terminal/depot",
+   "lat": -27.41728,
+   "lng": 153.16316,
+   "locality": "Lytton, Brisbane",
+   "note": "Ampol product terminal at 1 Tanker St beside the refinery; road-tanker loading 24/7.",
+   "source_urls": [
+    "https://www.ampol.com.au/business/our-locations/terminals",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022CAL029",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates for \"Ampol Terminal Lytton\" (Tanker St off Port Dr). GA Liquid_Fuel_Terminals \"Lytton\" (Caltex) is ~320 m away.",
+   "precision": "site"
+  },
+  {
+   "name": "IOR Lytton Terminal",
+   "operator": "IOR",
+   "kind": "import terminal",
+   "lat": -27.41379,
+   "lng": 153.16554,
+   "locality": "Lytton, Brisbane",
+   "note": "Diesel-only import and storage terminal (commissioned 2023), one of the largest diesel-only terminals on Australia's east coast; imports via Fisherman Islands.",
+   "source_urls": [
+    "https://www.ior.com.au/fuel-solutions/supply-trading/terminals/",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2024/jurisdiction-facility/Q022LYT001"
+   ],
+   "coordinates_source": "Centre of OSM way 1542807213 \"IOR Lytton Fuel Terminal\"; NPI \"Lytton Terminal\" (Lytton Terminals Pty Ltd, cnr Port Dr & Tanker St) is within 20 m.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Bulwer Island Terminal (Bulwer Jet Terminal)",
+   "operator": "BP (operated by ATOM, a BP/UGL joint venture)",
+   "kind": "import terminal",
+   "lat": -27.40441,
+   "lng": 153.14153,
+   "locality": "Pinkenba (Bulwer Island), Brisbane",
+   "note": "Former BP Bulwer Island refinery (closed 2014-15), converted to an import terminal in July 2015; stores jet fuel, petrol and diesel; lease extended to 2061 with ~54 ML more storage planned by 2029.",
+   "source_urls": [
+    "https://www.australianterminals.com/wp-content/uploads/2023/12/Bulwer-Jet-Terminal-Community-Info-booklet.pdf",
+    "https://statements.qld.gov.au/statements/105046",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022ATO002"
+   ],
+   "coordinates_source": "Centre of OSM way 31046232 \"BP Oil terminal\". NPI \"Bulwer Jet Terminal\" (398 Tingira St) is ~110 m away; GA terminal point ~400 m.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Kirra Street Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "terminal/depot",
+   "lat": -27.41669,
+   "lng": 153.13567,
+   "locality": "Pinkenba, Brisbane",
+   "note": "Satellite storage of the Bulwer Jet Terminal at 4 Kirra St (bulk diesel tank plus wharf/pipeline links).",
+   "source_urls": [
+    "https://www.australianterminals.com/wp-content/uploads/2023/12/Bulwer-Jet-Terminal-Community-Info-booklet.pdf",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022ATO001"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates for \"Kirra Street Terminal\"; Nominatim puts Kirra Street centre at -27.41696,153.13659 (~100 m). Single coordinate source.",
+   "precision": "site"
+  },
+  {
+   "name": "Viva Energy Pinkenba Terminal",
+   "operator": "Viva Energy",
+   "kind": "import terminal",
+   "lat": -27.42047,
+   "lng": 153.12738,
+   "locality": "Pinkenba, Brisbane",
+   "note": "Riverside import/storage terminal (since 1958) for petrol, diesel and jet fuel, with a jet-fuel pipeline to Brisbane Airport and a large lubricants plant.",
+   "source_urls": [
+    "https://www.vivaenergy.com.au/operations/pinkenba-terminal",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022SHE017",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "Centre of OSM relation 11256049 \"Viva Energy Australia\". GA (Shell, 385 Eagle Farm Rd) within 40 m; NPI point ~200 m.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Whinstanes Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "terminal/depot",
+   "lat": -27.43499,
+   "lng": 153.08243,
+   "locality": "Eagle Farm (Whinstanes), Brisbane",
+   "note": "BP fuel storage and distribution terminal at 701 Kingsford Smith Dr.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022BPA004",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "Centre of OSM way 22774327 \"BP Whinstanes Terminal\"; GA and NPI points both within 20 m.",
+   "precision": "site"
+  },
+  {
+   "name": "Chevron Eagle Farm Terminal",
+   "operator": "Chevron Australia Downstream (Caltex; ex-Puma/Neumann)",
+   "kind": "import terminal",
+   "lat": -27.43585,
+   "lng": 153.07751,
+   "locality": "Eagle Farm, Brisbane",
+   "note": "Chevron's Brisbane fuel import terminal at 23 Theodore St, acquired with Puma Energy Australia in 2020.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022NEU005",
+    "https://australia.chevron.com/news/2020/puma-energy-acquisition",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "Centre of OSM way 22774374 \"Chevron Australia Downstream Eagle Farm Fuel Terminal\"; GA (Neumann) and NPI points within 60 m.",
+   "precision": "site"
+  },
+  {
+   "name": "Ampol Cairns Terminal",
+   "operator": "Ampol",
+   "kind": "import terminal",
+   "lat": -16.93414,
+   "lng": 145.77611,
+   "locality": "Portsmith, Cairns",
+   "note": "Ampol seaboard fuel terminal at 60-68 Draper St serving Far North Queensland.",
+   "source_urls": [
+    "https://www.ampol.com.au/business/our-locations/terminals",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022CAL027",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "GA Liquid_Fuel_Terminals point (Caltex, 60 Draper St, spatial confidence 5), matching Ampol's listed address and an OSM storage-tank cluster. NPI point (13-25 Kenny St) is ~340 m away.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Cairns Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "import terminal",
+   "lat": -16.93113,
+   "lng": 145.77657,
+   "locality": "Portsmith, Cairns",
+   "note": "BP seaboard fuel terminal on Kenny St.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022MOB029",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates (\"Cairns Terminal\", 33 Kenny St). GA BP point (11-33 Kenny St) is ~160 m away; both sit on the OSM tank farm.",
+   "precision": "site"
+  },
+  {
+   "name": "Viva Energy Cairns Terminal",
+   "operator": "Viva Energy",
+   "kind": "import terminal",
+   "lat": -16.93091,
+   "lng": 145.77413,
+   "locality": "Portsmith, Cairns",
+   "note": "Viva Energy seaboard fuel terminal at the corner of Kenny and Draper Sts.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022SHE004",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; GA (Shell, 52-56 Kenny St) within 25 m; OSM storage tanks present at the site.",
+   "precision": "site"
+  },
+  {
+   "name": "Viva Energy Townsville Terminal",
+   "operator": "Viva Energy",
+   "kind": "import terminal",
+   "lat": -19.25574,
+   "lng": 146.83212,
+   "locality": "South Townsville (Port of Townsville)",
+   "note": "Viva Energy seaboard fuel terminal on Hubert St.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022SHE023",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates. GA (Shell, Hubert St) is ~220 m east; several terminals adjoin here, so allow ~300 m.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Townsville Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "import terminal",
+   "lat": -19.25734,
+   "lng": 146.8317,
+   "locality": "South Townsville (Port of Townsville)",
+   "note": "BP seaboard fuel terminal at 94 Hubert St.",
+   "source_urls": [
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022BPA003"
+   ],
+   "coordinates_source": "GA Liquid_Fuel_Terminals point (94 Hubert St, spatial confidence 5, revised 2020), on an OSM storage-tank cluster. The NPI point falls on the Hubert St road ~480 m south, so it was not used.",
+   "precision": "site"
+  },
+  {
+   "name": "Chevron Townsville Port Bulk Fuel Facility",
+   "operator": "Chevron Australia Downstream (ex-Puma)",
+   "kind": "import terminal",
+   "lat": -19.25444,
+   "lng": 146.83519,
+   "locality": "South Townsville (Port of Townsville)",
+   "note": "Ex-Puma import terminal, opened about 2015, at 125 Hubert St; two sites linked by pipelines (expanded 2024).",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022QNI001",
+    "https://www.tfa.com.au/projects/chevron-port-of-townsville-new-fuel-pipelines/"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; lies within the OSM storage-tank cluster east of Hubert St. Single coordinate source.",
+   "precision": "site"
+  },
+  {
+   "name": "Ampol Mackay Terminal",
+   "operator": "Ampol",
+   "kind": "import terminal",
+   "lat": -21.10984,
+   "lng": 149.22054,
+   "locality": "Mackay Harbour",
+   "note": "Ampol seaboard fuel terminal on Harbour Rd / Hamilton Dr, Mackay outer harbour.",
+   "source_urls": [
+    "https://www.ampol.com.au/business/our-locations/terminals",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022CAL030",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; GA (Caltex, Harbour Rd) within 25 m.",
+   "precision": "site"
+  },
+  {
+   "name": "Viva Energy Mackay Terminal",
+   "operator": "Viva Energy",
+   "kind": "import terminal",
+   "lat": -21.11103,
+   "lng": 149.22047,
+   "locality": "Mackay Harbour",
+   "note": "Viva Energy seaboard fuel terminal on Hamilton Dr.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022SHE013",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; GA (Shell, Hamilton Dr) within 25 m.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Mackay Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "import terminal",
+   "lat": -21.11399,
+   "lng": 149.21863,
+   "locality": "Mackay Harbour",
+   "note": "BP seaboard fuel terminal on Graeme Heggie St.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022BPA002",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates (Graeme Heggie St). GA BP point on the same street is ~240 m away.",
+   "precision": "site"
+  },
+  {
+   "name": "Chevron Mackay Terminal",
+   "operator": "Chevron Australia Downstream (ex-Puma)",
+   "kind": "import terminal",
+   "lat": -21.10133,
+   "lng": 149.2176,
+   "locality": "Mackay Harbour",
+   "note": "Ex-Puma fuel import terminal at 115 Spiller Ave, opened by Puma about 2014-15.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022NEU007"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; Nominatim reverse places it at Edmund Casey Dr / Spiller Ave, Mackay Harbour. Single source; OSM has no tanks mapped here.",
+   "precision": "site",
+   "uncertain": "United Petroleum says it recently bought \"our Mackay Import Terminal\"; it is not confirmed whether that is this site or the former BB Energy (Pioneer Energy) diesel terminal."
+  },
+  {
+   "name": "United Petroleum Mackay Terminal",
+   "operator": "United Petroleum",
+   "kind": "import terminal",
+   "lat": -21.10638,
+   "lng": 149.21948,
+   "locality": "Mackay Harbour",
+   "note": "Recently acquired 78 ML import terminal with dual ship pipelines and ethanol-blend capability (probably the former BB Energy/Pioneer Energy 3 x 25 ML diesel terminal).",
+   "source_urls": [
+    "https://www.unitedpetroleum.com.au/operations/",
+    "https://www.bbenergy.com/newsroom/news/bb-energy-acquires-australian-oil-terminal-pioneer-energy/"
+   ],
+   "coordinates_source": "Site not located. Coordinates are the centre of OSM way 177802443 \"Port of Mackay\" (port precinct), used as a placeholder.",
+   "precision": "suburb",
+   "uncertain": "Exact site and previous owner are unconfirmed; it may be the same facility as the Chevron Mackay Terminal."
+  },
+  {
+   "name": "Ampol Gladstone Terminal",
+   "operator": "Ampol",
+   "kind": "import terminal",
+   "lat": -23.83571,
+   "lng": 151.2566,
+   "locality": "Gladstone (Barney Point / Port Central)",
+   "note": "Ampol seaboard fuel terminal on Strokarck St serving Central Queensland.",
+   "source_urls": [
+    "https://www.ampol.com.au/business/our-locations/terminals",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022CAL028",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; GA (Caltex) ~55 m; Strokarck St (Nominatim) and an OSM tank cluster adjoin.",
+   "precision": "site"
+  },
+  {
+   "name": "BP Gladstone Terminal",
+   "operator": "BP (operated by ATOM)",
+   "kind": "import terminal",
+   "lat": -23.83692,
+   "lng": 151.25784,
+   "locality": "Gladstone (Barney Point / Port Central)",
+   "note": "BP seaboard fuel terminal on McLintock St.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022BPA001",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "NPI 2024/25 reported coordinates; GA (12 McLintock St) within 95 m; OSM storage tanks present.",
+   "precision": "site"
+  },
+  {
+   "name": "Port Alma Bulk Fuel Terminal",
+   "operator": "Unconfirmed (sold by Stolthaven to an undisclosed private buyer in 2022)",
+   "kind": "import terminal",
+   "lat": -23.5872,
+   "lng": 150.85925,
+   "locality": "Port Alma (Port of Rockhampton)",
+   "note": "Bulk liquids terminal at Port Alma (berth PA3 handles fuel and tallow); United Petroleum publishes a diesel terminal gate price for Port Alma.",
+   "source_urls": [
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer",
+    "https://gpcl.com.au/ports-and-trade/port-of-rockhampton/",
+    "https://www.stolt-nielsen.com/news-insights/news/stolthaven-terminals-completes-sale-of-port-alma-terminal-australia/",
+    "https://www.unitedpetroleum.com.au/terminal-gate-pricing-tgp/"
+   ],
+   "coordinates_source": "GA Liquid_Fuel_Terminals point (Stolthaven, Port Alma Rd, spatial confidence 5, revised 2012). Nominatim reverse confirms Port Alma Rd. Not cross-checked against OSM tanks (none mapped).",
+   "precision": "site",
+   "uncertain": "Current operator is unknown and the GA record dates from 2012."
+  },
+  {
+   "name": "Weipa Fuel Terminal",
+   "operator": "Viva Energy (for Rio Tinto)",
+   "kind": "import terminal",
+   "lat": -12.66309,
+   "lng": 141.84702,
+   "locality": "Evans Landing, Weipa",
+   "note": "Seaboard fuel terminal supplying Rio Tinto's Weipa bauxite operations and western Cape York; Viva Energy publishes a Weipa terminal gate price.",
+   "source_urls": [
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q022SHE024",
+    "https://www.vivaenergy.com.au/quick-links/terminal-gate-pricing",
+    "https://services.ga.gov.au/gis/rest/services/Liquid_Fuel_Facilities/MapServer"
+   ],
+   "coordinates_source": "Centroid of 5 OSM storage-tank ways on Kerr Point Dr (Overpass). NPI (2 Toots Holzheimer Rd) is ~500 m NE and GA (BP-era, low confidence 2) is ~100 m W.",
+   "precision": "site"
+  },
+  {
+   "name": "IOR Eromanga Refinery",
+   "operator": "IOR",
+   "kind": "refinery",
+   "lat": -26.66757,
+   "lng": 143.27335,
+   "locality": "Eromanga (south-west Queensland)",
+   "note": "Small inland refinery that turns local Cooper/Eromanga Basin crude into diesel and other products for western Queensland.",
+   "source_urls": [
+    "https://www.ior.com.au/fuel-solutions/supply-trading/terminals/",
+    "http://www.npi.gov.au/npidata/action/load/individual-facility-detail/criteria/state/QLD/year/2025/jurisdiction-facility/Q013IOR001"
+   ],
+   "coordinates_source": "Centre of OSM way 98116772 \"IOR Petroleum Oil Refinery\"; NPI point (Webber St) within 70 m.",
+   "precision": "site"
+  }
+ ]
+}

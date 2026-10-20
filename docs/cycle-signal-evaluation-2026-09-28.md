@@ -131,3 +131,18 @@ hi20 = held.ge(med + 20, axis=0).sum(axis=1) / held.notna().sum(axis=1)
    term needs vintages recorded at the time, not today's revised files.
 3. **Watch hi20 for a returning cycle.** If restorations resume, fit P(restoration
    within h | hi20) and test it as a jump term on top of the damped trend.
+
+## Addendum, 1 October 2026: backfill loaded and selection rule changed
+
+The official reports are now in `fuel_data.db`, so `build_forecast` runs over 587 reported
+days plus collected days. With them, the original rule (lowest error over the whole selection
+period) chose `analog`, the worst model on held-out dates (8.65 c/L vs 4.64 for persistence).
+The rule now selects on the most recent 90 selection origins and keeps persistence unless a
+model beats it there; it chooses `damped_trend` (held-out 4.25 c/L).
+
+This change was made **after** seeing the held-out results above, so those results are not
+clean evidence for it. The forward test (`forward_predictions`, graded on collected days only)
+is the evaluation that counts.
+
+Backtest errors are now cached per origin, keyed by a fingerprint of the series up to that
+origin's last target: a dashboard rebuild with the backfill went from ~4 s to ~0.2 s.

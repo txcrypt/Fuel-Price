@@ -80,6 +80,14 @@ Added 28 September 2026. None of these enters a forecast, a buying recommendatio
 | [RainViewer](https://www.rainviewer.com/api.html) | 🌧 optional radar overlay | Browser fetch, no key. Free tiles stop at zoom 7 and are scaled up; frame refreshed every ten minutes while on. |
 | [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/) | Place search on Enter | Browser request only when Enter is pressed, limited to Australia. The typed text is sent to OpenStreetMap. |
 
+| [aisstream.io](https://aisstream.io) AIS | 🛳 live tankers and 🚢 other ships on the map; live tankers in Fuel security | Free key `AISSTREAM_API_KEY`. One server-side WebSocket for the Queensland coast (stdlib client, `ships.py`); vessel identities saved to `.local/ships` so tankers stay labelled across restarts; ships unheard for 3 h dropped. Coverage is patchy offshore. AIS ETA carries no year. Type 84 is mostly LNG/gas carriers. |
+| [Maritime Safety Queensland Qships](https://qships.tmr.qld.gov.au/webx/) | Tanker arrivals due in 7 days and tankers at berth (Fuel security) | Keyless JSON behind the public page; undocumented, so it fails soft. Refreshed in the background every 30 min. |
+| [Australian Petroleum Statistics](https://www.energy.gov.au/topics/energy-data/australian-petroleum-statistics) (DCCEEW) | Fuel security: month-end stocks and days of cover, IEA days, imports by product and country, refining, national and QLD sales | Monthly xlsx, ~2-month lag, CC BY 4.0. Newest file found by scraping the yearly page; checked twice a day. |
+| [MSO weekly snapshot](https://www.dcceew.gov.au/energy/security/australias-fuel-security/minimum-stockholding-obligation/statistics) (DCCEEW) | Fuel security: stock held vs the legal minimum, weekly | xlsx overwritten weekly (Tuesday stock, Saturday publication); DCCEEW calls it temporary. |
+| [Port of Brisbane trade statistics](https://www.portbris.com.au/operations-and-trade/trade-development) | Fuel security: crude and refined fuel imports, tonnes | Monthly xlsx, ~1-month lag. Tonnes to ML uses ~0.8 t/kL, an approximation. |
+
+No public source reports Queensland fuel stocks or days of cover; the page says so rather than apportioning national stock.
+
 Checked and not connected: OpenStreetMap Overpass for EV chargers (HTTP 406/504 from the public servers at the time).
 
 Also derived from data already collected: the **price-jump signal** (share of stations 20 c/L or more above the median, see `docs/cycle-signal-evaluation-2026-09-28.md`), **per-grade medians** (diesel, E10, P95, P98) from the full API capture over the analysis area, and **price flags**: `stale` when a station's last report is over 30 days old, `suspect` when a fresh price is more than 60 c/L below the statewide median (below wholesale cost, so almost certainly an entry error). Flagged prices are marked and ranked last in lowest-price lists.

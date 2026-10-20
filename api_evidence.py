@@ -81,6 +81,31 @@ class ApiEvidence:
                        for fuel, values in by_fuel.items()), key=lambda g: -g['stations'])
 
     def payload(self):
+        """Parsed capture, rebuilt only when the capture file changes (it is ~2 MB of JSON per request)."""
+        key = self.path.stat().st_mtime_ns if self.path.exists() else None
+        if getattr(self, '_cached', (object(), None))[0] != key:
+            self._cached = (key, self._build())
+        return self._cached[1]
+
+    def summary(self):
+        """What the Sources panel draws, without every site's raw record: brand ranking and U91 exceptions."""
+        full = self.payload()
+        brands = {}
+        for s in full['sites']:
+            price = next((p['price_cpl'] for p in s['fuels'] if p['fuel_id'] == 2 and p['status'] == 'available'), None)
+            if price is not None:
+                brands.setdefault(s['brand'], []).append(price)
+        ranking = sorted(({'name': name, 'count': len(v), 'median': round(float(pd.Series(v).median()), 1), 'min': min(v)}
+                          for name, v in brands.items()), key=lambda b: b['median'])
+        exceptions = [{'site_id': s['site_id'], 'name': s['name'], 'suburb': s['suburb'], 'status': s['u91_status'],
+                       'reported_at': next((p['reported_at'] for p in s['fuels'] if p['fuel_id'] == 2), None)}
+                      for s in full['sites'] if s['u91_status'] != 'available']
+        return {**{k: v for k, v in full.items() if k != 'sites'}, 'brands': ranking, 'exceptions': exceptions}
+
+    def site(self, site_id):
+        return next((s for s in self.payload()['sites'] if s['site_id'] == str(site_id)), None)
+
+    def _build(self):
         raw = read_json(self.path)
         if not raw:
             return {'status':'awaiting_capture', 'sites':[], 'coverage':{}, 'references':{}, 'fields':{}}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Brisbane Fuel dashboard and collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# setup-vm.sh rewrites User and the paths for the account and folder it runs from.
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Fuel-Price
+ExecStart=/home/ubuntu/Fuel-Price/.venv/bin/python -m uvicorn fuel_dashboard:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

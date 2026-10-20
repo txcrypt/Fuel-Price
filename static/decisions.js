@@ -236,15 +236,19 @@
       <p class="quiet">Last price report: ${escape(reported)}. A price can remain unchanged for days. ${dashboard.health.fresh ? 'Snapshot is fresh.' : 'Snapshot is stale; refresh before acting.'}</p>
       <button type="button" class="secondary" id="favourite-toggle">${favourites.has(selectedId) ? '★ Remove favourite' : '☆ Save favourite'}</button>
       <a class="primary map-plan-link" href="#buying-plan">Plan using this price ↓</a>
-      <a class="text-link" href="https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}&travelmode=driving" target="_blank" rel="noopener">Open directions in Google Maps ↗</a>`;
+      <a class="text-link" href="https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}&travelmode=driving" target="_blank" rel="noopener">Open directions in Google Maps ↗</a>
+      <div class="station-history" id="station-history"></div>`;
+    window.FuelInsights?.history(byId('station-history'), selectedId);
     byId('favourite-toggle').addEventListener('click', () => {
       if (favourites.has(selectedId)) favourites.delete(selectedId); else favourites.add(selectedId);
       save('fuel.favourites', [...favourites]);
+      document.dispatchEvent(new CustomEvent('fuel:favourites'));   // the watchlist (insights.js) follows
       renderSelected(); drawStations();
     });
   }
 
   function selectStation(id, moveMap = true) {
+    window.FuelArea?.show('station');
     selectedId = String(id);
     const station = dashboard.stations.find(s => String(s.site_id) === selectedId);
     if (!station) return;
@@ -381,6 +385,7 @@
   }
   initialiseMap();
   window.FuelDecisions = {
+    select: id => selectStation(id),
     update(payload) {
       dashboard = payload;
       const newVersion = `${payload.latest}:${payload.health.fresh}`;

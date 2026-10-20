@@ -23,6 +23,30 @@ MODELS = {'persistence': 'Today’s price', 'damped_trend': 'Damped 7-day trend'
 # dashboard build. Lower it, or cache the error matrix by series hash, if that hurts.
 MAX_ORIGINS = 400         # Bounds backtest cost; the most recent origins are kept.
 RECENT_WINDOW_DAYS = 90   # Recent-regime slice, measured on held-out origins only.
+SELECTION_RECENT = 90     # Selection origins (most recent first) a model must win on to be chosen.
+_ERRORS = {}              # (model, origin, history fingerprint) -> 7 absolute errors; see _origin_errors
+
+
+def _prefix_hashes(series):
+    """Fingerprint of the series up to each date: a past forecast's errors depend only on that prefix."""
+    out, running = {}, 0
+    for day, value in series.items():
+        running = hash((running, day, round(float(value), 3)))
+        out[day] = running
+    return out
+
+
+def _origin_errors(series, prefix, origin, model):
+    """Backtest errors for one origin, reused until any day up to its last target changes. Rebuilding
+    them all cost ~4 s per dashboard build once the 600-day official history is loaded."""
+    end = origin + pd.Timedelta(days=7)
+    key = (model, origin, prefix.get(end))
+    if key not in _ERRORS:
+        if len(_ERRORS) > 50000:
+            _ERRORS.clear()
+        _ERRORS[key] = [abs(predict(series, origin, h, model) - float(series.loc[origin + pd.Timedelta(days=h)]))
+                        for h in range(1, 8)]
+    return _ERRORS[key]
 BAND_QUANTILE = .8
 
 
@@ -106,15 +130,21 @@ def build_forecast(daily, today=None, reported=None):
     stale = (today - anchor).days > 1
     origins = [date for date in series.index[6:-7] if
                series.reindex(pd.date_range(date - pd.Timedelta(days=6), date + pd.Timedelta(days=7))).notna().all()][-MAX_ORIGINS:]
-    errors = {model: np.array([[abs(predict(series, origin, h, model) - float(series.loc[origin + pd.Timedelta(days=h)]))
-                                for h in range(1, 8)] for origin in origins]).reshape(len(origins), 7)
+    prefix = _prefix_hashes(series)
+    errors = {model: np.array([_origin_errors(series, prefix, origin, model) for origin in origins]).reshape(len(origins), 7)
               for model in MODELS}
     split = int(len(origins) * 0.65)
     # Purge overlapping target windows between selection and held-out evaluation.
     validation_indices = [i for i in range(split, len(origins))
                           if split and origins[i] > origins[split - 1] + pd.Timedelta(days=7)]
     enough = split >= 12 and len(validation_indices) >= 8
-    chosen = min(MODELS, key=lambda m: errors[m][:split].mean()) if enough else 'persistence'
+    # Select on the most recent selection origins, and keep persistence unless a model beats it there.
+    # Prices change regime (2025's retail cycle, 2026's cost-driven moves): the whole selection period
+    # favoured 'analog', the worst model on later dates. Chosen 2026-09-29 after that was seen, so
+    # the held-out score is not clean evidence for this rule; the forward test is.
+    recent = slice(max(0, split - SELECTION_RECENT), split)
+    best = min(MODELS, key=lambda m: errors[m][recent].mean()) if enough else 'persistence'
+    chosen = best if enough and errors[best][recent].mean() < errors['persistence'][recent].mean() else 'persistence'
     scores = []
     for model, label in MODELS.items():
         # Band coverage is out of sample: radius fitted on the selection period,

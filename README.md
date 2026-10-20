@@ -22,6 +22,48 @@ The background server started during setup can be stopped with `./stop-local.ps1
 Use `start-local.ps1 -Port 8001` if another application occupies port 8000.
 Run only one collector against these files.
 
+### Use it from your phone, anywhere
+
+Keep the server bound to this computer and reach it privately through
+[Tailscale](https://tailscale.com) (free for personal use). Nothing is exposed to the
+public internet, and `tailscale serve` adds a real HTTPS certificate, which iPhone
+Safari requires before it allows **Use my location**.
+
+1. Install Tailscale on this computer and on the iPhone; sign in to the same account on both.
+2. On this computer, with the dashboard running: `tailscale serve --bg 8000`
+3. On the iPhone, open the `https://<computer-name>.<tailnet>.ts.net` address it prints,
+   then Share → **Add to Home Screen**. It opens full screen on the buying planner.
+
+Collection still needs this computer on and awake. For an always-on server instead,
+run it on a free cloud VM (below). Do not publish it openly: it has no login, and the
+Queensland fuel API's terms should be checked before its data is shared.
+
+### Always on: Oracle Cloud Always Free VM
+
+1. Create an Oracle Cloud account with home region **Australia East (Sydney)**. Create an
+   instance: Ubuntu 24.04, shape `VM.Standard.A1.Flex` (1–2 OCPU, 6–12 GB; Always Free),
+   or `VM.Standard.E2.1.Micro` if ARM capacity is unavailable. Save the SSH private key.
+2. On the VM: `git clone https://github.com/txcrypt/Fuel-Price.git` (sign in with
+   `gh auth login` first if the repository is private).
+3. From this folder on the computer, copy the secrets and the latest recorded data
+   (`fuel_data.db` is too large to push to GitHub):
+   ```powershell
+   scp -i <key> .env fuel_data.db brisbane_fuel_history_clean.csv brisbane_fuel_live_collection.csv live_snapshot.csv station_metadata.csv station_profiles.csv station_ratings.csv ubuntu@<vm-ip>:~/Fuel-Price/
+   ```
+4. On the VM: `bash ~/Fuel-Price/deploy/setup-vm.sh`. It installs Python packages and
+   Tailscale, runs the dashboard as the `fuel-dashboard` systemd service (restarts on crash
+   and reboot), and serves it over HTTPS on your tailnet. Open the login link it prints.
+5. Stop the collector on this computer (`./stop-local.ps1`); run only one.
+6. On the iPhone (Tailscale signed in): open `https://<vm-name>.<tailnet>.ts.net`, then
+   Share → **Add to Home Screen**.
+
+Logs: `journalctl -u fuel-dashboard -f`. After `git pull`, `sudo systemctl restart fuel-dashboard`.
+If `tailscale serve` says HTTPS is off, enable MagicDNS and HTTPS certificates in the Tailscale
+admin console (DNS page) and re-run it.
+
+On phones, one finger scrolls the page and two fingers move the map; **⤢** opens a
+full-screen map with normal one-finger dragging.
+
 For a fresh installation (Python 3.11+):
 
 ```powershell
@@ -170,6 +212,28 @@ Both maps: pinch or Ctrl+scroll to zoom (plain scrolling still scrolls the page)
 press Enter in a map search box to jump to an Australian place; the top-right menu
 switches between stations, 📷 road cameras (shown from street zoom, or all of them in
 *Cameras only*), 🔥 bushfire incidents and 🌧 rain radar.
+
+**Layers** (map menu): bushfires, rain radar, 🌡 price heat (cyan cheaper, red dearer than the
+rest of the view), ⚡ EV chargers (needs a free `OCM_API_KEY` from openchargemap.org in
+`.env`) and 🛢 fuel supply sites. The observatory map also has a **price-jump replay** that
+steps through how a past jump spread across Brisbane stations, day by day.
+
+**Insights** (both pages): today's U91 median, cheapest station and diesel for every
+Queensland city with five or more stations, the weekday pattern (Brisbane currently has
+none worth timing a fill-up by) and the hours stations raise prices. Selecting a station
+on the planner shows its price history against its city and how often it was among the
+cheapest quarter. Saved favourites appear in a **watchlist** with the change since the
+previous day.
+
+**Phone alerts** (planner): push notifications through the free ntfy app when a price jump
+starts building, or a favourite reaches your target price. Checked after every collection,
+so they work with no browser open. Off until you save a topic.
+
+**History.** The official Queensland reports for the Brisbane area (Jan 2025 onwards) are
+loaded into `fuel_data.db` (`python -m qld_history_import --years 2025 2026`), so charts,
+backtests and the replay cover about 20 months. The forecast is chosen on the most recent
+90 selection days and must beat today's price there; over the whole period the old rule
+picked the model that did worst on later dates.
 
 **Forward test.** Every forecasting method's seven-day path is saved daily
 (`forward_predictions` table) and graded only against days this app collected.

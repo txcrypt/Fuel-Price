@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="manifest" href="/static/manifest.json"><link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Fuel">
   <meta name="theme-color" content="#090e15"><title>Buying workspace / Fuel Observatory</title>
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/observatory.css">
@@ -10,9 +13,10 @@
   <link rel="stylesheet" href="/static/traffic.css">
   <script src="/static/vendor/leaflet/leaflet.js" defer></script>
   <script src="/static/map-extras.js" defer></script><script src="/static/device-location.js" defer></script><script src="/static/road-routing.js" defer></script><script src="/static/traffic.js" defer></script>
-  <script src="/static/decisions.js" defer></script><script src="/static/news.js" defer></script><script src="/static/brief.js" defer></script><script src="/static/app.js" defer></script>
+  <script src="/static/decisions.js" defer></script><script src="/static/news.js" defer></script><script src="/static/brief.js" defer></script><script src="/static/area.js" defer></script><script src="/static/insights.js" defer></script><script src="/static/fuel-security.js" defer></script><script src="/static/alerts.js" defer></script><script src="/static/collapse.js" defer></script><script src="/static/app.js" defer></script>
 </head>
 <body>
+<script src="/static/boot.js"></script>
 <header class="masthead"><a class="identity" href="/"><span class="sigil">⌖</span><span>FUEL OBSERVATORY<small>BUYING WORKSPACE / BRISBANE / U91</small></span></a><div class="header-tools"><span id="connection" class="tag">CONNECTING</span><button id="refresh" type="button"><span aria-hidden="true">↻</span> Refresh prices</button><a href="/" class="button">Live field ↗</a></div></header>
 <nav class="nav" aria-label="Buying workspace sections"><a href="#overview" class="active">01 Market</a><a href="#station-map">02 Station field</a><a href="#buying-plan">03 Buying plan</a><a href="#detour-check">04 Detour economics</a><a href="#history">05 Price history</a><a href="#collection">06 Collection</a><a href="#ledger">07 Station ledger</a><a href="#models">08 Forecast method</a></nav>
 <main id="overview">
