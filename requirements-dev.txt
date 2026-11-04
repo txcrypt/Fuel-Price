@@ -1,2 +1,6 @@
 -r requirements.txt
 httpx>=0.28,<1
+scipy>=1.18,<2
+scikit-learn>=1.9,<2
+matplotlib>=3.11,<4
+pypdf>=6,<7
