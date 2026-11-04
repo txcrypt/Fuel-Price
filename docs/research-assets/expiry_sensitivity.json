@@ -1,0 +1,30 @@
+[
+  {
+    "expiry_days": 7,
+    "median_stations": 448.0,
+    "days_median_diff_gt_1cpl": 74,
+    "mean_absolute_median_diff_cpl": 0.7658445440956657,
+    "max_absolute_median_diff_cpl": 37.5
+  },
+  {
+    "expiry_days": 14,
+    "median_stations": 486.0,
+    "days_median_diff_gt_1cpl": 0,
+    "mean_absolute_median_diff_cpl": 0.0,
+    "max_absolute_median_diff_cpl": 0.0
+  },
+  {
+    "expiry_days": 30,
+    "median_stations": 496.0,
+    "days_median_diff_gt_1cpl": 32,
+    "mean_absolute_median_diff_cpl": 0.27862481315396115,
+    "max_absolute_median_diff_cpl": 17.0
+  },
+  {
+    "expiry_days": null,
+    "median_stations": 500.0,
+    "days_median_diff_gt_1cpl": 35,
+    "mean_absolute_median_diff_cpl": 0.3210762331838566,
+    "max_absolute_median_diff_cpl": 19.0
+  }
+]

@@ -1,0 +1,13 @@
+period,horizon,model,n,events,brier,average_probability
+development,1,historical_frequency,517,0,0.0,0.0
+development,1,ridge_panel_risk,517,0,0.0,0.0
+development,7,historical_frequency,505,138,0.21354303723610535,0.2302712333442849
+development,7,ridge_panel_risk,505,138,0.1718733961961794,0.28729195365698
+embargo,1,historical_frequency,1,0,0.0,0.0
+embargo,1,ridge_panel_risk,1,0,0.0,0.0
+embargo,7,historical_frequency,7,0,0.06835209002324402,0.26144050935137286
+embargo,7,ridge_panel_risk,7,0,0.07288341511266298,0.20897517303894042
+fresh_temporal,1,historical_frequency,32,0,0.0,0.0
+fresh_temporal,1,ridge_panel_risk,32,0,0.0,0.0
+fresh_temporal,7,historical_frequency,26,0,0.06563896450691245,0.2560531390614956
+fresh_temporal,7,ridge_panel_risk,26,0,0.01956501529250924,0.1169219315914966

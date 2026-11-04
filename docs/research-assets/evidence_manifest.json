@@ -1,0 +1,172 @@
+[
+  {
+    "file": "audit.json",
+    "sha256": "0cf1f1d638efa00d24c7cca41e1829aaba57bd6b7d24ac675b223ea816ce544c",
+    "bytes": 13838
+  },
+  {
+    "file": "expiry_sensitivity.json",
+    "sha256": "2969df983d816b8f49c6f96620e5eff9917aff845777b44d6d16698fc2189f38",
+    "bytes": 800
+  },
+  {
+    "file": "upstream_manifest.json",
+    "sha256": "790b8411f348a08dac5d69274b3be9751e4ce895a5a96bafb9a229909649bab0",
+    "bytes": 1867
+  },
+  {
+    "file": "upstream_lag_correlations.csv",
+    "sha256": "f02b96b1da38dcd8a7dde984046cc089dfda2358a612bd25c003697ef55def5d",
+    "bytes": 22992
+  },
+  {
+    "file": "upstream_lag_notes.json",
+    "sha256": "718a2d075df7d07907959da150cf2f85fb5a059efdf499067c25e91442cf938e",
+    "bytes": 566
+  },
+  {
+    "file": "forward_scoreboard.csv",
+    "sha256": "66fca140b178f753ce7bc838f837bb8cd7bcede2aac2910e361833f4ade952a2",
+    "bytes": 2160
+  },
+  {
+    "file": "research_versions.json",
+    "sha256": "f3cc08f094e1a2af5027ef26fc968d3d845b4bea137a0c0389dbbe97b58dcf5d",
+    "bytes": 172
+  },
+  {
+    "file": "excise_metrics.csv",
+    "sha256": "6d8a67f5003eb71522f906d6a46b81e3c1550ae2064cd4e64b47b99066113ff0",
+    "bytes": 1013
+  },
+  {
+    "file": "excise_schedule.json",
+    "sha256": "493900a2b6e10e85b6cadc03292ff62bbc6bf11421f687684177e6e2fb82f10b",
+    "bytes": 1033
+  },
+  {
+    "file": "models-final_metrics.csv",
+    "sha256": "5352a21a4d65d6b3ab77bc63880eb6aea1cb7f464166ae15c66c892af8619633",
+    "bytes": 18350
+  },
+  {
+    "file": "models-final_regime_metrics.csv",
+    "sha256": "01c5cbc5c06e8e64c8d6ee102f5e1b3fe15e3115da5634007b112af1146bea98",
+    "bytes": 15368
+  },
+  {
+    "file": "models-final_development_selection.csv",
+    "sha256": "29b256bc9ed8d999866e02db2ebca5bfe705ce0c9fa6b26a449ff7665b2931b4",
+    "bytes": 272
+  },
+  {
+    "file": "models-final_risk_metrics.csv",
+    "sha256": "4201e1de84d16ff29a0874f391c6019a28442ba75f5353ce0e97d31715c6a441",
+    "bytes": 1967
+  },
+  {
+    "file": "models-final_manifest.json",
+    "sha256": "102845edc5c34319427c8b9122f4f1acab8b26217b23002af9c0888afb4bf08f",
+    "bytes": 1525
+  },
+  {
+    "file": "models-mean_metrics.csv",
+    "sha256": "7d87e7c0fa1527406ab1dbddae6773e39f2139838368ec5e46a11a198ff4a316",
+    "bytes": 9308
+  },
+  {
+    "file": "models-mean_regime_metrics.csv",
+    "sha256": "30351279b13bdd8884e87efe2adaf71f121307122fed866bbdeb22c235e2afcc",
+    "bytes": 7733
+  },
+  {
+    "file": "models-mean_development_selection.csv",
+    "sha256": "7eb1dfe6e29ce793c701bc8f8c70c5b0fdfd2dde454a8dd8e2454706b5df8380",
+    "bytes": 164
+  },
+  {
+    "file": "models-mean_risk_metrics.csv",
+    "sha256": "2be1c2af83facfda1decae111572a80813129c70321f784eaadd514f8ae99216",
+    "bytes": 806
+  },
+  {
+    "file": "models-mean_manifest.json",
+    "sha256": "6b8791918572e731ea2bc35c83d2f6034e50b15d29f3127edbe7dc11ba7214ef",
+    "bytes": 1505
+  },
+  {
+    "file": "models-fixed-cohort_metrics.csv",
+    "sha256": "ffc5ecd9b2eccc2c9048a1f7eb924ce9b4d17b1812e4d54c799898de8ca18417",
+    "bytes": 8662
+  },
+  {
+    "file": "models-fixed-cohort_regime_metrics.csv",
+    "sha256": "56d1ae22edac92d1ce794805b66853f7d95ffc465967f7fe4e83325f5703015f",
+    "bytes": 7332
+  },
+  {
+    "file": "models-fixed-cohort_development_selection.csv",
+    "sha256": "9d979da8937e00f67e35dd7d66416ba6b6b6b0e29aa74a9ec68650a7a5a51058",
+    "bytes": 148
+  },
+  {
+    "file": "models-fixed-cohort_risk_metrics.csv",
+    "sha256": "c7010cd81df925a77e5850ac2928e1c925ee6d545c912bdbdefac1bba06dee71",
+    "bytes": 980
+  },
+  {
+    "file": "models-fixed-cohort_manifest.json",
+    "sha256": "7170533ea0927d5e9601be1dd021fc270f6fb645c04b71e7a777e468a05c9bf5",
+    "bytes": 1520
+  },
+  {
+    "file": "models-7day_metrics.csv",
+    "sha256": "11de28c4fcff5569055e5042ddb49c0b450f639885b449791f0c31b01e04ab50",
+    "bytes": 7754
+  },
+  {
+    "file": "models-7day_regime_metrics.csv",
+    "sha256": "f189c6f473a3469d11e0d121a8f78a2104ac1a5f709e5e1b0b4a9f8925c14507",
+    "bytes": 6654
+  },
+  {
+    "file": "models-7day_development_selection.csv",
+    "sha256": "9bb76c9a56b832d904bb9eac65c91059a3414ab7b9f51aaec7abd087158159d5",
+    "bytes": 149
+  },
+  {
+    "file": "models-7day_risk_metrics.csv",
+    "sha256": "1dd0f7afb15d8b70f3424fff68427c0dccd8ace5874194e23ce1dce2aa0281c5",
+    "bytes": 1010
+  },
+  {
+    "file": "models-7day_manifest.json",
+    "sha256": "7a3ed5c6c857eadd0c024b9233a4d5566a4ab360851e6778b766c9e361fd5ea6",
+    "bytes": 1315
+  },
+  {
+    "file": "models-30day_metrics.csv",
+    "sha256": "032d9cdb2067046057bf91a33761bf1f8a278850f178fa795773b0a934b9a243",
+    "bytes": 7774
+  },
+  {
+    "file": "models-30day_regime_metrics.csv",
+    "sha256": "b8a8bc596de90f4e8e0a756d3728bb567d252d0be54d076f793ae9c22e1ae06b",
+    "bytes": 6693
+  },
+  {
+    "file": "models-30day_development_selection.csv",
+    "sha256": "e2fdc3bb539dbce45af43ef60353e4455e142fc9df0a88bd042778b8dfad071b",
+    "bytes": 149
+  },
+  {
+    "file": "models-30day_risk_metrics.csv",
+    "sha256": "9f8aceb05b5be56fbe0aef6322578d8d27d531eb3b5a4daf004052dc881d8f24",
+    "bytes": 1016
+  },
+  {
+    "file": "models-30day_manifest.json",
+    "sha256": "5da1db5b99814135745f533a68c6b03fda7266d023ace2b956ef31858da68956",
+    "bytes": 1316
+  }
+]

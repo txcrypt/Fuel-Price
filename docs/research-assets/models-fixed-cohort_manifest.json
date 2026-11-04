@@ -1,0 +1,46 @@
+{
+  "input": "C:\\Users\\sarke\\OneDrive\\Documents\\GitHub\\Fuel-Price\\.local\\research-2026-11-04\\daily_reported_fixed_cohort.csv",
+  "input_sha256": "5bd5b6a33eb3fbfc5f5c8a699054a4f9ada975fe6ed16f43c7ba76fd48a8e3b5",
+  "target": "Brisbane U91 equal-weight station median, c/L",
+  "horizons": [
+    1,
+    7
+  ],
+  "test_start": "2026-09-29",
+  "models": [
+    "persistence",
+    "damped_trend",
+    "ridge_history",
+    "ridge_panel",
+    "panel_analog",
+    "ridge_panel_context",
+    "boosted_panel_context"
+  ],
+  "ridge_alpha": 30,
+  "training_lookback_days": 365,
+  "minimum_training_rows": 90,
+  "analog_neighbors": 15,
+  "known_limitations": [
+    "New test is retrospective, not a saved forward forecast",
+    "Monthly archive release times and later corrections are not reconstructed vintages",
+    "Forecast origin is after Brisbane day end; today's partial day is not equivalent",
+    "Fixed settings are not optimised on the final temporal slice",
+    "Fresh horizon sample sizes vary; do not average unlike test dates"
+  ],
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "3.0.1",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "threadpoolctl": "3.7.0"
+  },
+  "upstream_input_sha256": "10981f539887e9f2d6dfec155c335985156910d96ada000447aa9173ddf33e05",
+  "boosting_parameters": {
+    "max_iter": 100,
+    "max_leaf_nodes": 7,
+    "learning_rate": 0.05,
+    "l2_regularization": 10,
+    "min_samples_leaf": 20,
+    "random_state": 20261104
+  }
+}

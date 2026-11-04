@@ -1,0 +1,46 @@
+[
+  {
+    "source": "brent",
+    "url": "https://api.eia.gov/v2/petroleum/pri/spt/data/ (series RBRTE; credential omitted)",
+    "sha256": "71c4a05b4536b973b96e846d0423f867e8c67cf6203c4eef496817fd6dd254b4",
+    "rows": 964,
+    "first": "2023-01-03",
+    "last": "2026-10-27",
+    "assumed_lag_calendar_days": 4,
+    "retrieved_at_utc": "2026-11-04T05:09:18.989128+00:00",
+    "vintage_status": "current historical file; not archived real-time vintage"
+  },
+  {
+    "source": "gasoline_gulf",
+    "url": "https://api.eia.gov/v2/petroleum/pri/spt/data/ (series EER_EPMRU_PF4_RGC_DPG; credential omitted)",
+    "sha256": "7f5766b05a3cf0268ff6bf4f9ed8de39adfcc2a6bb37c7bde41307124960d8e3",
+    "rows": 952,
+    "first": "2023-01-03",
+    "last": "2026-10-27",
+    "assumed_lag_calendar_days": 4,
+    "retrieved_at_utc": "2026-11-04T05:09:20.095962+00:00",
+    "vintage_status": "current historical file; not archived real-time vintage"
+  },
+  {
+    "source": "audusd",
+    "url": "https://www.rba.gov.au/statistics/tables/csv/f11.1-data.csv",
+    "sha256": "bd7da0a83eb3a7a03fdf6176e8a664f9fffcbeccfd53c3fdf3c6034c4d28a6e6",
+    "rows": 964,
+    "first": "2023-01-03",
+    "last": "2026-11-03",
+    "assumed_lag_calendar_days": 1,
+    "retrieved_at_utc": "2026-11-04T05:09:20.311886+00:00",
+    "vintage_status": "current historical file; not archived real-time vintage"
+  },
+  {
+    "source": "tgp",
+    "url": "https://aip.com.au/wp-content/uploads/2026/10/AIP_TGP_Data_30-Oct-2026.xlsx",
+    "sha256": "9befade7a7cbea53e8b658ca907258e9572ce00bb1c1751c33f4797a4f3be500",
+    "rows": 1000,
+    "first": "2023-01-02",
+    "last": "2026-10-30",
+    "assumed_lag_calendar_days": 1,
+    "retrieved_at_utc": "2026-11-04T05:09:24.433214+00:00",
+    "vintage_status": "current historical file; not archived real-time vintage"
+  }
+]

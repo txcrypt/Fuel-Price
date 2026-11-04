@@ -1,0 +1,10 @@
+{
+  "diagnostic_only": true,
+  "causal_effect_identified": false,
+  "feature": "trailing 7-calendar-day change in the value available at origin",
+  "target": "endpoint change from origin to origin+horizon",
+  "lag_sensitivity": "default AIP/RBA1 EIA4 days; conservative AIP/RBA2 EIA8",
+  "multiple_comparisons": 384,
+  "excise_exclusion": "2025 Feb3,Aug4;2026 Feb2,Apr1,Jul1,Aug3 +/-14d; any intersecting target window excluded",
+  "caveat": "Current files and assumed lags; overlapping changes; descriptive correlations only; no p-value or causal claim."
+}

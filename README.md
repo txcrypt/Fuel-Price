@@ -145,6 +145,12 @@ be compared against these saved forecasts rather than just an in-sample fit.
 
 ## Code and API
 
+The [4 November 2026 research findings](docs/research-findings-2026-11-04.md)
+cover the historical-data audit, Australian literature, walk-forward model
+comparisons, upstream-cost diagnostics and a forward-validation protocol.
+Experiments and reproduction commands are in [research/](research/README.md).
+Research results do not change the running app's forecast or buying rules.
+
 - `fuel_dashboard.py`: local HTTP server, scheduling, routes.
 - `fuel_engine.py`: Queensland API requests and Brisbane U91 filtering.
 - `local_data.py`: collection, CSV writes, data health, observed history.

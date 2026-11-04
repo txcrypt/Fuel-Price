@@ -1,0 +1,7 @@
+-r ../requirements.txt
+# Optional research-only models and figures; the dashboard does not import these.
+scikit-learn>=1.5,<2
+matplotlib>=3.8,<4
+openpyxl>=3.1,<4
+# Optional bounded WATC report extraction; never imported by the dashboard.
+pypdf>=5,<7

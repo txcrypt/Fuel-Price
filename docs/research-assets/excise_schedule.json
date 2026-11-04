@@ -1,0 +1,56 @@
+{
+  "initial_excise_cpl": 50.6,
+  "schedule": [
+    [
+      "2025-02-03",
+      "2025-01-31",
+      50.8
+    ],
+    [
+      "2025-08-04",
+      "2025-07-31",
+      51.6
+    ],
+    [
+      "2026-02-02",
+      "2026-01-29",
+      52.6
+    ],
+    [
+      "2026-04-01",
+      "2026-03-31",
+      26.3
+    ],
+    [
+      "2026-07-01",
+      "2026-03-31",
+      52.6
+    ],
+    [
+      "2026-04-01",
+      "2026-04-03",
+      20.6
+    ],
+    [
+      "2026-07-01",
+      "2026-06-22",
+      36.6
+    ],
+    [
+      "2026-08-03",
+      "2026-06-22",
+      52.6
+    ],
+    [
+      "2026-08-03",
+      "2026-07-30",
+      53.7
+    ]
+  ],
+  "pass_through_days": 7,
+  "gst_multiplier": 1.1,
+  "status": "exploratory after initial model results; no independent confirmation claimed",
+  "availability": "primary announcement/document dates +1 calendar day, not recorded vintages",
+  "sources_and_timing_caveats": "docs/research-literature-2026-11-04.md",
+  "causal_effect_identified": false
+}

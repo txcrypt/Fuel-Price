@@ -1,0 +1,476 @@
+{
+  "as_of_brisbane_date": "2026-11-04",
+  "database_read_only": true,
+  "database_table_counts": {
+    "snapshots": 510272,
+    "sqlite_sequence": 3,
+    "daily_stats": 37,
+    "tgp_history": 20,
+    "market_data": 0,
+    "predictions": 0,
+    "local_forecasts": 119,
+    "api_price_events": 92586,
+    "context_observations": 225,
+    "reported_price_events": 150308,
+    "import_sources": 22,
+    "context_vintages": 98,
+    "forward_predictions": 392
+  },
+  "bounds": {
+    "lat_min": -27.7,
+    "lat_max": -27.0,
+    "lng_min": 152.7,
+    "lng_max": 153.5
+  },
+  "reported": {
+    "events": 150308,
+    "sources": 22,
+    "stations": 509,
+    "first_day": "2025-01-01",
+    "last_day": "2026-10-31",
+    "days": 669,
+    "station_count_min": 270,
+    "station_count_median": 486.0,
+    "station_count_max": 502,
+    "carry_forward_fraction": 0.658441822302102,
+    "unavailability_events": 1157
+  },
+  "collected": {
+    "days": 38,
+    "completed_days": 37,
+    "first_day": "2025-12-03",
+    "last_day": "2026-11-04",
+    "dates": [
+      "2025-12-03",
+      "2025-12-04",
+      "2025-12-05",
+      "2025-12-06",
+      "2025-12-15",
+      "2025-12-21",
+      "2026-01-04",
+      "2026-01-16",
+      "2026-01-22",
+      "2026-01-24",
+      "2026-04-13",
+      "2026-07-03",
+      "2026-07-04",
+      "2026-07-05",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08",
+      "2026-07-09",
+      "2026-07-10",
+      "2026-07-11",
+      "2026-07-12",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23",
+      "2026-11-04"
+    ]
+  },
+  "overlap": {
+    "days": 37,
+    "median_absolute_median_difference_cpl": 0.0,
+    "max_absolute_median_difference_cpl": 8.0
+  },
+  "ambiguous_report_timestamps": {
+    "groups": 75,
+    "policy": "maximum price at conflicting site/report timestamp; this is deterministic, not verified true ordering",
+    "median_sensitivity_days": 4,
+    "max_median_sensitivity_cpl": 1.0,
+    "sensitivity": {
+      "2025-01-07": 0.29999999999998295,
+      "2025-10-22": 1.0,
+      "2025-11-11": 0.5999999999999943,
+      "2026-07-21": 0.09999999999999432
+    }
+  },
+  "forward_predictions": {
+    "saved_rows": 392,
+    "scored_rows": 172,
+    "unique_issued_dates": 11,
+    "unique_target_dates": 11,
+    "table": [
+      {
+        "model": "analog",
+        "horizon": 1,
+        "n": 10,
+        "unique_origins": 10,
+        "unique_target_days": 10,
+        "mae_cpl": 0.4199999999999989,
+        "rmse_cpl": 0.6099180272790752,
+        "bias_cpl": -0.1
+      },
+      {
+        "model": "analog",
+        "horizon": 2,
+        "n": 8,
+        "unique_origins": 8,
+        "unique_target_days": 8,
+        "mae_cpl": 0.8249999999999993,
+        "rmse_cpl": 0.8916277250063499,
+        "bias_cpl": -0.3249999999999993
+      },
+      {
+        "model": "analog",
+        "horizon": 3,
+        "n": 7,
+        "unique_origins": 7,
+        "unique_target_days": 7,
+        "mae_cpl": 0.9428571428571421,
+        "rmse_cpl": 0.9531901324349867,
+        "bias_cpl": -0.3714285714285706
+      },
+      {
+        "model": "analog",
+        "horizon": 4,
+        "n": 6,
+        "unique_origins": 6,
+        "unique_target_days": 6,
+        "mae_cpl": 0.9333333333333323,
+        "rmse_cpl": 1.0456258094238733,
+        "bias_cpl": -0.5999999999999991
+      },
+      {
+        "model": "analog",
+        "horizon": 5,
+        "n": 5,
+        "unique_origins": 5,
+        "unique_target_days": 5,
+        "mae_cpl": 0.9199999999999988,
+        "rmse_cpl": 1.2296340919151503,
+        "bias_cpl": -0.9199999999999988
+      },
+      {
+        "model": "analog",
+        "horizon": 6,
+        "n": 4,
+        "unique_origins": 4,
+        "unique_target_days": 4,
+        "mae_cpl": 0.8999999999999986,
+        "rmse_cpl": 1.280624847486568,
+        "bias_cpl": -0.8999999999999986
+      },
+      {
+        "model": "analog",
+        "horizon": 7,
+        "n": 3,
+        "unique_origins": 3,
+        "unique_target_days": 3,
+        "mae_cpl": 0.6666666666666666,
+        "rmse_cpl": 1.1547005383792515,
+        "bias_cpl": -0.6666666666666666
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 1,
+        "n": 10,
+        "unique_origins": 10,
+        "unique_target_days": 10,
+        "mae_cpl": 0.4,
+        "rmse_cpl": 0.5932958789676528,
+        "bias_cpl": -0.2
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 2,
+        "n": 8,
+        "unique_origins": 8,
+        "unique_target_days": 8,
+        "mae_cpl": 0.8249999999999993,
+        "rmse_cpl": 0.8916277250063499,
+        "bias_cpl": -0.3249999999999993
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 3,
+        "n": 7,
+        "unique_origins": 7,
+        "unique_target_days": 7,
+        "mae_cpl": 0.9428571428571421,
+        "rmse_cpl": 0.9531901324349867,
+        "bias_cpl": -0.3714285714285706
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 4,
+        "n": 6,
+        "unique_origins": 6,
+        "unique_target_days": 6,
+        "mae_cpl": 0.9333333333333323,
+        "rmse_cpl": 1.0456258094238733,
+        "bias_cpl": -0.5999999999999991
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 5,
+        "n": 5,
+        "unique_origins": 5,
+        "unique_target_days": 5,
+        "mae_cpl": 0.9199999999999988,
+        "rmse_cpl": 1.2296340919151503,
+        "bias_cpl": -0.9199999999999988
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 6,
+        "n": 4,
+        "unique_origins": 4,
+        "unique_target_days": 4,
+        "mae_cpl": 0.8999999999999986,
+        "rmse_cpl": 1.280624847486568,
+        "bias_cpl": -0.8999999999999986
+      },
+      {
+        "model": "damped_trend",
+        "horizon": 7,
+        "n": 3,
+        "unique_origins": 3,
+        "unique_target_days": 3,
+        "mae_cpl": 0.6666666666666666,
+        "rmse_cpl": 1.1547005383792515,
+        "bias_cpl": -0.6666666666666666
+      },
+      {
+        "model": "persistence",
+        "horizon": 1,
+        "n": 10,
+        "unique_origins": 10,
+        "unique_target_days": 10,
+        "mae_cpl": 0.4,
+        "rmse_cpl": 0.5932958789676528,
+        "bias_cpl": -0.2
+      },
+      {
+        "model": "persistence",
+        "horizon": 2,
+        "n": 8,
+        "unique_origins": 8,
+        "unique_target_days": 8,
+        "mae_cpl": 0.8249999999999993,
+        "rmse_cpl": 0.8916277250063499,
+        "bias_cpl": -0.3249999999999993
+      },
+      {
+        "model": "persistence",
+        "horizon": 3,
+        "n": 7,
+        "unique_origins": 7,
+        "unique_target_days": 7,
+        "mae_cpl": 0.9428571428571421,
+        "rmse_cpl": 0.9531901324349867,
+        "bias_cpl": -0.3714285714285706
+      },
+      {
+        "model": "persistence",
+        "horizon": 4,
+        "n": 6,
+        "unique_origins": 6,
+        "unique_target_days": 6,
+        "mae_cpl": 0.9333333333333323,
+        "rmse_cpl": 1.0456258094238733,
+        "bias_cpl": -0.5999999999999991
+      },
+      {
+        "model": "persistence",
+        "horizon": 5,
+        "n": 5,
+        "unique_origins": 5,
+        "unique_target_days": 5,
+        "mae_cpl": 0.9199999999999988,
+        "rmse_cpl": 1.2296340919151503,
+        "bias_cpl": -0.9199999999999988
+      },
+      {
+        "model": "persistence",
+        "horizon": 6,
+        "n": 4,
+        "unique_origins": 4,
+        "unique_target_days": 4,
+        "mae_cpl": 0.8999999999999986,
+        "rmse_cpl": 1.280624847486568,
+        "bias_cpl": -0.8999999999999986
+      },
+      {
+        "model": "persistence",
+        "horizon": 7,
+        "n": 3,
+        "unique_origins": 3,
+        "unique_target_days": 3,
+        "mae_cpl": 0.6666666666666666,
+        "rmse_cpl": 1.1547005383792515,
+        "bias_cpl": -0.6666666666666666
+      },
+      {
+        "model": "weekly",
+        "horizon": 1,
+        "n": 10,
+        "unique_origins": 10,
+        "unique_target_days": 10,
+        "mae_cpl": 0.5599999999999994,
+        "rmse_cpl": 0.8579044235810883,
+        "bias_cpl": -0.35999999999999943
+      },
+      {
+        "model": "weekly",
+        "horizon": 2,
+        "n": 8,
+        "unique_origins": 8,
+        "unique_target_days": 8,
+        "mae_cpl": 0.8249999999999993,
+        "rmse_cpl": 1.0222524150130432,
+        "bias_cpl": -0.3249999999999993
+      },
+      {
+        "model": "weekly",
+        "horizon": 3,
+        "n": 7,
+        "unique_origins": 7,
+        "unique_target_days": 7,
+        "mae_cpl": 0.7999999999999992,
+        "rmse_cpl": 1.0253919111386487,
+        "bias_cpl": -0.22857142857142776
+      },
+      {
+        "model": "weekly",
+        "horizon": 4,
+        "n": 6,
+        "unique_origins": 6,
+        "unique_target_days": 6,
+        "mae_cpl": 0.7666666666666657,
+        "rmse_cpl": 1.122497216032181,
+        "bias_cpl": -0.4333333333333324
+      },
+      {
+        "model": "weekly",
+        "horizon": 5,
+        "n": 5,
+        "unique_origins": 5,
+        "unique_target_days": 5,
+        "mae_cpl": 0.7199999999999989,
+        "rmse_cpl": 1.1454256850621067,
+        "bias_cpl": -0.7199999999999989
+      },
+      {
+        "model": "weekly",
+        "horizon": 6,
+        "n": 4,
+        "unique_origins": 4,
+        "unique_target_days": 4,
+        "mae_cpl": 0.8999999999999986,
+        "rmse_cpl": 1.280624847486568,
+        "bias_cpl": -0.8999999999999986
+      },
+      {
+        "model": "weekly",
+        "horizon": 7,
+        "n": 3,
+        "unique_origins": 3,
+        "unique_target_days": 3,
+        "mae_cpl": 0.6666666666666666,
+        "rmse_cpl": 1.1547005383792515,
+        "bias_cpl": -0.6666666666666666
+      }
+    ],
+    "limitations": [
+      "Issue date only; exact issuance time, code version and feature snapshot are absent.",
+      "First daily forecast is retained by INSERT OR IGNORE. Origin inputs can be intraday.",
+      "Target is final observed capture on each collected day, which can precede midnight.",
+      "Overlapping target windows and repeated target days are dependent."
+    ]
+  },
+  "merged_completed": {
+    "days": 669,
+    "first_day": "2025-01-01",
+    "last_day": "2026-10-31",
+    "missing_calendar_days": 0,
+    "post_2026_09_28_days": 33,
+    "post_2026_09_28_collected_days": 12
+  },
+  "warnings": [
+    "Reported data is retrospective and report timestamps are assumed genuine; it is not archived live API evidence.",
+    "Observed dates are not known-at timestamps. Use context_vintages.known_at for strict point-in-time evaluation.",
+    "Current-day observations are provisional and excluded from completed-day counts.",
+    "Collected daily closes can precede midnight; reported-versus-collected target differences must be quantified.",
+    "Legacy event-only brisbane_fuel_history_clean.csv has no collection timestamps and is excluded."
+  ],
+  "exports": {
+    "ambiguous_report_timestamps.csv": {
+      "sha256": "5e0995de44a37f8e46336eb7637bdecf6d0c67657afe41263473808307a19e2c",
+      "bytes": 12586
+    },
+    "collected_panel.csv": {
+      "sha256": "049ecffce40c680f3a11a87a415d613c14659f3488b495a2235cc3b928dee513",
+      "bytes": 119241
+    },
+    "context_observations.csv": {
+      "sha256": "ab275eb6b75f75d19fb4214936a3140c2cba2f0f4288dd7a60f7927844f39016",
+      "bytes": 19083
+    },
+    "context_vintages.csv": {
+      "sha256": "13a17a1b6afd42937c57d80a2e7961be5d4b2b970edcbc0900fe68e2c26ba47a",
+      "bytes": 5319
+    },
+    "daily_collected.csv": {
+      "sha256": "87449e3f72c912f002d07144e1505251e06c9e485b9857efcdfa336df04421c0",
+      "bytes": 6132
+    },
+    "daily_merged.csv": {
+      "sha256": "5eaa1f5848f1fe562bff028bd9041d446127896a652788596ff8bf37d762382d",
+      "bytes": 112717
+    },
+    "daily_reported.csv": {
+      "sha256": "8470ab2be2bad0b81186336c6421c81b81415caaa024d9bbe92b44251faff48a",
+      "bytes": 110142
+    },
+    "forward_predictions.csv": {
+      "sha256": "b80f6650a94a678f1e64a37cdfac3d68f07cafde69259513df6362beab869524",
+      "bytes": 15227
+    },
+    "forward_scoreboard.csv": {
+      "sha256": "66fca140b178f753ce7bc838f837bb8cd7bcede2aac2910e361833f4ade952a2",
+      "bytes": 2160
+    },
+    "forward_scored_collected.csv": {
+      "sha256": "9cb69771fea78f356c85f376c3671d04e68c938dae8c60bbd88dd0eb82a8ead1",
+      "bytes": 15750
+    },
+    "import_sources.csv": {
+      "sha256": "564cfc66f3bbde874d965dcd7ba2b8fc71d8261573bad680e5fb8dad292ecc13",
+      "bytes": 9067
+    },
+    "local_forecasts.csv": {
+      "sha256": "dc836dd6d4b8fd2261848dddccc16c5fb95ce4439968d884ce66744730b67343",
+      "bytes": 5000
+    },
+    "reported_events.csv": {
+      "sha256": "3c3ec6578530fcf73c8576ea942fc15329ff200334508cd99f2b7a25782c3090",
+      "bytes": 12473298
+    },
+    "reported_panel.csv": {
+      "sha256": "d5b1c48c96ffaa97831a90b564781888648fce1252b80657ecad0cf8ecce3dc2",
+      "bytes": 1952761
+    },
+    "tgp_history.csv": {
+      "sha256": "2423403102e3caf711ba3a39807cec4ef7c2349e3aa582fae6ed5d6e24193b2f",
+      "bytes": 638
+    },
+    "upstream_history.csv": {
+      "sha256": "10981f539887e9f2d6dfec155c335985156910d96ada000447aa9173ddf33e05",
+      "bytes": 143198
+    }
+  }
+}
